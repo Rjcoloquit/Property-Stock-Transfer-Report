@@ -12,6 +12,7 @@ $success = false;
 $recipientOptions = [];
 $descriptionOptions = [];
 $programOptions = [];
+$unitOptions = [];
 $productMetaByDescription = [];
 $batchNumbersByDescription = [];
 $batchMetaByDescription = [];
@@ -148,8 +149,27 @@ try {
         if ($program !== '' && !in_array($program, $programOptions, true)) {
             $programOptions[] = $program;
         }
+        $unit = trim((string) ($row['uom'] ?? ''));
+        if ($unit !== '' && !in_array($unit, $unitOptions, true)) {
+            $unitOptions[] = $unit;
+        }
     }
     sort($programOptions, SORT_NATURAL | SORT_FLAG_CASE);
+
+    $inventoryUnitStmt = $pdo->query('
+        SELECT DISTINCT TRIM(unit) AS unit_name
+        FROM inventory_records
+        WHERE unit IS NOT NULL AND TRIM(unit) <> ""
+        ORDER BY unit_name ASC
+    ');
+    $inventoryUnits = $inventoryUnitStmt->fetchAll(PDO::FETCH_COLUMN);
+    foreach ($inventoryUnits as $inventoryUnit) {
+        $unit = trim((string) $inventoryUnit);
+        if ($unit !== '' && !in_array($unit, $unitOptions, true)) {
+            $unitOptions[] = $unit;
+        }
+    }
+    sort($unitOptions, SORT_NATURAL | SORT_FLAG_CASE);
 
     if ($hasProductBatchesTable) {
         $batchStmt = $pdo->query('
@@ -204,9 +224,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     $descriptions = isset($_POST['description']) && is_array($_POST['description']) ? $_POST['description'] : [];
     $batchNumbers = isset($_POST['batch_number']) && is_array($_POST['batch_number']) ? $_POST['batch_number'] : [];
+    $units = isset($_POST['unit']) && is_array($_POST['unit']) ? $_POST['unit'] : [];
     $programs = isset($_POST['program']) && is_array($_POST['program']) ? $_POST['program'] : [];
     $quantities = isset($_POST['quantity']) && is_array($_POST['quantity']) ? $_POST['quantity'] : [];
-    $rowCount = max(count($descriptions), count($batchNumbers), count($programs), count($quantities));
+    $rowCount = max(count($descriptions), count($batchNumbers), count($units), count($programs), count($quantities));
     $stockDeductionPlan = [];
 
     if ($data['record_date'] === '') {
@@ -219,6 +240,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     for ($i = 0; $i < $rowCount; $i++) {
         $description = trim((string) ($descriptions[$i] ?? ''));
         $batchNumber = trim((string) ($batchNumbers[$i] ?? ''));
+        $unitRaw = trim((string) ($units[$i] ?? ''));
         $programRaw = trim((string) ($programs[$i] ?? ''));
         $quantityRaw = trim((string) ($quantities[$i] ?? ''));
 
@@ -229,6 +251,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $item = createBlankItem();
         $item['description'] = $description;
         $item['batch_number'] = $batchNumber;
+        $item['unit'] = $unitRaw;
         $item['program'] = $programRaw;
         $item['quantity'] = $quantityRaw;
 
@@ -245,7 +268,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($programRaw === '') {
             $errors[] = 'program is required before entering';
             $selectedProduct = $productMetaByDescription[$description];
-            $item['unit'] = $selectedProduct['unit'];
+            $item['unit'] = $unitRaw !== '' ? $unitRaw : $selectedProduct['unit'];
             $item['unit_cost'] = number_format((float) $selectedProduct['unit_cost'], 2, '.', '');
             $batchExpiration = '';
             if ($batchNumber !== '' && isset($batchMetaByDescription[$description][$batchNumber])) {
@@ -258,7 +281,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($quantityRaw === '' || !ctype_digit($quantityRaw) || (int) $quantityRaw <= 0) {
             $errors[] = 'Quantity must be a positive whole number on row ' . ($i + 1) . '.';
             $selectedProduct = $productMetaByDescription[$description];
-            $item['unit'] = $selectedProduct['unit'];
+            $item['unit'] = $unitRaw !== '' ? $unitRaw : $selectedProduct['unit'];
             $item['unit_cost'] = number_format((float) $selectedProduct['unit_cost'], 2, '.', '');
             $item['expiration_date'] = $selectedProduct['expiration_date'];
             $data['items'][] = $item;
@@ -266,7 +289,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
 
         $selectedProduct = $productMetaByDescription[$description];
-        $item['unit'] = $selectedProduct['unit'];
+        $item['unit'] = $unitRaw !== '' ? $unitRaw : $selectedProduct['unit'];
         $item['unit_cost'] = number_format((float) $selectedProduct['unit_cost'], 2, '.', '');
         $batchExpiration = '';
         if ($batchNumber !== '' && isset($batchMetaByDescription[$description][$batchNumber])) {
@@ -640,8 +663,18 @@ $previewLineRows = 10;
                                                     autocomplete="off"
                                                     value="<?= htmlspecialchars((string) ($item['quantity'] ?? '')) ?>"
                                                 >
+                                                <div class="form-text item-stock-hint"></div>
                                             </td>
-                                            <td><input type="text" class="form-control item-unit" value="<?= htmlspecialchars((string) ($item['unit'] ?? '')) ?>" readonly></td>
+                                            <td>
+                                                <input
+                                                    type="text"
+                                                    name="unit[]"
+                                                    class="form-control item-unit"
+                                                    list="unitOptionsList"
+                                                    value="<?= htmlspecialchars((string) ($item['unit'] ?? '')) ?>"
+                                                    placeholder="Type or select unit"
+                                                >
+                                            </td>
                                             <td><input type="text" class="form-control item-unit-cost" value="<?= htmlspecialchars((string) ($item['unit_cost'] ?? '')) ?>" readonly></td>
                                             <td><input type="text" class="form-control item-amount" value="" readonly></td>
                                             <td>
@@ -671,6 +704,11 @@ $previewLineRows = 10;
                         <datalist id="programOptionsList">
                             <?php foreach ($programOptions as $programOption): ?>
                                 <option value="<?= htmlspecialchars($programOption) ?>"></option>
+                            <?php endforeach; ?>
+                        </datalist>
+                        <datalist id="unitOptionsList">
+                            <?php foreach ($unitOptions as $unitOption): ?>
+                                <option value="<?= htmlspecialchars($unitOption) ?>"></option>
                             <?php endforeach; ?>
                         </datalist>
 
@@ -837,6 +875,7 @@ $previewLineRows = 10;
             acc[String(key).trim().toLowerCase()] = batchMetaByDescription[key];
             return acc;
         }, {});
+        const hasProductBatches = <?= $hasProductBatchesTable ? 'true' : 'false' ?>;
         const previewLineRows = <?= (int) $previewLineRows ?>;
         const ptrForm = document.getElementById('ptrForm');
         const nextPreviewBtn = document.getElementById('nextPreviewBtn');
@@ -947,6 +986,7 @@ $previewLineRows = 10;
 
             if (!selectedProduct) {
                 unitInput.value = '';
+                unitInput.dataset.autoFilled = '0';
                 unitCostInput.value = '';
                 expirationInput.value = '';
                 calculateRowAmount(row);
@@ -954,7 +994,10 @@ $previewLineRows = 10;
                 return;
             }
 
-            unitInput.value = selectedProduct.unit ?? '';
+            if (unitInput.value.trim() === '' || unitInput.dataset.autoFilled === '1') {
+                unitInput.value = selectedProduct.unit ?? '';
+                unitInput.dataset.autoFilled = '1';
+            }
             const parsedUnitCost = Number(selectedProduct.unit_cost);
             unitCostInput.value = Number.isFinite(parsedUnitCost) ? parsedUnitCost.toFixed(2) : '';
             const batchExpiration = batchValue !== '' && batchMeta[batchValue]
@@ -963,6 +1006,93 @@ $previewLineRows = 10;
             expirationInput.value = batchExpiration !== '' ? batchExpiration : (selectedProduct.expiration_date ?? '');
             calculateRowAmount(row);
             updateGrandTotal();
+        }
+
+        function getBatchMetaForSelection(descriptionValue, batchValue) {
+            const description = String(descriptionValue || '').trim();
+            const batchNumber = String(batchValue || '').trim();
+            if (description === '' || batchNumber === '') {
+                return null;
+            }
+            const meta = getDescriptionMeta(description);
+            const batchMeta = meta.batchMeta && typeof meta.batchMeta === 'object' ? meta.batchMeta : {};
+            if (batchMeta[batchNumber]) {
+                return batchMeta[batchNumber];
+            }
+            const batchLower = batchNumber.toLowerCase();
+            for (const key in batchMeta) {
+                if (Object.prototype.hasOwnProperty.call(batchMeta, key) && String(key).toLowerCase() === batchLower) {
+                    return batchMeta[key];
+                }
+            }
+            return null;
+        }
+
+        function refreshCreateRowStockHints() {
+            const rows = Array.from(itemRowsBody.querySelectorAll('.item-row'));
+            if (!hasProductBatches) {
+                rows.forEach(function (row) {
+                    const quantityInput = row.querySelector('.item-quantity');
+                    const hintEl = row.querySelector('.item-stock-hint');
+                    if (!quantityInput || !hintEl) {
+                        return;
+                    }
+                    quantityInput.removeAttribute('max');
+                    quantityInput.setCustomValidity('');
+                    hintEl.textContent = '';
+                });
+                return;
+            }
+
+            const plannedByBatchId = {};
+            const rowStates = rows.map(function (row) {
+                const descriptionInput = row.querySelector('.item-description');
+                const batchInput = row.querySelector('.item-batch-number');
+                const quantityInput = row.querySelector('.item-quantity');
+                const description = descriptionInput ? descriptionInput.value.trim() : '';
+                const batchNumber = batchInput ? batchInput.value.trim() : '';
+                const quantity = quantityInput ? (parseInt(quantityInput.value || '0', 10) || 0) : 0;
+                const selectedBatchMeta = getBatchMetaForSelection(description, batchNumber);
+                const batchId = selectedBatchMeta ? (parseInt(selectedBatchMeta.batch_id || '0', 10) || 0) : 0;
+                const availableStock = selectedBatchMeta ? (parseInt(selectedBatchMeta.stock_quantity || '0', 10) || 0) : 0;
+                if (batchId > 0) {
+                    plannedByBatchId[batchId] = (plannedByBatchId[batchId] || 0) + quantity;
+                }
+                return {
+                    row: row,
+                    quantityInput: quantityInput,
+                    hintEl: row.querySelector('.item-stock-hint'),
+                    description: description,
+                    batchNumber: batchNumber,
+                    quantity: quantity,
+                    batchId: batchId,
+                    availableStock: availableStock,
+                };
+            });
+
+            rowStates.forEach(function (state) {
+                if (!state.quantityInput || !state.hintEl) {
+                    return;
+                }
+                state.quantityInput.setCustomValidity('');
+                if (state.batchNumber === '') {
+                    state.quantityInput.removeAttribute('max');
+                    state.hintEl.textContent = '';
+                    return;
+                }
+                if (state.batchId <= 0) {
+                    state.quantityInput.removeAttribute('max');
+                    state.hintEl.textContent = 'Selected batch is not valid for this item.';
+                    return;
+                }
+                const otherPlanned = (plannedByBatchId[state.batchId] || 0) - state.quantity;
+                const remainingForRow = Math.max(0, state.availableStock - otherPlanned);
+                state.quantityInput.setAttribute('max', String(remainingForRow));
+                state.hintEl.textContent = 'Remaining stock available: ' + remainingForRow;
+                if (state.quantity > remainingForRow) {
+                    state.quantityInput.setCustomValidity('Quantity exceeds remaining stock.');
+                }
+            });
         }
 
         function createItemRow(itemData = {}) {
@@ -977,8 +1107,8 @@ $previewLineRows = 10;
             tr.innerHTML =
                 '<td><input type="text" name="description[]" class="form-control item-description" list="descriptionOptionsList" value="' + escapeHtml(itemData.description ?? '') + '" placeholder="Type or select item description"></td>' +
                 '<td><input type="text" name="batch_number[]" class="form-control item-batch-number" list="' + batchListId + '" value="' + escapeHtml(itemData.batch_number ?? '') + '" placeholder="Batch no."><datalist id="' + batchListId + '" class="item-batch-options">' + batchOptionsHtml + '</datalist></td>' +
-                '<td><input type="text" name="quantity[]" class="form-control item-quantity" inputmode="numeric" pattern="[0-9]*" autocomplete="off" value="' + escapeHtml(itemData.quantity ?? '') + '"></td>' +
-                '<td><input type="text" class="form-control item-unit" value="' + escapeHtml(itemData.unit ?? '') + '" readonly></td>' +
+                '<td><input type="text" name="quantity[]" class="form-control item-quantity" inputmode="numeric" pattern="[0-9]*" autocomplete="off" value="' + escapeHtml(itemData.quantity ?? '') + '"><div class="form-text item-stock-hint"></div></td>' +
+                '<td><input type="text" name="unit[]" class="form-control item-unit" list="unitOptionsList" value="' + escapeHtml(itemData.unit ?? '') + '" placeholder="Type or select unit"></td>' +
                 '<td><input type="text" class="form-control item-unit-cost" value="' + escapeHtml(itemData.unit_cost ?? '') + '" readonly></td>' +
                 '<td><input type="text" class="form-control item-amount" value="" readonly></td>' +
                 '<td><input type="text" name="program[]" class="form-control item-program" list="programOptionsList" value="' + escapeHtml(itemData.program ?? '') + '" placeholder="Type or select program"></td>' +
@@ -1126,11 +1256,13 @@ $previewLineRows = 10;
 
         addItemBtn.addEventListener('click', function () {
             itemRowsBody.appendChild(createItemRow());
+            refreshCreateRowStockHints();
         });
 
         itemRowsBody.addEventListener('change', function (event) {
             if (event.target.classList.contains('item-description') || event.target.classList.contains('item-batch-number')) {
                 applyRowMeta(event.target.closest('.item-row'));
+                refreshCreateRowStockHints();
             }
         });
 
@@ -1139,16 +1271,22 @@ $previewLineRows = 10;
                 const row = event.target.closest('.item-row');
                 syncRowRequiredState(row);
                 applyRowMeta(row);
+                refreshCreateRowStockHints();
                 return;
             }
             if (event.target.classList.contains('item-program')) {
                 syncRowRequiredState(event.target.closest('.item-row'));
                 return;
             }
+            if (event.target.classList.contains('item-unit')) {
+                event.target.dataset.autoFilled = '0';
+                return;
+            }
             if (event.target.classList.contains('item-batch-number')) {
                 const row = event.target.closest('.item-row');
                 syncRowRequiredState(row);
                 applyRowMeta(row);
+                refreshCreateRowStockHints();
                 return;
             }
             if (event.target.classList.contains('item-quantity')) {
@@ -1157,6 +1295,7 @@ $previewLineRows = 10;
                 syncRowRequiredState(row);
                 calculateRowAmount(row);
                 updateGrandTotal();
+                refreshCreateRowStockHints();
             }
         });
 
@@ -1172,10 +1311,12 @@ $previewLineRows = 10;
                 row.querySelector('.item-program').value = '';
                 row.querySelector('.item-quantity').value = '';
                 applyRowMeta(row);
+                refreshCreateRowStockHints();
                 return;
             }
             row.remove();
             updateGrandTotal();
+            refreshCreateRowStockHints();
         });
 
         printPreviewBtn.addEventListener('click', function () {
@@ -1219,6 +1360,7 @@ $previewLineRows = 10;
             applyRowMeta(row);
         });
         updateGrandTotal();
+        refreshCreateRowStockHints();
     </script>
 </body>
 </html>
