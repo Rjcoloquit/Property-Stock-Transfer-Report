@@ -5,6 +5,7 @@
     var reportBatchNumbersByDescription = config.batchNumbersByDescription || {};
     var reportBatchMetaByDescription = config.batchMetaByDescription || {};
     var reportUnitCostByDescription = config.unitCostByDescription || {};
+    var reportPoNoByDescription = config.poNoByDescription || {};
     var reportHasProductBatches = !!config.hasProductBatches;
     var reportShowEditModal = !!config.showEditModal;
     var reportShowAddModal = !!config.showAddModal;
@@ -19,6 +20,10 @@
     }, {});
     var reportUnitCostByDescriptionLower = Object.keys(reportUnitCostByDescription).reduce(function (acc, key) {
         acc[String(key).trim().toLowerCase()] = reportUnitCostByDescription[key];
+        return acc;
+    }, {});
+    var reportPoNoByDescriptionLower = Object.keys(reportPoNoByDescription).reduce(function (acc, key) {
+        acc[String(key).trim().toLowerCase()] = reportPoNoByDescription[key];
         return acc;
     }, {});
 
@@ -97,7 +102,29 @@
         }, null);
     }
 
-    function bindReportDescriptionDependencies(descriptionInputId, datalistId, unitCostInputId) {
+    function updateReportPoNo(descriptionInputId, poNoInputId) {
+        var descriptionInput = document.getElementById(descriptionInputId);
+        var poNoInput = document.getElementById(poNoInputId);
+        if (!descriptionInput || !poNoInput) {
+            return;
+        }
+        if (poNoInput.dataset.autoFilled === '0') {
+            return;
+        }
+        var description = String(descriptionInput.value || '').trim();
+        if (description === '') {
+            poNoInput.value = '';
+            poNoInput.dataset.autoFilled = '0';
+            return;
+        }
+        var exactPoNo = reportPoNoByDescription[description];
+        var lowerPoNo = reportPoNoByDescriptionLower[description.toLowerCase()];
+        var selectedPoNo = exactPoNo !== undefined ? exactPoNo : lowerPoNo;
+        poNoInput.value = selectedPoNo !== undefined ? String(selectedPoNo) : '';
+        poNoInput.dataset.autoFilled = '1';
+    }
+
+    function bindReportDescriptionDependencies(descriptionInputId, datalistId, unitCostInputId, poNoInputId) {
         var descriptionInput = document.getElementById(descriptionInputId);
         if (!descriptionInput) {
             return;
@@ -108,15 +135,26 @@
             if (unitCostInputId) {
                 updateReportUnitCost(descriptionInputId, unitCostInputId);
             }
+            if (poNoInputId) {
+                updateReportPoNo(descriptionInputId, poNoInputId);
+            }
         };
 
         descriptionInput.addEventListener('input', refresh);
         descriptionInput.addEventListener('change', refresh);
+
+        var poNoInput = poNoInputId ? document.getElementById(poNoInputId) : null;
+        if (poNoInput) {
+            poNoInput.addEventListener('input', function () {
+                poNoInput.dataset.autoFilled = '0';
+            });
+        }
+
         refresh();
     }
 
     document.addEventListener('DOMContentLoaded', function () {
-        bindReportDescriptionDependencies('add_description', 'reportAddBatchOptionsList', 'add_unit_cost');
+        bindReportDescriptionDependencies('add_description', 'reportAddBatchOptionsList', 'add_unit_cost', 'add_po_number');
 
         var addDescriptionInput = document.getElementById('add_description');
         var addBatchInput = document.getElementById('add_batch_number');
@@ -247,6 +285,7 @@
             var descriptionInput = row.querySelector('.edit-group-description');
             var batchInput = row.querySelector('.edit-group-batch');
             var qtyInput = row.querySelector('.edit-group-quantity');
+            var poNoInput = row.querySelector('.edit-group-po-number');
             if (!descriptionInput || !batchInput) {
                 return;
             }
@@ -265,6 +304,13 @@
                 batchDatalist.innerHTML = options
                     .map(function (batchNo) { return '<option value="' + reportEscapeHtml(batchNo) + '"></option>'; })
                     .join('');
+                if (poNoInput && (poNoInput.value.trim() === '' || poNoInput.dataset.autoFilled === '1')) {
+                    var exactPoNo = reportPoNoByDescription[description];
+                    var lowerPoNo = reportPoNoByDescriptionLower[description.toLowerCase()];
+                    var selectedPoNo = exactPoNo !== undefined ? exactPoNo : lowerPoNo;
+                    poNoInput.value = selectedPoNo !== undefined ? String(selectedPoNo) : '';
+                    poNoInput.dataset.autoFilled = '1';
+                }
                 refreshEditRowStocks();
             };
 
@@ -276,6 +322,11 @@
                 qtyInput.addEventListener('input', function () {
                     qtyInput.value = qtyInput.value.replace(/\D+/g, '');
                     refreshEditRowStocks();
+                });
+            }
+            if (poNoInput) {
+                poNoInput.addEventListener('input', function () {
+                    poNoInput.dataset.autoFilled = '0';
                 });
             }
             refreshBatchList();

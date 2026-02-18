@@ -139,6 +139,7 @@
         var unitInput = row.querySelector('.item-unit');
         var unitCostInput = row.querySelector('.item-unit-cost');
         var expirationInput = row.querySelector('.item-expiration');
+        var poNoInput = row.querySelector('.item-po-number');
         var meta = getDescriptionMeta(descriptionValue);
         var selectedProduct = meta.selectedProduct;
         var batchOptions = meta.batchOptions;
@@ -155,6 +156,10 @@
             unitInput.dataset.autoFilled = '0';
             unitCostInput.value = '';
             expirationInput.value = '';
+            if (poNoInput) {
+                poNoInput.value = '';
+                poNoInput.dataset.autoFilled = '0';
+            }
             calculateRowAmount(row);
             updateGrandTotal();
             return;
@@ -163,6 +168,10 @@
         if (unitInput.value.trim() === '' || unitInput.dataset.autoFilled === '1') {
             unitInput.value = selectedProduct.unit || '';
             unitInput.dataset.autoFilled = '1';
+        }
+        if (poNoInput && (poNoInput.value.trim() === '' || poNoInput.dataset.autoFilled === '1')) {
+            poNoInput.value = selectedProduct.po_no || '';
+            poNoInput.dataset.autoFilled = '1';
         }
         var parsedUnitCost = Number(selectedProduct.unit_cost);
         unitCostInput.value = Number.isFinite(parsedUnitCost) ? parsedUnitCost.toFixed(2) : '';
@@ -449,6 +458,10 @@
             return;
         }
         if (event.target.classList.contains('item-unit')) {
+            event.target.dataset.autoFilled = '0';
+            return;
+        }
+        if (event.target.classList.contains('item-po-number')) {
             event.target.dataset.autoFilled = '0';
             return;
         }

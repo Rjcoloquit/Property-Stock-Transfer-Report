@@ -298,80 +298,91 @@ body {
 }
 
 .report-tx-table-wrap {
-    border: 1px solid #e1ebe4;
-    border-radius: 10px;
+    border: 1px solid #d4e5da;
+    border-radius: 8px;
     overflow: hidden;
 }
 
 .report-summary-grid {
     display: grid;
-    grid-template-columns: repeat(3, minmax(220px, 1fr));
-    gap: 10px;
+    grid-template-columns: repeat(3, minmax(200px, 1fr));
+    gap: 12px;
 }
 
 .report-summary-box {
-    border: 1px solid #dce9df;
-    border-radius: 10px;
-    padding: 10px 12px;
+    border: 1px solid #d4e5da;
+    border-radius: 8px;
+    padding: 12px 14px;
     background: #fff;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
 }
 
 .report-summary-label {
-    font-size: 0.74rem;
+    font-size: 0.72rem;
+    font-weight: 500;
     color: #5a7464;
     text-transform: uppercase;
-    letter-spacing: 0.3px;
+    letter-spacing: 0.4px;
+    margin-bottom: 2px;
 }
 
 .report-summary-value {
-    font-size: 1.15rem;
+    font-size: 1.2rem;
     font-weight: 700;
     line-height: 1.2;
     color: #1f3b2d;
     word-break: break-word;
 }
 
-.report-tx-table {
-    table-layout: fixed;
-    margin-bottom: 0;
-    width: 100%;
-}
-
 .report-group-block {
-    border: 1px solid #dce9df;
-    border-radius: 10px;
+    border: 1px solid #d4e5da;
+    border-radius: 8px;
     background: #fff;
-    margin-bottom: 12px;
+    margin-bottom: 14px;
     overflow: hidden;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
 }
 
 .report-group-head {
     display: flex;
     flex-wrap: wrap;
-    gap: 8px;
+    gap: 8px 12px;
     justify-content: space-between;
     align-items: center;
-    padding: 10px 12px;
-    background: linear-gradient(180deg, rgba(40, 128, 75, 0.06), rgba(40, 128, 75, 0.015));
-    border-bottom: 1px solid #dce9df;
+    padding: 10px 14px;
+    background: #f6faf8;
+    border-bottom: 1px solid #d4e5da;
 }
 
 .report-group-head-meta {
     display: flex;
     flex-wrap: wrap;
-    gap: 8px;
+    align-items: center;
+    gap: 6px 10px;
+}
+
+.report-group-head-actions {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
 }
 
 .report-group-chip {
     display: inline-flex;
     align-items: center;
     gap: 4px;
-    font-size: 0.8rem;
-    color: #2e4f3d;
+    font-size: 0.78rem;
+    color: #2a4637;
     background: #fff;
-    border: 1px solid #dce9df;
-    border-radius: 999px;
+    border: 1px solid #d4e5da;
+    border-radius: 6px;
     padding: 3px 10px;
+    line-height: 1.4;
+}
+
+.report-group-chip strong {
+    color: #1f3b2d;
 }
 
 .report-group-chip-recipient {
@@ -379,113 +390,150 @@ body {
 }
 
 .report-group-table-wrap {
-    overflow: hidden;
+    overflow-x: auto;
     max-width: 100%;
+    -webkit-overflow-scrolling: touch;
 }
 
 .report-group-table {
     table-layout: fixed;
     width: 100%;
-    font-size: 0.75rem;
-}
-
-.report-group-table thead th,
-.report-group-table tbody td {
-    min-width: 0;
-    padding: 0.35rem 0.4rem;
+    min-width: 980px;
+    font-size: 0.8rem;
+    border-collapse: collapse;
 }
 
 .report-group-table thead th {
-    font-size: 0.68rem;
+    font-size: 0.72rem;
+    font-weight: 600;
     text-transform: uppercase;
-    letter-spacing: 0.15px;
-    color: #345345;
-    border-bottom: 1px solid #d8e6dc;
-    line-height: 1.2;
+    letter-spacing: 0.3px;
+    color: #3a5c49;
+    background: #f3faf6;
+    border-bottom: 2px solid #c8ddd0;
+    padding: 0.5rem 0.65rem;
+    white-space: nowrap;
     vertical-align: middle;
     text-align: left;
 }
+
 .report-group-table tbody td {
-    font-size: 0.75rem;
+    padding: 0.5rem 0.65rem;
     vertical-align: middle;
+    border-bottom: 1px solid #ecf3ee;
+    color: #2a4637;
+    line-height: 1.35;
+}
+
+.report-group-table tbody tr:last-child td {
+    border-bottom: none;
+}
+
+.report-group-table tbody tr:hover td {
+    background: rgba(40, 128, 75, 0.03);
+}
+
+.report-group-table col.report-col-description,
+.report-group-table .report-col-description {
+    width: 29%;
+    white-space: normal;
+    word-break: break-word;
+}
+
+.report-group-table col.report-col-batch,
+.report-group-table .report-col-batch {
+    width: 12%;
+    white-space: nowrap;
+}
+
+.report-group-table col.report-col-program,
+.report-group-table .report-col-program {
+    width: 19%;
+    white-space: normal;
+    word-break: break-word;
+}
+
+.report-group-table col.report-col-po,
+.report-group-table .report-col-po {
+    width: 12%;
+    white-space: nowrap;
+    word-break: normal;
+    overflow-wrap: normal;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.report-group-table col.report-col-unit,
+.report-group-table col.report-col-expiry,
+.report-group-table col.report-col-qty,
+.report-group-table .report-col-unit,
+.report-group-table .report-col-expiry,
+.report-group-table .report-col-qty {
+    white-space: nowrap;
+    text-align: center;
+}
+
+.report-group-table col.report-col-unit,
+.report-group-table .report-col-unit {
+    width: 9%;
+}
+
+.report-group-table col.report-col-expiry,
+.report-group-table .report-col-expiry {
+    width: 11%;
+}
+
+.report-group-table col.report-col-qty,
+.report-group-table .report-col-qty {
+    width: 8%;
+}
+
+.report-group-table thead th.report-col-qty,
+.report-group-table thead th.report-col-unit,
+.report-group-table thead th.report-col-expiry {
+    text-align: center;
+}
+
+.report-group-table col.report-col-action,
+.report-group-table .report-col-action {
+    white-space: nowrap;
+    text-align: center;
+    width: 10%;
+}
+
+.report-group-table thead th.report-col-action {
+    text-align: center;
+}
+
+.report-group-table .report-col-action .btn {
+    padding: 0.2rem 0.55rem;
+    font-size: 0.72rem;
+}
+
+.report-tx-table {
+    table-layout: auto;
+    margin-bottom: 0;
+    width: 100%;
+    font-size: 0.82rem;
 }
 
 .report-tx-table thead th {
-    font-size: 0.74rem;
+    font-size: 0.72rem;
+    font-weight: 600;
     text-transform: uppercase;
-    letter-spacing: 0.2px;
-    color: #345345;
-    padding: 0.5rem 0.5rem;
-    border-bottom: 1px solid #d8e6dc;
-    line-height: 1.2;
+    letter-spacing: 0.3px;
+    color: #3a5c49;
+    padding: 0.5rem 0.65rem;
+    border-bottom: 2px solid #c8ddd0;
+    white-space: nowrap;
     vertical-align: middle;
     text-align: left;
 }
 
 .report-tx-table tbody td {
-    padding: 0.48rem 0.5rem;
+    padding: 0.5rem 0.65rem;
     vertical-align: middle;
-    font-size: 0.82rem;
-    line-height: 1.25;
-}
-
-
-.report-tx-table .report-col-date { width: 8%; }
-.report-tx-table .report-col-ptr { width: 6%; }
-.report-tx-table .report-col-description { width: 15%; }
-.report-tx-table .report-col-batch { width: 9%; }
-.report-tx-table .report-col-program { width: 11%; }
-.report-tx-table .report-col-po { width: 9%; }
-.report-tx-table .report-col-unit { width: 6%; }
-.report-tx-table .report-col-expiry { width: 8%; }
-.report-tx-table .report-col-qty { width: 7%; }
-.report-tx-table .report-col-recipient { width: 13%; }
-.report-tx-table .report-col-action { width: 8%; }
-
-.report-group-table .report-col-description { width: 22%; }
-.report-group-table .report-col-batch { width: 10%; }
-.report-group-table .report-col-program { width: 14%; }
-.report-group-table .report-col-po { width: 10%; }
-.report-group-table .report-col-unit { width: 7%; }
-.report-group-table .report-col-expiry { width: 10%; }
-.report-group-table .report-col-qty { width: 7%; }
-.report-group-table .report-col-action { width: 10%; }
-
-.report-tx-table .report-col-action .d-inline-flex {
-    width: 100%;
-    justify-content: center;
-    align-items: flex-end;
-    gap: 6px;
-    flex-direction: column;
-    flex-wrap: nowrap;
-}
-
-.report-tx-table .report-col-action .btn {
-    white-space: nowrap;
-    min-width: 62px;
-    padding: 0.24rem 0.48rem;
-}
-
-.report-group-table .report-col-action .d-inline-flex {
-    width: 100%;
-    justify-content: center;
-    align-items: flex-end;
-    gap: 6px;
-    flex-direction: column;
-    flex-wrap: nowrap;
-}
-
-.report-group-table .report-col-action .btn {
-    white-space: nowrap;
-    min-width: 62px;
-    padding: 0.24rem 0.48rem;
-}
-
-.report-wrap-text {
-    white-space: normal;
-    word-break: break-word;
-    overflow-wrap: anywhere;
-    line-height: 1.2;
+    line-height: 1.3;
 }
 
 @media print {
