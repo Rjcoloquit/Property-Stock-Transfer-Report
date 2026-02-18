@@ -1,0 +1,213 @@
+-- 1️⃣ Create Database 
+CREATE DATABASE IF NOT EXISTS supply; 
+USE supply;
+
+-- 2️⃣ Create Products Table (MUST BE BEFORE product_batches)
+CREATE TABLE products (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    product_description TEXT NOT NULL,
+    uom VARCHAR(50) NOT NULL,
+    cost_per_unit DECIMAL(12,2) DEFAULT 0.00,
+    program VARCHAR(255),
+    po_no VARCHAR(100),
+    place_of_delivery VARCHAR(255),
+    date_of_delivery DATE,
+    delivery_term VARCHAR(100),
+    payment_term VARCHAR(100),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP 
+        ON UPDATE CURRENT_TIMESTAMP
+);
+
+-- 3️⃣ Create Product Batches Table
+CREATE TABLE product_batches (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    product_id INT NOT NULL,
+    batch_number VARCHAR(100) NOT NULL,
+    stock_quantity INT DEFAULT 0,
+    expiry_date DATE NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP 
+        ON UPDATE CURRENT_TIMESTAMP,
+
+    CONSTRAINT fk_product
+        FOREIGN KEY (product_id) 
+        REFERENCES products(id)
+        ON DELETE CASCADE,
+
+    CONSTRAINT unique_batch
+        UNIQUE (product_id, batch_number)
+);
+
+-- 4️⃣ Create Recipients Table
+CREATE TABLE recipients (
+    recipient_id INT AUTO_INCREMENT PRIMARY KEY,
+    recipient_name VARCHAR(255) NOT NULL UNIQUE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- 5️⃣ Create Users Table
+CREATE TABLE users (
+    user_id INT AUTO_INCREMENT PRIMARY KEY,
+    full_name VARCHAR(150) NOT NULL,
+    username VARCHAR(100) NOT NULL UNIQUE,
+    email VARCHAR(150) UNIQUE,
+    password_hash VARCHAR(255) NOT NULL,
+    role ENUM('Admin', 'Encoder') NOT NULL DEFAULT 'Encoder',
+    status ENUM('Active', 'Inactive') DEFAULT 'Active',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+-- 4️⃣ Create Recipients Table
+CREATE TABLE recipients (
+    recipient_id INT AUTO_INCREMENT PRIMARY KEY,
+    recipient_name VARCHAR(255) NOT NULL UNIQUE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+
+
+-- 6️⃣ Inventory Records Table (Optional / Legacy)
+CREATE TABLE inventory_records (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    expiration_date DATE NULL,
+    unit VARCHAR(50),
+    description TEXT,
+    quantity INT DEFAULT 0,
+    unit_cost DECIMAL(10,2) DEFAULT 0.00,
+    program VARCHAR(255),
+    recipient VARCHAR(255),
+    ptr_no VARCHAR(50),
+    record_date DATE
+);
+
+INSERT INTO products (product_description, uom, cost_per_unit, program) VALUES
+('[Co-Amoxiclav] Amoxicillin 400mg + Clavulanic Acid 57mg per 5mL Powder for Oral Suspension 70mL', 'Bottles', 0, 'General Consumption'),
+('[COC Pill] Levonorgestrel 150mcg + Ethinylestradiol 30mcg + Ferrous Fumarate 75mg Film-Coated Tablet', 'Cycle', 21.05, 'National Family Planning'),
+('[COC Pill] Levonorgestrel 150mcg + Ethinylestradiol 30mcg + Ferrous Fumarate 75mg Film-Coated Tablet', 'Cycle', 21.05, 'National Family Planning'),
+('[COC Pill] Levonorgestrel 150mcg + Ethinylestradiol 30mcg + Ferrous Fumarate 75mg Film-Coated Tablet', 'Cycle', 21.05, 'National Family Planning'),
+('[COC Pill] Levonorgestrel 150mcg + Ethinylestradiol 30mcg + Ferrous Fumarate 75mg Film-Coated Tablet', 'Cycle', 21.05, 'National Family Planning'),
+('[COC Pill] Levonorgestrel 150mcg + Ethinylestradiol 30mcg + Ferrous Fumarate 75mg Film-Coated Tablet', 'Cycle', 21.05, 'Responsible Parenthood and Reproductive Health Program'),
+('[COC Pill] Levonorgestrel 150mcg + Ethinylestradiol 30mcg + Ferrous Fumarate 75mg Film-Coated Tablet', 'Cycle', 21.05, 'Responsible Parenthood and Reproductive Health Program'),
+('[POP Pill] Lynestrenol 500mcg Tablet (Cycle of 28s)', 'Cycle', 25.44, 'National Family Planning'),
+('[POP Pill] Lynestrenol 500mcg Tablet (Cycle of 28s)', 'Cycle', 25.44, 'National Family Planning'),
+('0.9% Sodium Chloride 1L Solution for Infusion', 'Bottles', 85, 'Food and Waterborne Disease Prevention and Control Program'),
+('0.9% Sodium Chloride 1L Solution for Infusion', 'Bottles', 85, 'General Consumption'),
+('0.9% Sodium Chloride 1L Solution for Infusion', 'Bottles', 85, 'Food and Waterborne Disease Prevention and Control Program'),
+('0.9% Sodium Chloride Solution for Irrigation 1L', 'Bottles', 55, 'Food and Waterborne Disease Prevention and Control Program'),
+('1250uL Pipette Tips', 'Box', 1100, 'COVID-19 Laboratory Network'),
+('1cc Syringe 23Gx1', 'Box', 280, 'COVID-19 (PHP Monitoring)'),
+('1cc Syringe 25G x 1', 'Pieces', 0, 'National Immunization Program'),
+('200uL Pipette Tips', 'Box', 1000, 'COVID-19 Laboratory Network'),
+('20uL Pipette Tips', 'Box', 950, 'COVID-19 Laboratory Network'),
+('3cc Syringe 23G x 1', 'Pieces', 0, 'National Immunization Program'),
+('3-in-1 Multi-Function Monitoring System Glucose Hemoblogin and Cholesterol Meter with Strips', 'Kit', 0, 'Maternal Health Program'),
+('5% Dextrose in 0.3% Sodium Chloride 500 mL Solution for Infusion (IV Infusion)', 'Bottles', 0, 'General Consumption'),
+('5% Dextrose in 0.9% Sodium Chloride 1 L Solution for Infusion (IV Infusion)', 'Bottles', 0, 'General Consumption'),
+('5% Dextrose in 0.9% Sodium Chloride 1 L Solution for Infusion (IV Infusion)', 'Bottles', 0, 'General Consumption'),
+('5% Dextrose in 0.9% Sodium Chloride 1 L Solution for Infusion (IV Infusion)', 'Bottles', 0, 'General Consumption'),
+('5% Dextrose in 0.9% Sodium Chloride 1 L Solution for Infusion (IV Infusion)', 'Bottles', 0, 'General Consumption'),
+('5% Dextrose in Lactated Ringers Solution 1 L Solution for Infusion (IV Infusion)', 'Bottles', 0, 'General Consumption'),
+('Aciclovir 400 mg tablet', 'Tablet', 8.5, 'National HIV/ AIDS and STI Prevention and Control Program'),
+('AFB Fast Bacilli Stain Hot Method for TB Microscopy', 'Kit', 2890, 'National Tuberculosis Control Program'),
+('Albendazole 400mg Tablet', 'Tablet', 0.991, 'Integrated Helminth Control Program'),
+('Alcohol 500mL', 'Bottles', 156, 'Leprosy Control Program'),
+('Alcohol 70% 1L', 'Bottles', 372, 'Emerging and Re-emerging Infectious Disease Program'),
+('Ambroxol 6mg/ml Drops', 'Bottles', 0, 'General Consumption'),
+('Amlodipine 10 mg Tablet', 'Tablet', 0.49, 'Integrated Non-Communicable Disease Prevention and Control'),
+('Amlodipine 5 mg Tablet', 'Tablet', 0.37, 'Integrated Non-Communicable Disease Prevention and Control'),
+('Amoxicillin 100 mg/mL 10 mL Oral Drops', 'Bottles', 0, 'General Consumption'),
+('Amoxicillin 250 mg Capsule', 'Capsule', 0, 'General Consumption'),
+('Amoxicillin 250mg/5mL Oral Suspension', 'Bottles', 0, 'General Consumption'),
+('Amoxicillin 500 mg Capsule', 'Capsule', 0, 'General Consumption');
+
+
+-- INSERT Batches (product_id must match the ID in products table)
+INSERT INTO product_batches (product_id, batch_number, stock_quantity, expiry_date) VALUES
+(1, '292403398', 0, '2027-06-30'),
+(2, '23H07', 0, '2028-08-31'),
+(2, '23H10', 0, '2028-08-31'),
+(2, '23K12', 0, '2028-11-30'),
+(2, '23K13', 0, '2028-11-30'),
+(2, '23L06', 0, '2028-12-31'),
+(2, '23L07', 0, '2028-12-31'),
+(3, 'L2212', 0, '2025-12-31'),
+(3, 'L2308', 0, '2026-10-12'),
+(4, '81139', 85, '2028-09-30'),
+(4, '81187', 85, '2029-04-30'),
+(4, '81190', 85, '2029-04-30'),
+(5, '81100', 55, '2028-04-30'),
+(6, '20230108', 1100, '2027-01-07'),
+(7, '120012210', 280, '2025-01-10'),
+(8, '20210721', 0, '2026-07-31'),
+(9, '20221203', 1000, '2026-12-02'),
+(10, '20230108', 950, '2027-01-07'),
+(11, '20220627', 0, '2027-06-30'),
+(12, 'NBS23089A95', 0, '2025-08-08'),
+(13, '320720', 0, '2025-05-31'),
+(14, '51631', 0, '2025-06-30'),
+(14, '51634', 0, '2025-09-30'),
+(14, '51637', 0, '2025-11-30'),
+(14, '51639', 0, '2026-03-31'),
+(15, '22081', 0, '2025-11-30'),
+(16, '37415', 0, '2025-07-31'),
+(17, 'M24301', 0, '2026-02-23'),
+(18, 'ALB310', 0, '2026-05-31'),
+(19, 'N/A', 0, NULL),
+(20, 'N/A', 0, '2028-09-30'),
+(21, '1773174', 0, '2026-04-01'),
+(22, '2401127', 0, '2029-01-31'),
+(23, 'GT22535', 0, '2025-11-30'),
+(24, '2B06133', 0, '2027-01-31'),
+(24, 'B04086', 0, '2027-04-30'),
+(24, '2BB076', 0, '2026-02-28'),
+(24, '70624O518', 0, '2027-05-31');
+
+
+
+SELECT * FROM supply.recipients;
+INSERT INTO recipients (recipient_id, recipient_name) VALUES
+(1, 'Aborlan Medicare Hospital'),
+(2, 'Aborlan RHU'),
+(3, 'Agape Clinic'),
+(4, 'Agutaya RHU'),
+(5, 'Araceli RHU'),
+(6, 'Araceli-Dumaran District Hospital'),
+(7, 'Balabac District Hospital'),
+(8, 'Balabac RHU'),
+(9, 'Bataraza District Hospital'),
+(10, 'Bataraza RHU'),
+(11, 'Brookes Point RHU'),
+(12, 'Busuanga RHU'),
+(13, 'Cagayancillo RHU'),
+(14, 'City Health Office'),
+(15, 'Coron District Hospital'),
+(16, 'Coron RHU'),
+(17, 'Culion RHU'),
+(18, 'Cuyo District Hospital'),
+(19, 'Cuyo RHU'),
+(20, 'Dr. Jose Rizal District Hospital'),
+(21, 'Dumara RHU'),
+(22, 'El Nido RHU'),
+(23, 'Iwahig Penal Colony Clinic'),
+(24, 'Kalayaan RHU'),
+(25, 'Linapacan RHU'),
+(26, 'Magsaysay RHU'),
+(27, 'Narra Municipal Hospital'),
+(28, 'Narra RHU'),
+(29, 'Northern Palawan Provincial Hospital'),
+(30, 'Ospital ng Palawan'),
+(31, 'PHO Clinic'),
+(32, 'PHO TB-DOTS'),
+(33, 'Provincial Veterinary Office'),
+(34, 'Quezon Medicare Hospital'),
+(35, 'Quezon RHU'),
+(36, 'Rizal RHU'),
+(37, 'Roxas Medicare Hospital'),
+(38, 'Roxas RHU'),
+(39, 'San Vicente District Hospital'),
+(40, 'San Vicente RHU'),
+(41, 'Sofronio Española RHU'),
+(42, 'Sofronio Española Provincial Hospital'),
+(43, 'Taytay RHU'),
+(44, 'Vice Governor Francsio F. Ponce De Leon Memorial Hospital');
+

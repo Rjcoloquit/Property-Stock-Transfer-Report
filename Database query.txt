@@ -1,6 +1,5 @@
--- 1️⃣ Create Database
-CREATE DATABASE IF NOT EXISTS supply;
-USE supply;
+-- 1️⃣ Create Database 
+CREATE DATABASE IF NOT EXISTS supply; USE supply;
 
 -- 2️⃣ Create Products Table (MUST BE BEFORE product_batches)
 CREATE TABLE products (
@@ -9,6 +8,11 @@ CREATE TABLE products (
     uom VARCHAR(50) NOT NULL,
     cost_per_unit DECIMAL(12,2) DEFAULT 0.00,
     program VARCHAR(255),
+    po_no VARCHAR(100),
+    place_of_delivery VARCHAR(255),
+    date_of_delivery DATE,
+    delivery_term VARCHAR(100),
+    payment_term VARCHAR(100),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP 
         ON UPDATE CURRENT_TIMESTAMP

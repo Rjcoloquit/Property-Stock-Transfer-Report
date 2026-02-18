@@ -76,7 +76,7 @@ Amount
 
 Database:
 
-each batch ba may expiration date? 
+each batch ba may expiration date? /
 
 allocation calendar
 
