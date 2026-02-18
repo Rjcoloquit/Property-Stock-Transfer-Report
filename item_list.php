@@ -671,17 +671,11 @@ try {
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-    <?php if ($showFormModal): ?>
-        <script>
-            document.addEventListener('DOMContentLoaded', function () {
-                var modalElement = document.getElementById('itemFormModal');
-                if (!modalElement) {
-                    return;
-                }
-                var modal = new bootstrap.Modal(modalElement);
-                modal.show();
-            });
-        </script>
-    <?php endif; ?>
+    <script>
+        window.itemListConfig = {
+            showFormModal: <?= $showFormModal ? 'true' : 'false' ?>
+        };
+    </script>
+    <script src="assets/js/item_list.js"></script>
 </body>
 </html>

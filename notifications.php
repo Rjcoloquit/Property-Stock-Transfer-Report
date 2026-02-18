@@ -316,17 +316,6 @@ try {
             <?php endif; ?>
         </div>
     </main>
-    <script>
-        const expirySearchInput = document.getElementById('expirySearchInput');
-        if (expirySearchInput) {
-            expirySearchInput.addEventListener('input', function () {
-                const query = expirySearchInput.value.trim().toLowerCase();
-                document.querySelectorAll('.dashboard-notif-item').forEach(function (item) {
-                    const text = item.textContent.toLowerCase();
-                    item.style.display = text.includes(query) ? '' : 'none';
-                });
-            });
-        }
-    </script>
+    <script src="assets/js/notifications.js"></script>
 </body>
 </html>

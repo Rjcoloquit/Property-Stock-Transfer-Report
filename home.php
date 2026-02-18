@@ -313,133 +313,15 @@ try {
     </main>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
     <script>
-        const trendData = {
-            labels: <?= json_encode($chartLabels, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>,
-            transactions: <?= json_encode($chartTransactions) ?>,
-            quantity: <?= json_encode($chartQuantities) ?>,
-            amount: <?= json_encode($chartAmounts) ?>
+        window.homeConfig = {
+            trendData: {
+                labels: <?= json_encode($chartLabels, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>,
+                transactions: <?= json_encode($chartTransactions) ?>,
+                quantity: <?= json_encode($chartQuantities) ?>,
+                amount: <?= json_encode($chartAmounts) ?>
+            }
         };
-
-        function animateCounters() {
-            document.querySelectorAll('[data-animate]').forEach(function (el) {
-                const target = Number(el.getAttribute('data-animate'));
-                if (!Number.isFinite(target)) {
-                    return;
-                }
-                const duration = 700;
-                const start = performance.now();
-
-                function frame(now) {
-                    const progress = Math.min((now - start) / duration, 1);
-                    const current = Math.round(target * progress);
-                    el.textContent = current.toLocaleString();
-                    if (progress < 1) {
-                        requestAnimationFrame(frame);
-                    }
-                }
-                requestAnimationFrame(frame);
-            });
-        }
-
-        let trendChart = null;
-
-        function renderTrend(seriesKey) {
-            const chartCanvas = document.getElementById('trendChartCanvas');
-            const legendEl = document.getElementById('trendLegend');
-            const labels = trendData.labels || [];
-            const values = trendData[seriesKey] || [];
-
-            if (!chartCanvas || typeof Chart === 'undefined') {
-                return;
-            }
-
-            const chartLabelBySeries = {
-                transactions: 'Transactions',
-                quantity: 'Quantity',
-                amount: 'Amount'
-            };
-
-            if (trendChart) {
-                trendChart.destroy();
-            }
-
-            trendChart = new Chart(chartCanvas, {
-                type: 'bar',
-                data: {
-                    labels: labels,
-                    datasets: [{
-                        label: chartLabelBySeries[seriesKey] || 'Trend',
-                        data: values,
-                        backgroundColor: 'rgba(40, 128, 75, 0.80)',
-                        borderColor: 'rgba(32, 102, 59, 1)',
-                        borderWidth: 1,
-                        borderRadius: 6,
-                        maxBarThickness: 36
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: {
-                        legend: { display: false },
-                        tooltip: {
-                            callbacks: {
-                                label: function (ctx) {
-                                    const v = Number(ctx.raw || 0);
-                                    return (chartLabelBySeries[seriesKey] || 'Value') + ': ' + v.toLocaleString(undefined, { maximumFractionDigits: 2 });
-                                }
-                            }
-                        }
-                    },
-                    scales: {
-                        y: {
-                            beginAtZero: true,
-                            ticks: {
-                                precision: 0
-                            },
-                            grid: {
-                                color: 'rgba(40, 128, 75, 0.12)'
-                            }
-                        },
-                        x: {
-                            grid: {
-                                display: false
-                            }
-                        }
-                    }
-                }
-            });
-
-            const labelsBySeries = {
-                transactions: 'Daily count of saved inventory rows (last 7 days).',
-                quantity: 'Total quantity released per day (last 7 days).',
-                amount: 'Estimated released amount per day (last 7 days).'
-            };
-            legendEl.textContent = labelsBySeries[seriesKey] || '';
-        }
-
-        document.querySelectorAll('.trend-toggle').forEach(function (btn) {
-            btn.addEventListener('click', function () {
-                document.querySelectorAll('.trend-toggle').forEach(function (x) { x.classList.remove('active'); });
-                btn.classList.add('active');
-                renderTrend(btn.getAttribute('data-series'));
-            });
-        });
-
-        const txFilterInput = document.getElementById('txFilterInput');
-        const recentTxBody = document.getElementById('recentTxBody');
-        if (txFilterInput && recentTxBody) {
-            txFilterInput.addEventListener('input', function () {
-                const query = txFilterInput.value.trim().toLowerCase();
-                recentTxBody.querySelectorAll('tr').forEach(function (row) {
-                    const text = row.textContent.toLowerCase();
-                    row.style.display = text.includes(query) ? '' : 'none';
-                });
-            });
-        }
-
-        animateCounters();
-        renderTrend('transactions');
     </script>
+    <script src="assets/js/home.js"></script>
 </body>
 </html>
