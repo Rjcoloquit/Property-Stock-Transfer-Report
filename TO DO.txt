@@ -1,0 +1,83 @@
+batch number /
+program /
+filter /
+searchable description and program /
+able to add recipient /
+dashboard for expiry notifications  /
+Expiration notify 6 months before expiration /
+
+----------------------------------------------------------------------------------------------------
+
+
+item list cant search: (pending)
+PTR number /
+Date arrived - pending 
+Description (not accurate, not sorted) /
+Unit /
+
+----------------------------------------------------------------------------------------------------
+
+THIS DAY FEB 16 /
+PTR NO = MM/0000 / 
+BAWAS SA STOCK KAPAG NAG CREATE NG PTR /
+
+
+
+----------------------------------------------------------------------------------------------------
+balance kung ilang stock remaining ng iseserach nga gamot - kulang pa (pending)
+
+able to edit even after saving / 
+
+transaction history edit button /
+
+
+
+----------------------------------------------------------------------------------------------------
+
+
+MGA GAGAWIN SA LUNES: (GOODS NA)
+
+isang page lang, walang scroll side /
+isang enter lang sana tapos lahat na ng nasa ptr maeedit (pending)
+bawal maedit ptr number /
+bawal maedit lahat -> maliban sa - description, batch number, program, at recipient /
+
+
+----------------------------------------------------------------------------------------------------
+
+pending tasks:
+
+PO number
+editable asignatory
+fit the preview
+outbound report
+incident report
+stock card - ilan nareceive at ilan nailabas - end user ay si program - lagyan ng batch number
+
+PO number additional table for supplier
+
+
+add history for item list - kulang pa
+delivery receipt
+
+
+Place of Delivery:
+Date of Delivery:
+Delivery Term:
+Payment Term:
+
+Table
+Item no.
+Description
+QTY
+Unit
+Unit Cost
+Amount
+
+Database:
+
+each batch ba may expiration date? 
+
+allocation calendar
+
+----------------------------------------------------------------------------------------------------

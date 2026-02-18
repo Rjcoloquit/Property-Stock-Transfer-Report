@@ -1,0 +1,68 @@
+-- 1️⃣ Create Database
+CREATE DATABASE IF NOT EXISTS supply;
+USE supply;
+
+-- 2️⃣ Create Products Table (MUST BE BEFORE product_batches)
+CREATE TABLE products (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    product_description TEXT NOT NULL,
+    uom VARCHAR(50) NOT NULL,
+    cost_per_unit DECIMAL(12,2) DEFAULT 0.00,
+    program VARCHAR(255),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP 
+        ON UPDATE CURRENT_TIMESTAMP
+);
+
+-- 3️⃣ Create Product Batches Table
+CREATE TABLE product_batches (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    product_id INT NOT NULL,
+    batch_number VARCHAR(100) NOT NULL,
+    stock_quantity INT DEFAULT 0,
+    expiry_date DATE NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP 
+        ON UPDATE CURRENT_TIMESTAMP,
+
+    CONSTRAINT fk_product
+        FOREIGN KEY (product_id) 
+        REFERENCES products(id)
+        ON DELETE CASCADE,
+
+    CONSTRAINT unique_batch
+        UNIQUE (product_id, batch_number)
+);
+
+-- 4️⃣ Create Recipients Table
+CREATE TABLE recipients (
+    recipient_id INT AUTO_INCREMENT PRIMARY KEY,
+    recipient_name VARCHAR(255) NOT NULL UNIQUE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- 5️⃣ Create Users Table
+CREATE TABLE users (
+    user_id INT AUTO_INCREMENT PRIMARY KEY,
+    full_name VARCHAR(150) NOT NULL,
+    username VARCHAR(100) NOT NULL UNIQUE,
+    email VARCHAR(150) UNIQUE,
+    password_hash VARCHAR(255) NOT NULL,
+    role ENUM('Admin', 'Encoder') NOT NULL DEFAULT 'Encoder',
+    status ENUM('Active', 'Inactive') DEFAULT 'Active',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- 6️⃣ Inventory Records Table (Optional / Legacy)
+CREATE TABLE inventory_records (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    expiration_date DATE NULL,
+    unit VARCHAR(50),
+    description TEXT,
+    quantity INT DEFAULT 0,
+    unit_cost DECIMAL(10,2) DEFAULT 0.00,
+    program VARCHAR(255),
+    recipient VARCHAR(255),
+    ptr_no VARCHAR(50),
+    record_date DATE
+);
