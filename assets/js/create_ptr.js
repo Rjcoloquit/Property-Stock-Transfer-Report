@@ -166,8 +166,9 @@
         }
         var parsedUnitCost = Number(selectedProduct.unit_cost);
         unitCostInput.value = Number.isFinite(parsedUnitCost) ? parsedUnitCost.toFixed(2) : '';
-        var batchExpiration = batchValue !== '' && batchMeta[batchValue]
-            ? String(batchMeta[batchValue].expiration_date || '')
+        var selectedBatchMeta = getBatchMetaForSelection(descriptionValue, batchValue);
+        var batchExpiration = selectedBatchMeta
+            ? String(selectedBatchMeta.expiration_date || '')
             : '';
         expirationInput.value = batchExpiration !== '' ? batchExpiration : (selectedProduct.expiration_date || '');
         calculateRowAmount(row);
