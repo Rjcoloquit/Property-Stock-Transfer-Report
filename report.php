@@ -37,10 +37,13 @@ $formData = [
     'quantity' => '',
     'recipient' => '',
 ];
+$editingGroupItems = [];
 $descriptionOptions = [];
 $programOptions = [];
+$unitOptions = [];
 $batchNumberOptions = [];
 $batchNumbersByDescription = [];
+$batchMetaByDescription = [];
 $unitCostByDescription = [];
 $recipientOptions = [];
 $hasProductBatchesTable = false;
@@ -145,6 +148,21 @@ try {
     ');
     $programOptions = $programOptionsStmt->fetchAll(PDO::FETCH_COLUMN);
 
+    $unitOptionsStmt = $pdo->query('
+        SELECT unit_name
+        FROM (
+            SELECT DISTINCT TRIM(unit) AS unit_name
+            FROM inventory_records
+            WHERE unit IS NOT NULL AND TRIM(unit) <> ""
+            UNION
+            SELECT DISTINCT TRIM(uom) AS unit_name
+            FROM products
+            WHERE uom IS NOT NULL AND TRIM(uom) <> ""
+        ) u
+        ORDER BY unit_name ASC
+    ');
+    $unitOptions = $unitOptionsStmt->fetchAll(PDO::FETCH_COLUMN);
+
     $batchSourceSelects = [
         'SELECT DISTINCT TRIM(batch_number) AS batch_no FROM inventory_records WHERE batch_number IS NOT NULL AND TRIM(batch_number) <> ""',
     ];
@@ -199,6 +217,40 @@ try {
     foreach ($batchNumbersByDescription as $descName => $batchList) {
         sort($batchList, SORT_NATURAL | SORT_FLAG_CASE);
         $batchNumbersByDescription[$descName] = $batchList;
+    }
+
+    if ($hasProductBatchesTable) {
+        $batchMetaStmt = $pdo->query('
+            SELECT
+                TRIM(p.product_description) AS description_name,
+                TRIM(b.batch_number) AS batch_no,
+                b.id AS batch_id,
+                b.stock_quantity AS stock_quantity,
+                b.expiry_date AS expiry_date
+            FROM product_batches b
+            INNER JOIN products p ON p.id = b.product_id
+            WHERE p.product_description IS NOT NULL AND TRIM(p.product_description) <> ""
+              AND b.batch_number IS NOT NULL AND TRIM(b.batch_number) <> ""
+            ORDER BY description_name ASC, batch_no ASC
+        ');
+        $batchMetaRows = $batchMetaStmt->fetchAll();
+        foreach ($batchMetaRows as $batchMetaRow) {
+            $descName = trim((string) ($batchMetaRow['description_name'] ?? ''));
+            $batchNo = trim((string) ($batchMetaRow['batch_no'] ?? ''));
+            if ($descName === '' || $batchNo === '') {
+                continue;
+            }
+            if (!isset($batchMetaByDescription[$descName])) {
+                $batchMetaByDescription[$descName] = [];
+            }
+            $batchMetaByDescription[$descName][$batchNo] = [
+                'batch_id' => (int) ($batchMetaRow['batch_id'] ?? 0),
+                'stock_quantity' => (int) ($batchMetaRow['stock_quantity'] ?? 0),
+                'expiration_date' => isset($batchMetaRow['expiry_date']) && $batchMetaRow['expiry_date'] !== null
+                    ? (string) $batchMetaRow['expiry_date']
+                    : '',
+            ];
+        }
     }
 
     $unitCostRowsStmt = $pdo->query('
@@ -270,59 +322,263 @@ try {
             $returnSort = strtolower(trim((string) ($_POST['return_sort'] ?? 'desc')));
             $returnSort = $returnSort === 'asc' ? 'asc' : 'desc';
 
-            $formData['record_date'] = trim((string) ($_POST['record_date'] ?? ''));
-            $formData['ptr_no'] = trim((string) ($_POST['ptr_no'] ?? ''));
-            $formData['description'] = trim((string) ($_POST['description'] ?? ''));
-            $formData['batch_number'] = trim((string) ($_POST['batch_number'] ?? ''));
-            $formData['program'] = trim((string) ($_POST['program'] ?? ''));
-            $formData['unit'] = trim((string) ($_POST['unit'] ?? ''));
-            $formData['expiration_date'] = trim((string) ($_POST['expiration_date'] ?? ''));
-            $formData['quantity'] = trim((string) ($_POST['quantity'] ?? ''));
             $formData['recipient'] = trim((string) ($_POST['recipient'] ?? ''));
+
+            $postedItemIds = $_POST['item_ids'] ?? [];
+            $postedDescriptions = $_POST['description'] ?? [];
+            $postedBatchNumbers = $_POST['batch_number'] ?? [];
+            $postedPrograms = $_POST['program'] ?? [];
+            $postedUnits = $_POST['unit'] ?? [];
+            $postedQuantities = $_POST['quantity'] ?? [];
 
             if ($editingId <= 0) {
                 $formErrors[] = 'Invalid transaction selected for update.';
             }
-            if ($formData['record_date'] === '' || !preg_match('/^\d{4}-\d{2}-\d{2}$/', $formData['record_date'])) {
-                $formErrors[] = 'Record date is required and must be valid.';
+            if (!is_array($postedItemIds) || empty($postedItemIds)) {
+                $formErrors[] = 'No PTR items were submitted for update.';
             }
-            if ($formData['description'] === '') {
-                $formErrors[] = 'Description is required.';
+
+            $anchorRecord = null;
+            if (empty($formErrors)) {
+                $anchorStmt = $pdo->prepare('
+                    SELECT id, ptr_no
+                    FROM inventory_records
+                    WHERE id = ?
+                    LIMIT 1
+                ');
+                $anchorStmt->execute([$editingId]);
+                $anchorRecord = $anchorStmt->fetch();
+                if (!$anchorRecord) {
+                    $formErrors[] = 'Selected transaction no longer exists.';
+                }
             }
-            if ($formData['quantity'] === '' || !ctype_digit($formData['quantity']) || (int) $formData['quantity'] <= 0) {
-                $formErrors[] = 'Quantity must be a positive whole number.';
+
+            $allowedItemIds = [];
+            $groupRowsById = [];
+            if (empty($formErrors) && $anchorRecord) {
+                $anchorPtrNo = trim((string) ($anchorRecord['ptr_no'] ?? ''));
+                if ($anchorPtrNo === '') {
+                    $formErrors[] = 'Cannot edit multiple rows because this transaction has no PTR No.';
+                } else {
+                    $groupRowsStmt = $pdo->prepare('
+                        SELECT id, record_date, ptr_no, expiration_date, description, batch_number, quantity
+                        FROM inventory_records
+                        WHERE ptr_no = ?
+                        ORDER BY id ASC
+                    ');
+                    $groupRowsStmt->execute([$anchorPtrNo]);
+                    $groupRows = $groupRowsStmt->fetchAll();
+                    $allowedItemIds = array_map(
+                        static function (array $row): int {
+                            return (int) ($row['id'] ?? 0);
+                        },
+                        $groupRows
+                    );
+                    foreach ($groupRows as $groupRow) {
+                        $rowId = (int) ($groupRow['id'] ?? 0);
+                        if ($rowId > 0) {
+                            $groupRowsById[$rowId] = $groupRow;
+                        }
+                    }
+                    $formData['record_date'] = (string) ($groupRows[0]['record_date'] ?? '');
+                    $formData['ptr_no'] = $anchorPtrNo;
+                    if (empty($allowedItemIds)) {
+                        $formErrors[] = 'No rows found for the selected PTR group.';
+                    }
+                }
             }
-            if ($formData['expiration_date'] !== '' && !preg_match('/^\d{4}-\d{2}-\d{2}$/', $formData['expiration_date'])) {
-                $formErrors[] = 'Expiration date must be a valid date.';
+
+            $resolveBatchMeta = static function (array $batchMetaLookup, string $description, string $batchNumber): ?array {
+                $description = trim($description);
+                $batchNumber = trim($batchNumber);
+                if ($description === '' || $batchNumber === '') {
+                    return null;
+                }
+                if (isset($batchMetaLookup[$description][$batchNumber])) {
+                    return $batchMetaLookup[$description][$batchNumber];
+                }
+                $descLower = strtolower($description);
+                foreach ($batchMetaLookup as $descName => $batchRows) {
+                    if (strtolower((string) $descName) !== $descLower || !is_array($batchRows)) {
+                        continue;
+                    }
+                    foreach ($batchRows as $batchNo => $meta) {
+                        if (strtolower((string) $batchNo) === strtolower($batchNumber)) {
+                            return is_array($meta) ? $meta : null;
+                        }
+                    }
+                }
+                return null;
+            };
+
+            $stockAdjustmentPlan = [];
+            $batchStockById = [];
+            if ($hasProductBatchesTable) {
+                foreach ($batchMetaByDescription as $descName => $batchRows) {
+                    if (!is_array($batchRows)) {
+                        continue;
+                    }
+                    foreach ($batchRows as $batchNo => $meta) {
+                        if (!is_array($meta)) {
+                            continue;
+                        }
+                        $batchId = (int) ($meta['batch_id'] ?? 0);
+                        if ($batchId <= 0 || isset($batchStockById[$batchId])) {
+                            continue;
+                        }
+                        $batchStockById[$batchId] = (int) ($meta['stock_quantity'] ?? 0);
+                    }
+                }
             }
+
+            if (empty($formErrors)) {
+                foreach ($postedItemIds as $rawItemId) {
+                    $itemId = (int) $rawItemId;
+                    if ($itemId <= 0 || !in_array($itemId, $allowedItemIds, true)) {
+                        $formErrors[] = 'One or more rows are invalid for this PTR group.';
+                        continue;
+                    }
+
+                    $descriptionValue = trim((string) ($postedDescriptions[$itemId] ?? ''));
+                    $quantityValue = trim((string) ($postedQuantities[$itemId] ?? ''));
+                    if ($descriptionValue === '') {
+                        $formErrors[] = 'Description is required for all PTR rows.';
+                    }
+                    if ($quantityValue === '' || !ctype_digit($quantityValue) || (int) $quantityValue <= 0) {
+                        $formErrors[] = 'Quantity must be a positive whole number for all PTR rows.';
+                    }
+                    $immutableExpirationDate = (string) (($groupRowsById[$itemId]['expiration_date'] ?? '') ?: '');
+                    $batchNumberValue = trim((string) ($postedBatchNumbers[$itemId] ?? ''));
+                    $programValue = trim((string) ($postedPrograms[$itemId] ?? ''));
+                    $unitValue = trim((string) ($postedUnits[$itemId] ?? ''));
+                    $currentRow = $groupRowsById[$itemId] ?? null;
+                    $originalDescription = trim((string) ($currentRow['description'] ?? ''));
+                    $originalBatchNumber = trim((string) ($currentRow['batch_number'] ?? ''));
+                    $originalQuantity = (int) ($currentRow['quantity'] ?? 0);
+
+                    if ($hasProductBatchesTable) {
+                        if ($batchNumberValue === '') {
+                            $formErrors[] = 'Batch number is required when stock tracking is enabled.';
+                        }
+                        $newBatchMeta = $resolveBatchMeta($batchMetaByDescription, $descriptionValue, $batchNumberValue);
+                        $oldBatchMeta = $resolveBatchMeta($batchMetaByDescription, $originalDescription, $originalBatchNumber);
+                        $newBatchId = (int) ($newBatchMeta['batch_id'] ?? 0);
+                        $oldBatchId = (int) ($oldBatchMeta['batch_id'] ?? 0);
+
+                        if ($newBatchId <= 0) {
+                            $formErrors[] = 'Selected batch does not exist for one or more edited rows.';
+                        } else {
+                            if (!isset($stockAdjustmentPlan[$newBatchId])) {
+                                $stockAdjustmentPlan[$newBatchId] = 0;
+                            }
+                            $stockAdjustmentPlan[$newBatchId] += (int) $quantityValue;
+                        }
+                        if ($oldBatchId > 0) {
+                            if (!isset($stockAdjustmentPlan[$oldBatchId])) {
+                                $stockAdjustmentPlan[$oldBatchId] = 0;
+                            }
+                            $stockAdjustmentPlan[$oldBatchId] -= $originalQuantity;
+                        }
+                    }
+
+                    $editingGroupItems[] = [
+                        'id' => $itemId,
+                        'description' => $descriptionValue,
+                        'batch_number' => $batchNumberValue,
+                        'program' => $programValue,
+                        'unit' => $unitValue,
+                        'expiration_date' => $immutableExpirationDate,
+                        'quantity' => $quantityValue,
+                        'original_description' => $originalDescription,
+                        'original_batch_number' => $originalBatchNumber,
+                        'original_quantity' => $originalQuantity,
+                    ];
+                }
+            }
+
+            if (empty($formErrors) && $hasProductBatchesTable) {
+                foreach ($stockAdjustmentPlan as $batchId => $qtyDelta) {
+                    $batchId = (int) $batchId;
+                    $qtyDelta = (int) $qtyDelta;
+                    if ($batchId <= 0 || $qtyDelta <= 0) {
+                        continue;
+                    }
+                    $availableStock = (int) ($batchStockById[$batchId] ?? 0);
+                    if ($qtyDelta > $availableStock) {
+                        $formErrors[] = 'Insufficient remaining stock for one or more edited items.';
+                        break;
+                    }
+                }
+            }
+
             if (empty($formErrors)) {
                 $updateStmt = $pdo->prepare('
                     UPDATE inventory_records
                     SET
-                        record_date = ?,
-                        ptr_no = ?,
                         description = ?,
                         batch_number = ?,
                         program = ?,
                         unit = ?,
-                        expiration_date = ?,
                         quantity = ?,
                         recipient = ?
                     WHERE id = ?
                 ');
-                $updateStmt->execute([
-                    $formData['record_date'],
-                    $formData['ptr_no'] !== '' ? $formData['ptr_no'] : null,
-                    $formData['description'],
-                    $formData['batch_number'] !== '' ? $formData['batch_number'] : null,
-                    $formData['program'] !== '' ? $formData['program'] : null,
-                    $formData['unit'] !== '' ? $formData['unit'] : null,
-                    $formData['expiration_date'] !== '' ? $formData['expiration_date'] : null,
-                    (int) $formData['quantity'],
-                    $formData['recipient'] !== '' ? $formData['recipient'] : null,
-                    $editingId,
-                ]);
-                header('Location: ' . buildReportUrl($returnSearch, $returnDateFrom, $returnDateTo, $returnSort, 'Transaction updated.'));
+
+                $pdo->beginTransaction();
+                try {
+                    if ($hasProductBatchesTable && !empty($stockAdjustmentPlan)) {
+                        $stockDeductStmt = $pdo->prepare('
+                            UPDATE product_batches
+                            SET stock_quantity = stock_quantity - ?
+                            WHERE id = ? AND stock_quantity >= ?
+                        ');
+                        $stockAddStmt = $pdo->prepare('
+                            UPDATE product_batches
+                            SET stock_quantity = stock_quantity + ?
+                            WHERE id = ?
+                        ');
+                        foreach ($stockAdjustmentPlan as $batchId => $qtyDelta) {
+                            $batchId = (int) $batchId;
+                            $qtyDelta = (int) $qtyDelta;
+                            if ($batchId <= 0 || $qtyDelta === 0) {
+                                continue;
+                            }
+                            if ($qtyDelta > 0) {
+                                $stockDeductStmt->execute([$qtyDelta, $batchId, $qtyDelta]);
+                                if ($stockDeductStmt->rowCount() !== 1) {
+                                    throw new RuntimeException('Insufficient stock while saving PTR edits.');
+                                }
+                            } else {
+                                $stockAddStmt->execute([abs($qtyDelta), $batchId]);
+                                if ($stockAddStmt->rowCount() !== 1) {
+                                    throw new RuntimeException('Unable to restore stock while saving PTR edits.');
+                                }
+                            }
+                        }
+                    }
+
+                    foreach ($editingGroupItems as $item) {
+                        $updateStmt->execute([
+                            $item['description'],
+                            $item['batch_number'] !== '' ? $item['batch_number'] : null,
+                            $item['program'] !== '' ? $item['program'] : null,
+                            $item['unit'] !== '' ? $item['unit'] : null,
+                            (int) $item['quantity'],
+                            $formData['recipient'] !== '' ? $formData['recipient'] : null,
+                            $item['id'],
+                        ]);
+                    }
+                    $pdo->commit();
+                } catch (Throwable $e) {
+                    if ($pdo->inTransaction()) {
+                        $pdo->rollBack();
+                    }
+                    $formErrors[] = 'Unable to save PTR updates. Please try again.';
+                }
+            }
+
+            if (empty($formErrors)) {
+                header('Location: ' . buildReportUrl($returnSearch, $returnDateFrom, $returnDateTo, $returnSort, 'PTR group updated.'));
                 exit;
             }
 
@@ -367,6 +623,51 @@ try {
             if ($addFormData['expiration_date'] !== '' && !preg_match('/^\d{4}-\d{2}-\d{2}$/', $addFormData['expiration_date'])) {
                 $addFormErrors[] = 'Expiration date must be a valid date.';
             }
+
+            $resolveAddBatchMeta = static function (array $batchMetaLookup, string $description, string $batchNumber): ?array {
+                $description = trim($description);
+                $batchNumber = trim($batchNumber);
+                if ($description === '' || $batchNumber === '') {
+                    return null;
+                }
+                if (isset($batchMetaLookup[$description][$batchNumber])) {
+                    return $batchMetaLookup[$description][$batchNumber];
+                }
+                $descLower = strtolower($description);
+                foreach ($batchMetaLookup as $descName => $batchRows) {
+                    if (strtolower((string) $descName) !== $descLower || !is_array($batchRows)) {
+                        continue;
+                    }
+                    foreach ($batchRows as $batchNo => $meta) {
+                        if (strtolower((string) $batchNo) === strtolower($batchNumber)) {
+                            return is_array($meta) ? $meta : null;
+                        }
+                    }
+                }
+                return null;
+            };
+
+            $addBatchId = 0;
+            if (empty($addFormErrors) && $hasProductBatchesTable) {
+                if ($addFormData['batch_number'] === '') {
+                    $addFormErrors[] = 'Batch number is required when stock tracking is enabled.';
+                } else {
+                    $selectedBatchMeta = $resolveAddBatchMeta(
+                        $batchMetaByDescription,
+                        $addFormData['description'],
+                        $addFormData['batch_number']
+                    );
+                    $addBatchId = (int) ($selectedBatchMeta['batch_id'] ?? 0);
+                    $availableStock = (int) ($selectedBatchMeta['stock_quantity'] ?? 0);
+                    $requestedQty = (int) $addFormData['quantity'];
+                    if ($addBatchId <= 0) {
+                        $addFormErrors[] = 'Selected batch does not exist for the selected item.';
+                    } elseif ($requestedQty > $availableStock) {
+                        $addFormErrors[] = 'Insufficient remaining stock. Available: ' . $availableStock . ', requested: ' . $requestedQty . '.';
+                    }
+                }
+            }
+
             if (empty($addFormErrors)) {
                 $insertStmt = $pdo->prepare('
                     INSERT INTO inventory_records
@@ -374,20 +675,45 @@ try {
                     VALUES
                         (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 ');
-                $insertStmt->execute([
-                    $addFormData['record_date'],
-                    $addFormData['ptr_no'] !== '' ? $addFormData['ptr_no'] : null,
-                    $addFormData['description'],
-                    $addFormData['batch_number'] !== '' ? $addFormData['batch_number'] : null,
-                    $addFormData['program'] !== '' ? $addFormData['program'] : null,
-                    $addFormData['unit'] !== '' ? $addFormData['unit'] : null,
-                    $addFormData['expiration_date'] !== '' ? $addFormData['expiration_date'] : null,
-                    (int) $addFormData['quantity'],
-                    $addFormData['unit_cost'] !== '' ? (float) $addFormData['unit_cost'] : 0.00,
-                    $addFormData['recipient'] !== '' ? $addFormData['recipient'] : null,
-                ]);
-                header('Location: ' . buildReportUrl($returnSearch, $returnDateFrom, $returnDateTo, $returnSort, 'Transaction added.'));
-                exit;
+                $pdo->beginTransaction();
+                try {
+                    if ($hasProductBatchesTable && $addBatchId > 0) {
+                        $stockUpdateStmt = $pdo->prepare('
+                            UPDATE product_batches
+                            SET stock_quantity = stock_quantity - ?
+                            WHERE id = ? AND stock_quantity >= ?
+                        ');
+                        $deductQty = (int) $addFormData['quantity'];
+                        $stockUpdateStmt->execute([$deductQty, $addBatchId, $deductQty]);
+                        if ($stockUpdateStmt->rowCount() !== 1) {
+                            throw new RuntimeException('Insufficient stock while adding transaction.');
+                        }
+                    }
+
+                    $insertStmt->execute([
+                        $addFormData['record_date'],
+                        $addFormData['ptr_no'] !== '' ? $addFormData['ptr_no'] : null,
+                        $addFormData['description'],
+                        $addFormData['batch_number'] !== '' ? $addFormData['batch_number'] : null,
+                        $addFormData['program'] !== '' ? $addFormData['program'] : null,
+                        $addFormData['unit'] !== '' ? $addFormData['unit'] : null,
+                        $addFormData['expiration_date'] !== '' ? $addFormData['expiration_date'] : null,
+                        (int) $addFormData['quantity'],
+                        $addFormData['unit_cost'] !== '' ? (float) $addFormData['unit_cost'] : 0.00,
+                        $addFormData['recipient'] !== '' ? $addFormData['recipient'] : null,
+                    ]);
+
+                    $pdo->commit();
+                    header('Location: ' . buildReportUrl($returnSearch, $returnDateFrom, $returnDateTo, $returnSort, 'Transaction added.'));
+                    exit;
+                } catch (Throwable $e) {
+                    if ($pdo->inTransaction()) {
+                        $pdo->rollBack();
+                    }
+                    $addFormErrors[] = $e instanceof RuntimeException
+                        ? $e->getMessage()
+                        : 'Unable to add transaction item right now.';
+                }
             }
 
             $showAddModal = true;
@@ -411,19 +737,37 @@ try {
             $editStmt->execute([$editingId]);
             $editingRecord = $editStmt->fetch();
             if ($editingRecord) {
+                $editPtrNo = trim((string) ($editingRecord['ptr_no'] ?? ''));
                 $isEditMode = true;
                 $showEditModal = true;
                 $formData = [
                     'record_date' => (string) ($editingRecord['record_date'] ?? ''),
                     'ptr_no' => (string) ($editingRecord['ptr_no'] ?? ''),
-                    'description' => (string) ($editingRecord['description'] ?? ''),
-                    'batch_number' => (string) ($editingRecord['batch_number'] ?? ''),
-                    'program' => (string) ($editingRecord['program'] ?? ''),
-                    'unit' => (string) ($editingRecord['unit'] ?? ''),
-                    'expiration_date' => (string) ($editingRecord['expiration_date'] ?? ''),
-                    'quantity' => (string) ($editingRecord['quantity'] ?? ''),
                     'recipient' => (string) ($editingRecord['recipient'] ?? ''),
                 ];
+                if ($editPtrNo !== '') {
+                    $editGroupStmt = $pdo->prepare('
+                        SELECT id, record_date, ptr_no, description, batch_number, program, unit, expiration_date, quantity, recipient
+                        FROM inventory_records
+                        WHERE ptr_no = ?
+                        ORDER BY id ASC
+                    ');
+                    $editGroupStmt->execute([$editPtrNo]);
+                    $editingGroupItems = array_map(
+                        static function (array $row): array {
+                            $row['original_description'] = (string) ($row['description'] ?? '');
+                            $row['original_batch_number'] = (string) ($row['batch_number'] ?? '');
+                            $row['original_quantity'] = (string) ($row['quantity'] ?? '0');
+                            return $row;
+                        },
+                        $editGroupStmt->fetchAll()
+                    );
+                } else {
+                    $editingRecord['original_description'] = (string) ($editingRecord['description'] ?? '');
+                    $editingRecord['original_batch_number'] = (string) ($editingRecord['batch_number'] ?? '');
+                    $editingRecord['original_quantity'] = (string) ($editingRecord['quantity'] ?? '0');
+                    $editingGroupItems = [$editingRecord];
+                }
             }
         }
     }
@@ -638,6 +982,12 @@ try {
                                             <?php $groupRefId = isset($group['items'][0]['id']) ? (int) $group['items'][0]['id'] : 0; ?>
                                             <?php if ($groupRefId > 0): ?>
                                                 <a
+                                                    href="<?= htmlspecialchars(buildReportUrl($search, $dateFrom, $dateTo, $sort, '', $groupRefId)) ?>"
+                                                    class="btn btn-outline-secondary btn-sm"
+                                                >
+                                                    Edit PTR
+                                                </a>
+                                                <a
                                                     href="<?= htmlspecialchars(buildReportUrl($search, $dateFrom, $dateTo, $sort, '', 0, $groupRefId)) ?>"
                                                     class="btn btn-outline-primary btn-sm"
                                                 >
@@ -676,12 +1026,6 @@ try {
                                                         <td class="report-col-qty text-end text-nowrap"><?= (int) ($record['quantity'] ?? 0) ?></td>
                                                         <td class="report-col-action text-end">
                                                             <div class="d-inline-flex gap-1">
-                                                                <a
-                                                                    href="<?= htmlspecialchars(buildReportUrl($search, $dateFrom, $dateTo, $sort, '', (int) ($record['id'] ?? 0))) ?>"
-                                                                    class="btn btn-outline-secondary btn-sm"
-                                                                >
-                                                                    Edit
-                                                                </a>
                                                                 <form method="post" action="report.php" onsubmit="return confirm('Delete this transaction?');">
                                                                     <input type="hidden" name="action" value="delete">
                                                                     <input type="hidden" name="id" value="<?= (int) ($record['id'] ?? 0) ?>">
@@ -840,7 +1184,7 @@ try {
         <div class="modal-dialog modal-lg modal-dialog-centered">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h2 class="modal-title h5 mb-0" id="editTransactionModalLabel">Edit Transaction</h2>
+                    <h2 class="modal-title h5 mb-0" id="editTransactionModalLabel">Edit PTR Group</h2>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body">
@@ -857,7 +1201,7 @@ try {
                         <input type="hidden" name="return_date_to" value="<?= htmlspecialchars($dateTo) ?>">
                         <input type="hidden" name="return_sort" value="<?= htmlspecialchars($sort) ?>">
 
-                        <div class="row g-3">
+                        <div class="row g-3 mb-2">
                             <div class="col-md-4">
                                 <label for="edit_record_date" class="form-label">Date</label>
                                 <input type="date" id="edit_record_date" name="record_date" class="form-control" value="<?= htmlspecialchars($formData['record_date']) ?>" readonly>
@@ -867,46 +1211,6 @@ try {
                                 <input type="text" id="edit_ptr_no" name="ptr_no" class="form-control" value="<?= htmlspecialchars($formData['ptr_no']) ?>" readonly>
                             </div>
                             <div class="col-md-4">
-                                <label for="edit_quantity" class="form-label">Summary of Quantity</label>
-                                <input type="text" id="edit_quantity" name="quantity" class="form-control" value="<?= htmlspecialchars($formData['quantity']) ?>" inputmode="numeric" pattern="[0-9]*" required>
-                            </div>
-                            <div class="col-md-8">
-                                <label for="edit_description" class="form-label">Description</label>
-                                <input type="text" id="edit_description" name="description" class="form-control" value="<?= htmlspecialchars($formData['description']) ?>" required>
-                            </div>
-                            <div class="col-md-4">
-                                <label for="edit_batch_number" class="form-label">Batch Number</label>
-                                <input
-                                    type="text"
-                                    id="edit_batch_number"
-                                    name="batch_number"
-                                    class="form-control"
-                                    list="reportEditBatchOptionsList"
-                                    value="<?= htmlspecialchars($formData['batch_number']) ?>"
-                                    placeholder="Type or select batch number"
-                                >
-                            </div>
-                            <div class="col-md-4">
-                                <label for="edit_program" class="form-label">Program</label>
-                                <input
-                                    type="text"
-                                    id="edit_program"
-                                    name="program"
-                                    class="form-control"
-                                    list="reportProgramOptionsList"
-                                    value="<?= htmlspecialchars($formData['program']) ?>"
-                                    placeholder="Type or select program"
-                                >
-                            </div>
-                            <div class="col-md-4">
-                                <label for="edit_unit" class="form-label">Unit (OUM)</label>
-                                <input type="text" id="edit_unit" name="unit" class="form-control" value="<?= htmlspecialchars($formData['unit']) ?>" readonly>
-                            </div>
-                            <div class="col-md-4">
-                                <label for="edit_expiration_date" class="form-label">Expiration Date</label>
-                                <input type="date" id="edit_expiration_date" name="expiration_date" class="form-control" value="<?= htmlspecialchars($formData['expiration_date']) ?>" readonly>
-                            </div>
-                            <div class="col-md-8">
                                 <label for="edit_recipient" class="form-label">Recipient</label>
                                 <input
                                     type="text"
@@ -918,6 +1222,100 @@ try {
                                     placeholder="Type or select recipient"
                                 >
                             </div>
+                        </div>
+                        <div class="table-responsive">
+                            <table class="table table-sm table-striped align-middle mb-0">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>Description</th>
+                                        <th>Batch Number</th>
+                                        <th>Program</th>
+                                        <th>Unit</th>
+                                        <th>Expiration Date</th>
+                                        <th class="text-end">Quantity</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <?php foreach ($editingGroupItems as $item): ?>
+                                        <?php $itemId = (int) ($item['id'] ?? 0); ?>
+                                        <?php if ($itemId <= 0) { continue; } ?>
+                                        <?php $itemBatchListId = 'reportEditBatchOptionsList_' . $itemId; ?>
+                                        <?php $rowBatches = $batchNumbersByDescription[(string) ($item['description'] ?? '')] ?? []; ?>
+                                        <tr
+                                            class="edit-group-row"
+                                            data-item-id="<?= $itemId ?>"
+                                            data-original-description="<?= htmlspecialchars((string) ($item['original_description'] ?? $item['description'] ?? '')) ?>"
+                                            data-original-batch-number="<?= htmlspecialchars((string) ($item['original_batch_number'] ?? $item['batch_number'] ?? '')) ?>"
+                                            data-original-quantity="<?= (int) ($item['original_quantity'] ?? $item['quantity'] ?? 0) ?>"
+                                        >
+                                            <td>
+                                                <input type="hidden" name="item_ids[]" value="<?= $itemId ?>">
+                                                <input
+                                                    type="text"
+                                                    name="description[<?= $itemId ?>]"
+                                                    class="form-control form-control-sm edit-group-description"
+                                                    list="reportDescriptionOptionsList"
+                                                    value="<?= htmlspecialchars((string) ($item['description'] ?? '')) ?>"
+                                                    required
+                                                >
+                                            </td>
+                                            <td>
+                                                <input
+                                                    type="text"
+                                                    name="batch_number[<?= $itemId ?>]"
+                                                    class="form-control form-control-sm edit-group-batch"
+                                                    list="<?= htmlspecialchars($itemBatchListId) ?>"
+                                                    value="<?= htmlspecialchars((string) ($item['batch_number'] ?? '')) ?>"
+                                                >
+                                                <datalist id="<?= htmlspecialchars($itemBatchListId) ?>">
+                                                    <?php foreach ($rowBatches as $batchNumberOption): ?>
+                                                        <option value="<?= htmlspecialchars((string) $batchNumberOption) ?>"></option>
+                                                    <?php endforeach; ?>
+                                                </datalist>
+                                            </td>
+                                            <td>
+                                                <input
+                                                    type="text"
+                                                    name="program[<?= $itemId ?>]"
+                                                    class="form-control form-control-sm"
+                                                    list="reportProgramOptionsList"
+                                                    value="<?= htmlspecialchars((string) ($item['program'] ?? '')) ?>"
+                                                >
+                                            </td>
+                                            <td>
+                                                <input
+                                                    type="text"
+                                                    name="unit[<?= $itemId ?>]"
+                                                    class="form-control form-control-sm"
+                                                    list="reportUnitOptionsList"
+                                                    value="<?= htmlspecialchars((string) ($item['unit'] ?? '')) ?>"
+                                                >
+                                            </td>
+                                            <td>
+                                                <input
+                                                    type="date"
+                                                    name="expiration_date[<?= $itemId ?>]"
+                                                    class="form-control form-control-sm"
+                                                    value="<?= htmlspecialchars((string) ($item['expiration_date'] ?? '')) ?>"
+                                                    readonly
+                                                >
+                                            </td>
+                                            <td>
+                                                <input
+                                                    type="text"
+                                                    name="quantity[<?= $itemId ?>]"
+                                                    class="form-control form-control-sm text-end edit-group-quantity"
+                                                    value="<?= htmlspecialchars((string) ($item['quantity'] ?? '')) ?>"
+                                                    inputmode="numeric"
+                                                    pattern="[0-9]*"
+                                                    required
+                                                >
+                                                <div class="form-text edit-group-stock-hint"></div>
+                                            </td>
+                                        </tr>
+                                    <?php endforeach; ?>
+                                </tbody>
+                            </table>
                         </div>
 
                         <div class="d-flex gap-2 mt-3">
@@ -962,6 +1360,7 @@ try {
                             <div class="col-md-4">
                                 <label for="add_quantity" class="form-label">Summary of Quantity</label>
                                 <input type="text" id="add_quantity" name="quantity" class="form-control" value="<?= htmlspecialchars($addFormData['quantity']) ?>" inputmode="numeric" pattern="[0-9]*" required>
+                                <div class="form-text" id="add_stock_hint"></div>
                             </div>
                             <div class="col-md-8">
                                 <label for="add_description" class="form-label">Description</label>
@@ -1041,6 +1440,11 @@ try {
                             <option value="<?= htmlspecialchars((string) $programOption) ?>"></option>
                         <?php endforeach; ?>
                     </datalist>
+                    <datalist id="reportUnitOptionsList">
+                        <?php foreach ($unitOptions as $unitOption): ?>
+                            <option value="<?= htmlspecialchars((string) $unitOption) ?>"></option>
+                        <?php endforeach; ?>
+                    </datalist>
                     <datalist id="reportEditBatchOptionsList">
                         <?php foreach ($batchNumberOptions as $batchOption): ?>
                             <option value="<?= htmlspecialchars((string) $batchOption) ?>"></option>
@@ -1063,9 +1467,15 @@ try {
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
     <script>
         const reportBatchNumbersByDescription = <?= json_encode($batchNumbersByDescription, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
+        const reportBatchMetaByDescription = <?= json_encode($batchMetaByDescription, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
         const reportUnitCostByDescription = <?= json_encode($unitCostByDescription, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
+        const reportHasProductBatches = <?= $hasProductBatchesTable ? 'true' : 'false' ?>;
         const reportBatchNumbersByDescriptionLower = Object.keys(reportBatchNumbersByDescription).reduce(function (acc, key) {
             acc[String(key).trim().toLowerCase()] = reportBatchNumbersByDescription[key];
+            return acc;
+        }, {});
+        const reportBatchMetaByDescriptionLower = Object.keys(reportBatchMetaByDescription).reduce(function (acc, key) {
+            acc[String(key).trim().toLowerCase()] = reportBatchMetaByDescription[key];
             return acc;
         }, {});
         const reportUnitCostByDescriptionLower = Object.keys(reportUnitCostByDescription).reduce(function (acc, key) {
@@ -1118,6 +1528,29 @@ try {
             unitCostInput.value = selectedUnitCost !== undefined ? String(selectedUnitCost) : '';
         }
 
+        function getReportBatchMeta(descriptionValue, batchNumberValue) {
+            const description = String(descriptionValue || '').trim();
+            const batchNumber = String(batchNumberValue || '').trim();
+            if (description === '' || batchNumber === '') {
+                return null;
+            }
+            const exactRows = reportBatchMetaByDescription[description];
+            if (exactRows && typeof exactRows === 'object' && exactRows[batchNumber]) {
+                return exactRows[batchNumber];
+            }
+            const lowerRows = reportBatchMetaByDescriptionLower[description.toLowerCase()];
+            if (!lowerRows || typeof lowerRows !== 'object') {
+                return null;
+            }
+            const batchLower = batchNumber.toLowerCase();
+            return Object.keys(lowerRows).reduce(function (found, key) {
+                if (found) {
+                    return found;
+                }
+                return String(key).toLowerCase() === batchLower ? lowerRows[key] : null;
+            }, null);
+        }
+
         function bindReportDescriptionDependencies(descriptionInputId, datalistId, unitCostInputId) {
             const descriptionInput = document.getElementById(descriptionInputId);
             if (!descriptionInput) {
@@ -1135,8 +1568,162 @@ try {
         }
 
         document.addEventListener('DOMContentLoaded', function () {
-            bindReportDescriptionDependencies('edit_description', 'reportEditBatchOptionsList', null);
             bindReportDescriptionDependencies('add_description', 'reportAddBatchOptionsList', 'add_unit_cost');
+            const addDescriptionInput = document.getElementById('add_description');
+            const addBatchInput = document.getElementById('add_batch_number');
+            const addQtyInput = document.getElementById('add_quantity');
+            const addStockHint = document.getElementById('add_stock_hint');
+            const refreshAddStockHint = function () {
+                if (!addQtyInput || !addStockHint) {
+                    return;
+                }
+                addQtyInput.setCustomValidity('');
+                if (!reportHasProductBatches) {
+                    addQtyInput.removeAttribute('max');
+                    addStockHint.textContent = '';
+                    return;
+                }
+                const descValue = addDescriptionInput ? String(addDescriptionInput.value || '').trim() : '';
+                const batchValue = addBatchInput ? String(addBatchInput.value || '').trim() : '';
+                const selectedMeta = getReportBatchMeta(descValue, batchValue);
+                if (!selectedMeta) {
+                    addQtyInput.removeAttribute('max');
+                    addStockHint.textContent = batchValue === '' ? '' : 'Selected batch is not valid for this item.';
+                    return;
+                }
+                const availableStock = parseInt(String(selectedMeta.stock_quantity || '0'), 10) || 0;
+                const quantityValue = parseInt(String(addQtyInput.value || '0'), 10) || 0;
+                addQtyInput.setAttribute('max', String(availableStock));
+                addStockHint.textContent = 'Remaining stock available: ' + availableStock;
+                if (quantityValue > availableStock) {
+                    addQtyInput.setCustomValidity('Quantity exceeds remaining stock.');
+                }
+            };
+            if (addDescriptionInput) {
+                addDescriptionInput.addEventListener('input', refreshAddStockHint);
+                addDescriptionInput.addEventListener('change', refreshAddStockHint);
+            }
+            if (addBatchInput) {
+                addBatchInput.addEventListener('input', refreshAddStockHint);
+                addBatchInput.addEventListener('change', refreshAddStockHint);
+            }
+            if (addQtyInput) {
+                addQtyInput.addEventListener('input', function () {
+                    addQtyInput.value = addQtyInput.value.replace(/\D+/g, '');
+                    refreshAddStockHint();
+                });
+            }
+            refreshAddStockHint();
+
+            const editRows = Array.from(document.querySelectorAll('.edit-group-row'));
+            const refreshEditRowStocks = function () {
+                if (!reportHasProductBatches) {
+                    editRows.forEach(function (row) {
+                        const qtyInput = row.querySelector('.edit-group-quantity');
+                        const hintEl = row.querySelector('.edit-group-stock-hint');
+                        if (!qtyInput || !hintEl) {
+                            return;
+                        }
+                        qtyInput.removeAttribute('max');
+                        qtyInput.setCustomValidity('');
+                        hintEl.textContent = '';
+                    });
+                    return;
+                }
+
+                const totalOldByBatchId = {};
+                const totalNewByBatchId = {};
+                const rowStates = editRows.map(function (row) {
+                    const descriptionInput = row.querySelector('.edit-group-description');
+                    const batchInput = row.querySelector('.edit-group-batch');
+                    const qtyInput = row.querySelector('.edit-group-quantity');
+                    const originalDescription = row.getAttribute('data-original-description') || '';
+                    const originalBatchNumber = row.getAttribute('data-original-batch-number') || '';
+                    const originalQty = parseInt(row.getAttribute('data-original-quantity') || '0', 10) || 0;
+                    const currentDescription = descriptionInput ? String(descriptionInput.value || '').trim() : '';
+                    const currentBatch = batchInput ? String(batchInput.value || '').trim() : '';
+                    const currentQty = qtyInput ? (parseInt(String(qtyInput.value || '0'), 10) || 0) : 0;
+                    const oldMeta = getReportBatchMeta(originalDescription, originalBatchNumber);
+                    const newMeta = getReportBatchMeta(currentDescription, currentBatch);
+                    const oldBatchId = oldMeta ? (parseInt(String(oldMeta.batch_id || '0'), 10) || 0) : 0;
+                    const newBatchId = newMeta ? (parseInt(String(newMeta.batch_id || '0'), 10) || 0) : 0;
+                    const newStock = newMeta ? (parseInt(String(newMeta.stock_quantity || '0'), 10) || 0) : 0;
+
+                    if (oldBatchId > 0) {
+                        totalOldByBatchId[oldBatchId] = (totalOldByBatchId[oldBatchId] || 0) + originalQty;
+                    }
+                    if (newBatchId > 0) {
+                        totalNewByBatchId[newBatchId] = (totalNewByBatchId[newBatchId] || 0) + currentQty;
+                    }
+
+                    return {
+                        row: row,
+                        qtyInput: qtyInput,
+                        hintEl: row.querySelector('.edit-group-stock-hint'),
+                        currentBatch: currentBatch,
+                        currentQty: currentQty,
+                        newBatchId: newBatchId,
+                        newStock: newStock,
+                    };
+                });
+
+                rowStates.forEach(function (state) {
+                    if (!state.qtyInput || !state.hintEl) {
+                        return;
+                    }
+                    state.qtyInput.setCustomValidity('');
+                    if (state.newBatchId <= 0) {
+                        state.qtyInput.removeAttribute('max');
+                        state.hintEl.textContent = state.currentBatch === '' ? '' : 'Selected batch is not valid for this item.';
+                        return;
+                    }
+
+                    const oldTotal = totalOldByBatchId[state.newBatchId] || 0;
+                    const otherPlanned = (totalNewByBatchId[state.newBatchId] || 0) - state.currentQty;
+                    const maxAllowed = Math.max(0, state.newStock + oldTotal - otherPlanned);
+                    state.qtyInput.setAttribute('max', String(maxAllowed));
+                    state.hintEl.textContent = 'Remaining stock available for this row: ' + maxAllowed;
+                    if (state.currentQty > maxAllowed) {
+                        state.qtyInput.setCustomValidity('Quantity exceeds remaining stock.');
+                    }
+                });
+            };
+
+            editRows.forEach(function (row) {
+                const descriptionInput = row.querySelector('.edit-group-description');
+                const batchInput = row.querySelector('.edit-group-batch');
+                const qtyInput = row.querySelector('.edit-group-quantity');
+                if (!descriptionInput || !batchInput) {
+                    return;
+                }
+                const batchListId = batchInput.getAttribute('list');
+                const batchDatalist = batchListId ? document.getElementById(batchListId) : null;
+                if (!batchDatalist) {
+                    return;
+                }
+                const refreshBatchList = function () {
+                    const description = String(descriptionInput.value || '').trim();
+                    const exactOptions = reportBatchNumbersByDescription[description];
+                    const lowerOptions = reportBatchNumbersByDescriptionLower[description.toLowerCase()];
+                    const options = Array.isArray(exactOptions) ? exactOptions : (Array.isArray(lowerOptions) ? lowerOptions : []);
+                    batchDatalist.innerHTML = options
+                        .map(function (batchNo) { return '<option value="' + reportEscapeHtml(batchNo) + '"></option>'; })
+                        .join('');
+                    refreshEditRowStocks();
+                };
+                descriptionInput.addEventListener('input', refreshBatchList);
+                descriptionInput.addEventListener('change', refreshBatchList);
+                batchInput.addEventListener('input', refreshEditRowStocks);
+                batchInput.addEventListener('change', refreshEditRowStocks);
+                if (qtyInput) {
+                    qtyInput.addEventListener('input', function () {
+                        qtyInput.value = qtyInput.value.replace(/\D+/g, '');
+                        refreshEditRowStocks();
+                    });
+                }
+                refreshBatchList();
+            });
+            refreshEditRowStocks();
 
             document.querySelectorAll('.report-print-btn').forEach(function (btn) {
                 btn.addEventListener('click', function () {
@@ -1188,12 +1775,11 @@ try {
                 if (!modalElement) {
                     return;
                 }
-                var qtyInput = document.getElementById('edit_quantity');
-                if (qtyInput) {
+                document.querySelectorAll('.edit-group-quantity').forEach(function (qtyInput) {
                     qtyInput.addEventListener('input', function () {
                         qtyInput.value = qtyInput.value.replace(/\D+/g, '');
                     });
-                }
+                });
                 var modal = new bootstrap.Modal(modalElement);
                 modal.show();
             });
