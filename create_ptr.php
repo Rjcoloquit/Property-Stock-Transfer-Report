@@ -40,6 +40,7 @@ function createBlankItem(): array
         'unit'            => '',
         'unit_cost'       => '',
         'program'         => '',
+        'po_no'           => '',
         'expiration_date' => '',
     ];
 }
@@ -65,6 +66,10 @@ try {
     $batchColumnStmt = $pdo->query("SHOW COLUMNS FROM inventory_records LIKE 'batch_number'");
     if (!$batchColumnStmt || !$batchColumnStmt->fetch()) {
         $pdo->exec('ALTER TABLE inventory_records ADD COLUMN batch_number VARCHAR(100) DEFAULT NULL AFTER description');
+    }
+    $poNoColumnStmt = $pdo->query("SHOW COLUMNS FROM inventory_records LIKE 'po_no'");
+    if (!$poNoColumnStmt || !$poNoColumnStmt->fetch()) {
+        $pdo->exec('ALTER TABLE inventory_records ADD COLUMN po_no VARCHAR(100) DEFAULT NULL AFTER program');
     }
 
     normalizeExistingPtrNumbers($pdo);
@@ -226,8 +231,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $batchNumbers = isset($_POST['batch_number']) && is_array($_POST['batch_number']) ? $_POST['batch_number'] : [];
     $units = isset($_POST['unit']) && is_array($_POST['unit']) ? $_POST['unit'] : [];
     $programs = isset($_POST['program']) && is_array($_POST['program']) ? $_POST['program'] : [];
+    $poNumbers = isset($_POST['po_number']) && is_array($_POST['po_number']) ? $_POST['po_number'] : [];
     $quantities = isset($_POST['quantity']) && is_array($_POST['quantity']) ? $_POST['quantity'] : [];
-    $rowCount = max(count($descriptions), count($batchNumbers), count($units), count($programs), count($quantities));
+    $rowCount = max(count($descriptions), count($batchNumbers), count($units), count($programs), count($poNumbers), count($quantities));
     $stockDeductionPlan = [];
 
     if ($data['record_date'] === '') {
@@ -242,6 +248,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $batchNumber = trim((string) ($batchNumbers[$i] ?? ''));
         $unitRaw = trim((string) ($units[$i] ?? ''));
         $programRaw = trim((string) ($programs[$i] ?? ''));
+        $poNoRaw = trim((string) ($poNumbers[$i] ?? ''));
         $quantityRaw = trim((string) ($quantities[$i] ?? ''));
 
         if ($description === '' && $batchNumber === '' && $quantityRaw === '') {
@@ -253,6 +260,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $item['batch_number'] = $batchNumber;
         $item['unit'] = $unitRaw;
         $item['program'] = $programRaw;
+        $item['po_no'] = $poNoRaw;
         $item['quantity'] = $quantityRaw;
 
         if ($description === '') {
@@ -343,9 +351,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             $stmt = $pdo->prepare('
                 INSERT INTO inventory_records
-                    (expiration_date, unit, description, batch_number, quantity, unit_cost, program, recipient, ptr_no, record_date)
+                    (expiration_date, unit, description, batch_number, quantity, unit_cost, program, po_no, recipient, ptr_no, record_date)
                 VALUES
-                    (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ');
 
             $pdo->beginTransaction();
@@ -383,6 +391,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     (int) $item['quantity'],
                     (float) $item['unit_cost'],
                     $item['program'] !== '' ? $item['program'] : null,
+                    $item['po_no'] !== '' ? $item['po_no'] : null,
                     $data['recipient'],
                     $data['ptr_no'],
                     $data['record_date'],
@@ -617,6 +626,7 @@ $previewLineRows = 10;
                                         <th style="width: 11%">Unit Cost</th>
                                         <th style="width: 11%">Amount</th>
                                         <th style="width: 14%">Program</th>
+                                        <th style="width: 10%">PO Number</th>
                                         <th style="width: 11%">Expiration</th>
                                         <th style="width: 8%" class="text-center">Action</th>
                                     </tr>
@@ -685,6 +695,15 @@ $previewLineRows = 10;
                                                     list="programOptionsList"
                                                     value="<?= htmlspecialchars((string) ($item['program'] ?? '')) ?>"
                                                     placeholder="Type or select program"
+                                                >
+                                            </td>
+                                            <td>
+                                                <input
+                                                    type="text"
+                                                    name="po_number[]"
+                                                    class="form-control item-po-number"
+                                                    value="<?= htmlspecialchars((string) ($item['po_no'] ?? '')) ?>"
+                                                    placeholder="PO Number"
                                                 >
                                             </td>
                                             <td><input type="date" class="form-control item-expiration" value="<?= htmlspecialchars((string) ($item['expiration_date'] ?? '')) ?>" readonly></td>
@@ -781,12 +800,14 @@ $previewLineRows = 10;
                                     <th>Quantity</th>
                                     <th>Unit Cost</th>
                                     <th>Amount</th>
-                                    <th>Program/PO No.</th>
+                                    <th>Program</th>
+                                    <th>PO Number</th>
                                 </tr>
                             </thead>
                             <tbody id="previewItemsBody">
                                 <?php for ($i = 0; $i < $previewLineRows; $i++): ?>
                                     <tr>
+                                        <td>-</td>
                                         <td>-</td>
                                         <td>-</td>
                                         <td>-</td>
@@ -801,6 +822,7 @@ $previewLineRows = 10;
                                 <tr>
                                     <td colspan="5" class="text-end"><strong>TOTAL:</strong></td>
                                     <td id="previewTotal">0.00</td>
+                                    <td></td>
                                     <td></td>
                                 </tr>
                             </tfoot>

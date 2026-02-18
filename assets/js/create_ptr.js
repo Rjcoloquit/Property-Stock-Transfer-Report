@@ -277,6 +277,7 @@
             '<td><input type="text" class="form-control item-unit-cost" value="' + escapeHtml(data.unit_cost || '') + '" readonly></td>' +
             '<td><input type="text" class="form-control item-amount" value="" readonly></td>' +
             '<td><input type="text" name="program[]" class="form-control item-program" list="programOptionsList" value="' + escapeHtml(data.program || '') + '" placeholder="Type or select program"></td>' +
+            '<td><input type="text" name="po_number[]" class="form-control item-po-number" value="' + escapeHtml(data.po_no || '') + '" placeholder="PO Number"></td>' +
             '<td><input type="date" class="form-control item-expiration" value="' + escapeHtml(data.expiration_date || '') + '" readonly></td>' +
             '<td class="text-center"><button type="button" class="btn btn-outline-danger btn-sm remove-item-btn">Remove</button></td>';
         return tr;
@@ -292,6 +293,7 @@
             var unitCost = row.querySelector('.item-unit-cost').value.trim();
             var amount = row.querySelector('.item-amount').value.trim();
             var program = row.querySelector('.item-program').value.trim();
+            var poNumber = row.querySelector('.item-po-number') ? row.querySelector('.item-po-number').value.trim() : '';
             var expiration = row.querySelector('.item-expiration').value.trim();
 
             if (description === '' && batchNumber === '' && quantity === '') {
@@ -306,6 +308,7 @@
                 unit_cost: unitCost,
                 amount: amount,
                 program: program,
+                po_no: poNumber,
                 expiration_date: expiration
             });
         });
@@ -328,13 +331,14 @@
                 '<td>' + escapeHtml(textOrDash(item.quantity)) + '</td>' +
                 '<td>' + escapeHtml(textOrDash(item.unit_cost)) + '</td>' +
                 '<td>' + escapeHtml(textOrDash(item.amount)) + '</td>' +
-                '<td>' + escapeHtml(textOrDash(item.program)) + '</td>';
+                '<td>' + escapeHtml(textOrDash(item.program)) + '</td>' +
+                '<td>' + escapeHtml(textOrDash(item.po_no)) + '</td>';
             previewItemsBody.appendChild(tr);
         });
 
         for (var i = rowsToRender.length; i < previewLineRows; i++) {
             var blank = document.createElement('tr');
-            blank.innerHTML = '<td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td>';
+            blank.innerHTML = '<td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td>';
             previewItemsBody.appendChild(blank);
         }
     }
@@ -474,6 +478,8 @@
             row.querySelector('.item-description').value = '';
             row.querySelector('.item-batch-number').value = '';
             row.querySelector('.item-program').value = '';
+            var poInput = row.querySelector('.item-po-number');
+            if (poInput) { poInput.value = ''; }
             row.querySelector('.item-quantity').value = '';
             applyRowMeta(row);
             refreshCreateRowStockHints();

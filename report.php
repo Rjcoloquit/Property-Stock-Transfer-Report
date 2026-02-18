@@ -57,6 +57,7 @@ $addFormData = [
     'description' => '',
     'batch_number' => '',
     'program' => '',
+    'po_no' => '',
     'unit' => '',
     'expiration_date' => '',
     'quantity' => '',
@@ -122,6 +123,10 @@ try {
     $batchColumnStmt = $pdo->query("SHOW COLUMNS FROM inventory_records LIKE 'batch_number'");
     if (!$batchColumnStmt || !$batchColumnStmt->fetch()) {
         $pdo->exec('ALTER TABLE inventory_records ADD COLUMN batch_number VARCHAR(100) DEFAULT NULL AFTER description');
+    }
+    $poNoColumnStmt = $pdo->query("SHOW COLUMNS FROM inventory_records LIKE 'po_no'");
+    if (!$poNoColumnStmt || !$poNoColumnStmt->fetch()) {
+        $pdo->exec('ALTER TABLE inventory_records ADD COLUMN po_no VARCHAR(100) DEFAULT NULL AFTER program');
     }
     normalizeExistingPtrNumbers($pdo);
 
@@ -328,6 +333,7 @@ try {
             $postedDescriptions = $_POST['description'] ?? [];
             $postedBatchNumbers = $_POST['batch_number'] ?? [];
             $postedPrograms = $_POST['program'] ?? [];
+            $postedPoNumbers = $_POST['po_number'] ?? [];
             $postedUnits = $_POST['unit'] ?? [];
             $postedQuantities = $_POST['quantity'] ?? [];
 
@@ -361,7 +367,7 @@ try {
                     $formErrors[] = 'Cannot edit multiple rows because this transaction has no PTR No.';
                 } else {
                     $groupRowsStmt = $pdo->prepare('
-                        SELECT id, record_date, ptr_no, expiration_date, description, batch_number, quantity
+                        SELECT id, record_date, ptr_no, expiration_date, description, batch_number, program, po_no, quantity
                         FROM inventory_records
                         WHERE ptr_no = ?
                         ORDER BY id ASC
@@ -450,6 +456,7 @@ try {
                     $immutableExpirationDate = (string) (($groupRowsById[$itemId]['expiration_date'] ?? '') ?: '');
                     $batchNumberValue = trim((string) ($postedBatchNumbers[$itemId] ?? ''));
                     $programValue = trim((string) ($postedPrograms[$itemId] ?? ''));
+                    $poNoValue = trim((string) ($postedPoNumbers[$itemId] ?? ''));
                     $unitValue = trim((string) ($postedUnits[$itemId] ?? ''));
                     $currentRow = $groupRowsById[$itemId] ?? null;
                     $originalDescription = trim((string) ($currentRow['description'] ?? ''));
@@ -486,6 +493,7 @@ try {
                         'description' => $descriptionValue,
                         'batch_number' => $batchNumberValue,
                         'program' => $programValue,
+                        'po_no' => $poNoValue,
                         'unit' => $unitValue,
                         'expiration_date' => $immutableExpirationDate,
                         'quantity' => $quantityValue,
@@ -518,6 +526,7 @@ try {
                         description = ?,
                         batch_number = ?,
                         program = ?,
+                        po_no = ?,
                         unit = ?,
                         quantity = ?,
                         recipient = ?
@@ -562,6 +571,7 @@ try {
                             $item['description'],
                             $item['batch_number'] !== '' ? $item['batch_number'] : null,
                             $item['program'] !== '' ? $item['program'] : null,
+                            $item['po_no'] !== '' ? $item['po_no'] : null,
                             $item['unit'] !== '' ? $item['unit'] : null,
                             (int) $item['quantity'],
                             $formData['recipient'] !== '' ? $formData['recipient'] : null,
@@ -602,6 +612,7 @@ try {
             $addFormData['description'] = trim((string) ($_POST['description'] ?? ''));
             $addFormData['batch_number'] = trim((string) ($_POST['batch_number'] ?? ''));
             $addFormData['program'] = trim((string) ($_POST['program'] ?? ''));
+            $addFormData['po_no'] = trim((string) ($_POST['po_number'] ?? ''));
             $addFormData['unit'] = trim((string) ($_POST['unit'] ?? ''));
             $addFormData['expiration_date'] = trim((string) ($_POST['expiration_date'] ?? ''));
             $addFormData['quantity'] = trim((string) ($_POST['quantity'] ?? ''));
@@ -671,9 +682,9 @@ try {
             if (empty($addFormErrors)) {
                 $insertStmt = $pdo->prepare('
                     INSERT INTO inventory_records
-                        (record_date, ptr_no, description, batch_number, program, unit, expiration_date, quantity, unit_cost, recipient)
+                        (record_date, ptr_no, description, batch_number, program, po_no, unit, expiration_date, quantity, unit_cost, recipient)
                     VALUES
-                        (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 ');
                 $pdo->beginTransaction();
                 try {
@@ -696,6 +707,7 @@ try {
                         $addFormData['description'],
                         $addFormData['batch_number'] !== '' ? $addFormData['batch_number'] : null,
                         $addFormData['program'] !== '' ? $addFormData['program'] : null,
+                        $addFormData['po_no'] !== '' ? $addFormData['po_no'] : null,
                         $addFormData['unit'] !== '' ? $addFormData['unit'] : null,
                         $addFormData['expiration_date'] !== '' ? $addFormData['expiration_date'] : null,
                         (int) $addFormData['quantity'],
@@ -729,7 +741,7 @@ try {
         $editingId = (int) $_GET['edit'];
         if ($editingId > 0) {
             $editStmt = $pdo->prepare('
-                SELECT id, record_date, ptr_no, description, batch_number, program, unit, expiration_date, quantity, recipient
+                SELECT id, record_date, ptr_no, description, batch_number, program, po_no, unit, expiration_date, quantity, recipient
                 FROM inventory_records
                 WHERE id = ?
                 LIMIT 1
@@ -747,7 +759,7 @@ try {
                 ];
                 if ($editPtrNo !== '') {
                     $editGroupStmt = $pdo->prepare('
-                        SELECT id, record_date, ptr_no, description, batch_number, program, unit, expiration_date, quantity, recipient
+                        SELECT id, record_date, ptr_no, description, batch_number, program, po_no, unit, expiration_date, quantity, recipient
                         FROM inventory_records
                         WHERE ptr_no = ?
                         ORDER BY id ASC
@@ -776,7 +788,7 @@ try {
         $addingRefId = (int) $_GET['add'];
         if ($addingRefId > 0) {
             $addRefStmt = $pdo->prepare('
-                SELECT record_date, ptr_no, description, batch_number, program, unit, expiration_date, quantity, unit_cost, recipient
+                SELECT record_date, ptr_no, description, batch_number, program, po_no, unit, expiration_date, quantity, unit_cost, recipient
                 FROM inventory_records
                 WHERE id = ?
                 LIMIT 1
@@ -791,6 +803,7 @@ try {
                     'description' => '',
                     'batch_number' => '',
                     'program' => (string) ($refRecord['program'] ?? ''),
+                    'po_no' => (string) ($refRecord['po_no'] ?? ''),
                     'unit' => (string) ($refRecord['unit'] ?? ''),
                     'expiration_date' => (string) ($refRecord['expiration_date'] ?? ''),
                     'quantity' => (string) ($refRecord['quantity'] ?? ''),
@@ -806,7 +819,7 @@ try {
         $params = [];
 
         if ($search !== '') {
-            $where[] = '(ptr_no LIKE :q OR recipient LIKE :q OR description LIKE :q OR batch_number LIKE :q OR program LIKE :q OR unit LIKE :q)';
+            $where[] = '(ptr_no LIKE :q OR recipient LIKE :q OR description LIKE :q OR batch_number LIKE :q OR program LIKE :q OR po_no LIKE :q OR unit LIKE :q)';
             $params['q'] = '%' . $search . '%';
         }
         if ($dateFrom !== '') {
@@ -819,7 +832,7 @@ try {
         }
 
         $sql = '
-            SELECT id, expiration_date, unit, description, batch_number, quantity, unit_cost, program, recipient, ptr_no, record_date
+            SELECT id, expiration_date, unit, description, batch_number, quantity, unit_cost, program, po_no, recipient, ptr_no, record_date
             FROM inventory_records
         ';
         if (!empty($where)) {
@@ -1003,6 +1016,7 @@ try {
                                                     <th scope="col" class="report-col-description">Description</th>
                                                     <th scope="col" class="report-col-batch">Batch Number</th>
                                                     <th scope="col" class="report-col-program">Program</th>
+                                                    <th scope="col" class="report-col-po">PO Number</th>
                                                     <th scope="col" class="report-col-unit">Unit (OUM)</th>
                                                     <th scope="col" class="report-col-expiry">Expiration Date</th>
                                                     <th scope="col" class="report-col-qty text-end">Summary of Quantity</th>
@@ -1020,6 +1034,9 @@ try {
                                                         </td>
                                                         <td class="report-col-program report-wrap-text" title="<?= htmlspecialchars((string) ($record['program'] ?? '-')) ?>">
                                                             <?= htmlspecialchars($record['program'] ?? '-') ?>
+                                                        </td>
+                                                        <td class="report-col-po report-wrap-text" title="<?= htmlspecialchars((string) ($record['po_no'] ?? '-')) ?>">
+                                                            <?= htmlspecialchars($record['po_no'] ?? '-') ?>
                                                         </td>
                                                         <td class="report-col-unit"><?= htmlspecialchars($record['unit'] ?? '-') ?></td>
                                                         <td class="report-col-expiry text-nowrap"><?= htmlspecialchars($record['expiration_date'] ?? '-') ?></td>
@@ -1081,7 +1098,8 @@ try {
                                                     <th>Quantity</th>
                                                     <th>Unit Cost</th>
                                                     <th>Amount</th>
-                                                    <th>Program/PO No.</th>
+                                                    <th>Program</th>
+                                                    <th>PO Number</th>
                                                 </tr>
                                             </thead>
                                             <tbody>
@@ -1104,11 +1122,13 @@ try {
                                                         <td><?= htmlspecialchars(number_format($unitCostValue, 2, '.', '')) ?></td>
                                                         <td><?= htmlspecialchars(number_format($amountValue, 2, '.', '')) ?></td>
                                                         <td><?= htmlspecialchars((string) ($record['program'] ?? '-')) ?></td>
+                                                        <td><?= htmlspecialchars((string) ($record['po_no'] ?? '-')) ?></td>
                                                     </tr>
                                                     <?php $renderedRows++; ?>
                                                 <?php endforeach; ?>
                                                 <?php for ($i = $renderedRows; $i < $previewLineRows; $i++): ?>
                                                     <tr>
+                                                        <td>&nbsp;</td>
                                                         <td>&nbsp;</td>
                                                         <td>&nbsp;</td>
                                                         <td>&nbsp;</td>
@@ -1123,6 +1143,7 @@ try {
                                                 <tr>
                                                     <td colspan="5" class="text-end"><strong>TOTAL:</strong></td>
                                                     <td><?= htmlspecialchars(number_format($groupTotal, 2, '.', '')) ?></td>
+                                                    <td></td>
                                                     <td></td>
                                                 </tr>
                                             </tfoot>
@@ -1230,6 +1251,7 @@ try {
                                         <th>Description</th>
                                         <th>Batch Number</th>
                                         <th>Program</th>
+                                        <th>PO Number</th>
                                         <th>Unit</th>
                                         <th>Expiration Date</th>
                                         <th class="text-end">Quantity</th>
@@ -1280,6 +1302,15 @@ try {
                                                     class="form-control form-control-sm"
                                                     list="reportProgramOptionsList"
                                                     value="<?= htmlspecialchars((string) ($item['program'] ?? '')) ?>"
+                                                >
+                                            </td>
+                                            <td>
+                                                <input
+                                                    type="text"
+                                                    name="po_number[<?= $itemId ?>]"
+                                                    class="form-control form-control-sm"
+                                                    value="<?= htmlspecialchars((string) ($item['po_no'] ?? '')) ?>"
+                                                    placeholder="PO Number"
                                                 >
                                             </td>
                                             <td>
@@ -1397,6 +1428,17 @@ try {
                                     list="reportProgramOptionsList"
                                     value="<?= htmlspecialchars($addFormData['program']) ?>"
                                     placeholder="Type or select program"
+                                >
+                            </div>
+                            <div class="col-md-4">
+                                <label for="add_po_number" class="form-label">PO Number</label>
+                                <input
+                                    type="text"
+                                    id="add_po_number"
+                                    name="po_number"
+                                    class="form-control"
+                                    value="<?= htmlspecialchars($addFormData['po_no']) ?>"
+                                    placeholder="PO Number"
                                 >
                             </div>
                             <div class="col-md-4">

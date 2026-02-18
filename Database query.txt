@@ -75,10 +75,12 @@ CREATE TABLE inventory_records (
     quantity INT DEFAULT 0,
     unit_cost DECIMAL(10,2) DEFAULT 0.00,
     program VARCHAR(255),
+    po_no VARCHAR(100), 
     recipient VARCHAR(255),
     ptr_no VARCHAR(50),
     record_date DATE
 );
+
 
 INSERT INTO products (product_description, uom, cost_per_unit, program) VALUES
 ('[Co-Amoxiclav] Amoxicillin 400mg + Clavulanic Acid 57mg per 5mL Powder for Oral Suspension 70mL', 'Bottles', 0, 'General Consumption'),
