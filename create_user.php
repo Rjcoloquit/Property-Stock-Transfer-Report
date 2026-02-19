@@ -11,7 +11,7 @@ $full_name = 'Administrator';
 $username = 'admin';
 $password = 'password';  // Change this
 $email = 'admin@example.com';
-$role = 'Admin';  // or 'InventoryManager'
+$role = 'Admin';  // or 'Encoder'
 $status = 'Active';
 
 $hash = password_hash($password, PASSWORD_DEFAULT);

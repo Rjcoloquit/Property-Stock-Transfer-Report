@@ -23,13 +23,33 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $stmt->execute([$username]);
         $user = $stmt->fetch();
 
-        if ($user && $user['status'] === 'Active' && password_verify($password, $user['password_hash'])) {
-            $_SESSION['user_id'] = (int) $user['user_id'];
-            $_SESSION['username'] = $user['username'];
-            $_SESSION['full_name'] = $user['full_name'];
-            $_SESSION['role'] = $user['role'];
-            header('Location: home.php');
-            exit;
+        if ($user) {
+            $status = strtolower(trim((string) ($user['status'] ?? '')));
+            $storedHash = (string) ($user['password_hash'] ?? '');
+            $passwordInfo = password_get_info($storedHash);
+            $isHashedPassword = isset($passwordInfo['algo']) && $passwordInfo['algo'] !== null && $passwordInfo['algo'] !== 0;
+            $passwordValid = false;
+
+            if ($isHashedPassword) {
+                $passwordValid = password_verify($password, $storedHash);
+            } else {
+                // Backward compatibility for old plain-text passwords, then migrate to hash.
+                $passwordValid = hash_equals($storedHash, $password);
+                if ($passwordValid) {
+                    $newHash = password_hash($password, PASSWORD_DEFAULT);
+                    $updateStmt = $pdo->prepare('UPDATE users SET password_hash = ? WHERE user_id = ?');
+                    $updateStmt->execute([$newHash, (int) $user['user_id']]);
+                }
+            }
+
+            if ($status === 'active' && $passwordValid) {
+                $_SESSION['user_id'] = (int) $user['user_id'];
+                $_SESSION['username'] = $user['username'];
+                $_SESSION['full_name'] = $user['full_name'];
+                $_SESSION['role'] = $user['role'];
+                header('Location: home.php');
+                exit;
+            }
         }
 
         $error = 'Invalid username or password.';

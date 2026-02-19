@@ -16,7 +16,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $email = trim($_POST['email'] ?? '');
     $password = $_POST['password'] ?? '';
     $password_confirm = $_POST['password_confirm'] ?? '';
-    $role = 'InventoryManager'; // Default role for new signups
+    // Match DB enum in `users.role` (Admin, Encoder)
+    $role = 'Encoder';
 
     // Validation
     if ($full_name === '' || $username === '' || $password === '' || $password_confirm === '') {
@@ -71,8 +72,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
         } catch (PDOException $e) {
             $error = 'Registration failed. Please try again.';
-            // For debugging: uncomment the line below
-            // $error = 'Error: ' . htmlspecialchars($e->getMessage());
+            // Helpful message for common enum mismatch issue.
+            if (stripos($e->getMessage(), 'Data truncated for column \'role\'') !== false) {
+                $error = 'Registration failed due to an invalid default role configuration.';
+            }
         }
     }
 }
