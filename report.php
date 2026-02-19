@@ -129,6 +129,14 @@ try {
     if (!$poNoColumnStmt || !$poNoColumnStmt->fetch()) {
         $pdo->exec('ALTER TABLE inventory_records ADD COLUMN po_no VARCHAR(100) DEFAULT NULL AFTER program');
     }
+    $releaseStatusColumnStmt = $pdo->query("SHOW COLUMNS FROM inventory_records LIKE 'release_status'");
+    if (!$releaseStatusColumnStmt || !$releaseStatusColumnStmt->fetch()) {
+        $pdo->exec("ALTER TABLE inventory_records ADD COLUMN release_status VARCHAR(20) NOT NULL DEFAULT 'released' AFTER record_date");
+    }
+    $releasedAtColumnStmt = $pdo->query("SHOW COLUMNS FROM inventory_records LIKE 'released_at'");
+    if (!$releasedAtColumnStmt || !$releasedAtColumnStmt->fetch()) {
+        $pdo->exec('ALTER TABLE inventory_records ADD COLUMN released_at DATETIME DEFAULT NULL AFTER release_status');
+    }
     normalizeExistingPtrNumbers($pdo);
 
     $descriptionOptionsStmt = $pdo->query('
@@ -380,7 +388,7 @@ try {
                 $anchorStmt = $pdo->prepare('
                     SELECT id, ptr_no
                     FROM inventory_records
-                    WHERE id = ?
+                    WHERE id = ? AND COALESCE(release_status, "released") = "released"
                     LIMIT 1
                 ');
                 $anchorStmt->execute([$editingId]);
@@ -400,7 +408,7 @@ try {
                     $groupRowsStmt = $pdo->prepare('
                         SELECT id, record_date, ptr_no, expiration_date, description, batch_number, program, po_no, quantity
                         FROM inventory_records
-                        WHERE ptr_no = ?
+                        WHERE ptr_no = ? AND COALESCE(release_status, "released") = "released"
                         ORDER BY id ASC
                     ');
                     $groupRowsStmt->execute([$anchorPtrNo]);
@@ -774,7 +782,7 @@ try {
             $editStmt = $pdo->prepare('
                 SELECT id, record_date, ptr_no, description, batch_number, program, po_no, unit, expiration_date, quantity, recipient
                 FROM inventory_records
-                WHERE id = ?
+                WHERE id = ? AND COALESCE(release_status, "released") = "released"
                 LIMIT 1
             ');
             $editStmt->execute([$editingId]);
@@ -792,7 +800,7 @@ try {
                     $editGroupStmt = $pdo->prepare('
                         SELECT id, record_date, ptr_no, description, batch_number, program, po_no, unit, expiration_date, quantity, recipient
                         FROM inventory_records
-                        WHERE ptr_no = ?
+                        WHERE ptr_no = ? AND COALESCE(release_status, "released") = "released"
                         ORDER BY id ASC
                     ');
                     $editGroupStmt->execute([$editPtrNo]);
@@ -821,7 +829,7 @@ try {
             $addRefStmt = $pdo->prepare('
                 SELECT record_date, ptr_no, description, batch_number, program, po_no, unit, expiration_date, quantity, unit_cost, recipient
                 FROM inventory_records
-                WHERE id = ?
+                WHERE id = ? AND COALESCE(release_status, "released") = "released"
                 LIMIT 1
             ');
             $addRefStmt->execute([$addingRefId]);
@@ -846,7 +854,7 @@ try {
     }
 
     if ($error === '') {
-        $where = [];
+        $where = ['COALESCE(release_status, "released") = "released"'];
         $params = [];
 
         if ($search !== '') {
@@ -900,9 +908,9 @@ try {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Transaction Report - Supply</title>
-    <link rel="stylesheet" href="style.css?v=20260212">
+    <link rel="stylesheet" href="style.css?v=20260219">
 </head>
-<body>
+<body class="report-page">
     <header class="navbar navbar-expand-lg navbar-light bg-white app-header px-3 px-md-4">
         <div class="container-fluid">
             <span class="navbar-brand mb-0 h6 app-header-title d-flex align-items-center gap-2">
@@ -918,9 +926,10 @@ try {
             </span>
             <div class="app-header-actions">
                 <span class="app-user-chip"><?= htmlspecialchars($username) ?></span>
-                <a href="home.php" class="btn btn-outline-secondary btn-sm app-header-action-link">Home</a>
-                <a href="create_ptr.php" class="btn btn-outline-secondary btn-sm app-header-action-link">Create PTR</a>
-                <a href="logout.php" class="btn btn-outline-secondary btn-sm app-header-action-link">Log out</a>
+                <a href="home.php" class="btn btn-outline-secondary btn-sm app-header-action-link report-header-btn">Home</a>
+                <a href="create_ptr.php" class="btn btn-outline-secondary btn-sm app-header-action-link report-header-btn">Create PTR</a>
+                <a href="pending_transactions.php" class="btn btn-outline-secondary btn-sm app-header-action-link report-header-btn">Pending</a>
+                <a href="logout.php" class="btn btn-outline-secondary btn-sm app-header-action-link report-header-btn">Log out</a>
             </div>
         </div>
     </header>
@@ -1235,7 +1244,7 @@ try {
         </div>
     </main>
     <div class="modal fade" id="editTransactionModal" tabindex="-1" aria-labelledby="editTransactionModalLabel" aria-hidden="true">
-        <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-dialog modal-xl modal-dialog-centered">
             <div class="modal-content">
                 <div class="modal-header">
                     <h2 class="modal-title h5 mb-0" id="editTransactionModalLabel">Edit PTR Group</h2>
@@ -1255,7 +1264,7 @@ try {
                         <input type="hidden" name="return_date_to" value="<?= htmlspecialchars($dateTo) ?>">
                         <input type="hidden" name="return_sort" value="<?= htmlspecialchars($sort) ?>">
 
-                        <div class="row g-3 mb-2">
+                        <div class="row g-3 mb-3 report-edit-meta">
                             <div class="col-md-4">
                                 <label for="edit_record_date" class="form-label">Date</label>
                                 <input type="date" id="edit_record_date" name="record_date" class="form-control" value="<?= htmlspecialchars($formData['record_date']) ?>" readonly>
@@ -1277,17 +1286,26 @@ try {
                                 >
                             </div>
                         </div>
-                        <div class="table-responsive">
-                            <table class="table table-sm table-striped align-middle mb-0">
+                        <div class="table-responsive report-edit-table-wrap">
+                            <table class="table table-sm table-striped align-middle mb-0 report-edit-table">
+                                <colgroup>
+                                    <col class="report-edit-col-description">
+                                    <col class="report-edit-col-batch">
+                                    <col class="report-edit-col-program">
+                                    <col class="report-edit-col-po">
+                                    <col class="report-edit-col-unit">
+                                    <col class="report-edit-col-exp">
+                                    <col class="report-edit-col-qty">
+                                </colgroup>
                                 <thead class="table-light">
                                     <tr>
-                                        <th>Description</th>
-                                        <th>Batch Number</th>
-                                        <th>Program</th>
-                                        <th>PO Number</th>
-                                        <th>Unit</th>
-                                        <th>Expiration Date</th>
-                                        <th class="text-end">Quantity</th>
+                                        <th class="report-edit-col-description">Description</th>
+                                        <th class="report-edit-col-batch text-center">Batch Number</th>
+                                        <th class="report-edit-col-program">Program</th>
+                                        <th class="report-edit-col-po text-center">PO Number</th>
+                                        <th class="report-edit-col-unit text-center">Unit</th>
+                                        <th class="report-edit-col-exp text-center">Expiration Date</th>
+                                        <th class="report-edit-col-qty text-center">Quantity</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -1308,7 +1326,7 @@ try {
                                                 <input
                                                     type="text"
                                                     name="description[<?= $itemId ?>]"
-                                                    class="form-control form-control-sm edit-group-description"
+                                                    class="form-control form-control-sm edit-group-description report-edit-input"
                                                     list="reportDescriptionOptionsList"
                                                     value="<?= htmlspecialchars((string) ($item['description'] ?? '')) ?>"
                                                     required
@@ -1318,7 +1336,7 @@ try {
                                                 <input
                                                     type="text"
                                                     name="batch_number[<?= $itemId ?>]"
-                                                    class="form-control form-control-sm edit-group-batch"
+                                                    class="form-control form-control-sm edit-group-batch report-edit-input text-center"
                                                     list="<?= htmlspecialchars($itemBatchListId) ?>"
                                                     value="<?= htmlspecialchars((string) ($item['batch_number'] ?? '')) ?>"
                                                 >
@@ -1332,7 +1350,7 @@ try {
                                                 <input
                                                     type="text"
                                                     name="program[<?= $itemId ?>]"
-                                                    class="form-control form-control-sm"
+                                                    class="form-control form-control-sm report-edit-input"
                                                     list="reportProgramOptionsList"
                                                     value="<?= htmlspecialchars((string) ($item['program'] ?? '')) ?>"
                                                 >
@@ -1341,7 +1359,7 @@ try {
                                                 <input
                                                     type="text"
                                                     name="po_number[<?= $itemId ?>]"
-                                                    class="form-control form-control-sm edit-group-po-number"
+                                                    class="form-control form-control-sm edit-group-po-number report-edit-input text-center"
                                                     value="<?= htmlspecialchars((string) ($item['po_no'] ?? '')) ?>"
                                                     placeholder="PO No."
                                                 >
@@ -1350,7 +1368,7 @@ try {
                                                 <input
                                                     type="text"
                                                     name="unit[<?= $itemId ?>]"
-                                                    class="form-control form-control-sm"
+                                                    class="form-control form-control-sm report-edit-input text-center"
                                                     list="reportUnitOptionsList"
                                                     value="<?= htmlspecialchars((string) ($item['unit'] ?? '')) ?>"
                                                 >
@@ -1359,7 +1377,7 @@ try {
                                                 <input
                                                     type="date"
                                                     name="expiration_date[<?= $itemId ?>]"
-                                                    class="form-control form-control-sm"
+                                                    class="form-control form-control-sm report-edit-input text-center"
                                                     value="<?= htmlspecialchars((string) ($item['expiration_date'] ?? '')) ?>"
                                                     readonly
                                                 >
@@ -1368,7 +1386,7 @@ try {
                                                 <input
                                                     type="text"
                                                     name="quantity[<?= $itemId ?>]"
-                                                    class="form-control form-control-sm text-end edit-group-quantity"
+                                                    class="form-control form-control-sm text-center edit-group-quantity report-edit-input"
                                                     value="<?= htmlspecialchars((string) ($item['quantity'] ?? '')) ?>"
                                                     inputmode="numeric"
                                                     pattern="[0-9]*"

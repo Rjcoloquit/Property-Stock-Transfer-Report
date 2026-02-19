@@ -34,6 +34,7 @@ $nextPtrNo = '';
 function createBlankItem(): array
 {
     return [
+        'batch_id'        => 0,
         'description'     => '',
         'batch_number'    => '',
         'quantity'        => '',
@@ -67,9 +68,21 @@ try {
     if (!$batchColumnStmt || !$batchColumnStmt->fetch()) {
         $pdo->exec('ALTER TABLE inventory_records ADD COLUMN batch_number VARCHAR(100) DEFAULT NULL AFTER description');
     }
+    $batchIdColumnStmt = $pdo->query("SHOW COLUMNS FROM inventory_records LIKE 'batch_id'");
+    if (!$batchIdColumnStmt || !$batchIdColumnStmt->fetch()) {
+        $pdo->exec('ALTER TABLE inventory_records ADD COLUMN batch_id INT DEFAULT NULL AFTER batch_number');
+    }
     $poNoColumnStmt = $pdo->query("SHOW COLUMNS FROM inventory_records LIKE 'po_no'");
     if (!$poNoColumnStmt || !$poNoColumnStmt->fetch()) {
         $pdo->exec('ALTER TABLE inventory_records ADD COLUMN po_no VARCHAR(100) DEFAULT NULL AFTER program');
+    }
+    $releaseStatusColumnStmt = $pdo->query("SHOW COLUMNS FROM inventory_records LIKE 'release_status'");
+    if (!$releaseStatusColumnStmt || !$releaseStatusColumnStmt->fetch()) {
+        $pdo->exec("ALTER TABLE inventory_records ADD COLUMN release_status VARCHAR(20) NOT NULL DEFAULT 'released' AFTER record_date");
+    }
+    $releasedAtColumnStmt = $pdo->query("SHOW COLUMNS FROM inventory_records LIKE 'released_at'");
+    if (!$releasedAtColumnStmt || !$releasedAtColumnStmt->fetch()) {
+        $pdo->exec('ALTER TABLE inventory_records ADD COLUMN released_at DATETIME DEFAULT NULL AFTER release_status');
     }
 
     normalizeExistingPtrNumbers($pdo);
@@ -264,6 +277,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $item['program'] = $programRaw;
         $item['po_no'] = $poNoRaw;
         $item['quantity'] = $quantityRaw;
+        $item['batch_id'] = 0;
 
         if ($description === '') {
             $errors[] = 'Item description is required on row ' . ($i + 1) . '.';
@@ -336,6 +350,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
 
             $stockDeductionPlan[$batchId] = $plannedQty;
+            $item['batch_id'] = $batchId;
         }
 
         $data['items'][] = $item;
@@ -353,9 +368,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             $stmt = $pdo->prepare('
                 INSERT INTO inventory_records
-                    (expiration_date, unit, description, batch_number, quantity, unit_cost, program, po_no, recipient, ptr_no, record_date)
+                    (
+                        expiration_date,
+                        unit,
+                        description,
+                        batch_number,
+                        batch_id,
+                        quantity,
+                        unit_cost,
+                        program,
+                        po_no,
+                        recipient,
+                        ptr_no,
+                        record_date,
+                        release_status,
+                        released_at
+                    )
                 VALUES
-                    (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ');
 
             $pdo->beginTransaction();
@@ -365,31 +395,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $recipientInsertStmt->execute([$data['recipient']]);
             }
 
-            if ($hasProductBatchesTable && !empty($stockDeductionPlan)) {
-                $stockUpdateStmt = $pdo->prepare('
-                    UPDATE product_batches
-                    SET stock_quantity = stock_quantity - ?
-                    WHERE id = ? AND stock_quantity >= ?
-                ');
-                foreach ($stockDeductionPlan as $batchId => $deductQty) {
-                    $batchId = (int) $batchId;
-                    $deductQty = (int) $deductQty;
-                    if ($batchId <= 0 || $deductQty <= 0) {
-                        continue;
-                    }
-                    $stockUpdateStmt->execute([$deductQty, $batchId, $deductQty]);
-                    if ($stockUpdateStmt->rowCount() !== 1) {
-                        throw new RuntimeException('Insufficient stock while saving PTR.');
-                    }
-                }
-            }
-
             foreach ($data['items'] as $item) {
                 $stmt->execute([
                     $item['expiration_date'] !== '' ? $item['expiration_date'] : null,
                     $item['unit'] !== '' ? $item['unit'] : null,
                     $item['description'],
                     $item['batch_number'] !== '' ? $item['batch_number'] : null,
+                    (int) ($item['batch_id'] ?? 0) > 0 ? (int) $item['batch_id'] : null,
                     (int) $item['quantity'],
                     (float) $item['unit_cost'],
                     $item['program'] !== '' ? $item['program'] : null,
@@ -397,17 +409,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $data['recipient'],
                     $data['ptr_no'],
                     $data['record_date'],
+                    'pending',
+                    null,
                 ]);
             }
             $pdo->commit();
-
-            $success = true;
-            $data = [
-                'record_date' => date('Y-m-d'),
-                'ptr_no' => getNextPtrNumber($pdo, date('Y-m-d')),
-                'recipient' => '',
-                'items' => [createBlankItem()],
-            ];
+            header('Location: pending_transactions.php?msg=' . urlencode('PTR saved as pending. Release it to deduct stock and print.'));
+            exit;
         } catch (Throwable $e) {
             if ($pdo->inTransaction()) {
                 $pdo->rollBack();
@@ -545,6 +553,7 @@ $previewLineRows = 10;
                 </span>
                 <a href="home.php" class="btn btn-outline-secondary btn-sm app-header-action-link">Home</a>
                 <a href="report.php" class="btn btn-outline-secondary btn-sm app-header-action-link">Report</a>
+                <a href="pending_transactions.php" class="btn btn-outline-secondary btn-sm app-header-action-link">Pending</a>
                 <a href="logout.php" class="btn btn-outline-secondary btn-sm app-header-action-link">Log out</a>
             </div>
         </div>

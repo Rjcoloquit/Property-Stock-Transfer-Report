@@ -551,6 +551,73 @@ body {
     font-size: 0.72rem;
 }
 
+.report-edit-meta {
+    background: #f7fbf8;
+    border: 1px solid #d7e7de;
+    border-radius: 8px;
+    padding: 10px 8px;
+}
+
+.report-edit-table-wrap {
+    border: 1px solid #d7e7de;
+    border-radius: 8px;
+    overflow: auto;
+}
+
+.report-edit-table {
+    table-layout: fixed;
+    width: 100%;
+    min-width: 1040px;
+    margin-bottom: 0;
+}
+
+.report-edit-table thead th {
+    font-size: 0.73rem;
+    text-transform: uppercase;
+    letter-spacing: 0.25px;
+    vertical-align: middle;
+    white-space: nowrap;
+}
+
+.report-edit-table td {
+    vertical-align: top;
+    padding: 0.45rem 0.4rem;
+}
+
+.report-edit-input {
+    min-height: 32px;
+    font-size: 0.82rem;
+}
+
+.report-edit-col-description { width: 25%; }
+.report-edit-col-batch { width: 13%; }
+.report-edit-col-program { width: 18%; }
+.report-edit-col-po { width: 12%; }
+.report-edit-col-unit { width: 9%; }
+.report-edit-col-exp { width: 13%; }
+.report-edit-col-qty { width: 10%; }
+
+.report-page .app-header-title {
+    font-size: 1.72rem;
+    letter-spacing: 0.28px;
+}
+
+.report-page .app-header-title small {
+    font-size: 0.8rem !important;
+    letter-spacing: 0.45px;
+}
+
+.report-page .report-header-btn {
+    min-width: 108px;
+    min-height: 36px;
+    padding: 0.34rem 0.9rem;
+    font-size: 0.82rem;
+    font-weight: 600;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
 .report-tx-table {
     table-layout: auto;
     margin-bottom: 0;

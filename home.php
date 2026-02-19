@@ -52,13 +52,21 @@ try {
             PRIMARY KEY (id)
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci'
     );
+    $releaseStatusColumnStmt = $pdo->query("SHOW COLUMNS FROM inventory_records LIKE 'release_status'");
+    if (!$releaseStatusColumnStmt || !$releaseStatusColumnStmt->fetch()) {
+        $pdo->exec("ALTER TABLE inventory_records ADD COLUMN release_status VARCHAR(20) NOT NULL DEFAULT 'released' AFTER record_date");
+    }
+    $releasedAtColumnStmt = $pdo->query("SHOW COLUMNS FROM inventory_records LIKE 'released_at'");
+    if (!$releasedAtColumnStmt || !$releasedAtColumnStmt->fetch()) {
+        $pdo->exec('ALTER TABLE inventory_records ADD COLUMN released_at DATETIME DEFAULT NULL AFTER release_status');
+    }
     normalizeExistingPtrNumbers($pdo);
 
     $totalItems = (int) $pdo->query('SELECT COUNT(*) FROM products')->fetchColumn();
-    $totalTransactions = (int) $pdo->query('SELECT COUNT(*) FROM inventory_records')->fetchColumn();
-    $totalPtr = (int) $pdo->query('SELECT COUNT(DISTINCT ptr_no) FROM inventory_records WHERE ptr_no IS NOT NULL AND TRIM(ptr_no) <> ""')->fetchColumn();
+    $totalTransactions = (int) $pdo->query('SELECT COUNT(*) FROM inventory_records WHERE COALESCE(release_status, "released") = "released"')->fetchColumn();
+    $totalPtr = (int) $pdo->query('SELECT COUNT(DISTINCT ptr_no) FROM inventory_records WHERE ptr_no IS NOT NULL AND TRIM(ptr_no) <> "" AND COALESCE(release_status, "released") = "released"')->fetchColumn();
 
-    $totalsStmt = $pdo->query('SELECT COALESCE(SUM(quantity), 0) AS total_qty, COALESCE(SUM(quantity * unit_cost), 0) AS total_amount FROM inventory_records');
+    $totalsStmt = $pdo->query('SELECT COALESCE(SUM(quantity), 0) AS total_qty, COALESCE(SUM(quantity * unit_cost), 0) AS total_amount FROM inventory_records WHERE COALESCE(release_status, "released") = "released"');
     $totalsRow = $totalsStmt->fetch();
     $totalQuantity = (int) ($totalsRow['total_qty'] ?? 0);
     $totalAmount = (float) ($totalsRow['total_amount'] ?? 0);
@@ -66,6 +74,7 @@ try {
     $recentStmt = $pdo->query('
         SELECT record_date, ptr_no, recipient, description, quantity, unit_cost, program
         FROM inventory_records
+        WHERE COALESCE(release_status, "released") = "released"
         ORDER BY record_date DESC, id DESC
         LIMIT 8
     ');
@@ -74,6 +83,7 @@ try {
     $programStmt = $pdo->query('
         SELECT COALESCE(NULLIF(TRIM(program), ""), "Unassigned") AS program_name, SUM(quantity) AS total_qty
         FROM inventory_records
+        WHERE COALESCE(release_status, "released") = "released"
         GROUP BY program_name
         ORDER BY total_qty DESC
         LIMIT 5
@@ -84,6 +94,7 @@ try {
         SELECT record_date, COUNT(*) AS tx_count, COALESCE(SUM(quantity), 0) AS total_qty, COALESCE(SUM(quantity * unit_cost), 0) AS total_amount
         FROM inventory_records
         WHERE record_date >= DATE_SUB(CURDATE(), INTERVAL 6 DAY)
+          AND COALESCE(release_status, "released") = "released"
         GROUP BY record_date
         ORDER BY record_date ASC
     ');
@@ -161,6 +172,10 @@ try {
                                 <a href="report.php" class="dashboard-nav-link">
                                     <span class="dashboard-nav-title">Transaction History</span>
                                     <span class="dashboard-nav-meta">Review and filter saved transactions</span>
+                                </a>
+                                <a href="pending_transactions.php" class="dashboard-nav-link">
+                                    <span class="dashboard-nav-title">Pending Transactions</span>
+                                    <span class="dashboard-nav-meta">Release PTR before stock deduction and printing</span>
                                 </a>
                                 <a href="item_list.php" class="dashboard-nav-link">
                                     <span class="dashboard-nav-title">Manage Items</span>
