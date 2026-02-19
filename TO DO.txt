@@ -60,7 +60,7 @@ PO number additional table for supplier
 add history for item list - kulang pa
 delivery receipt
 
-
+PO: number
 Place of Delivery:
 Date of Delivery:
 Delivery Term:
@@ -81,3 +81,17 @@ each batch ba may expiration date? /
 allocation calendar
 
 ----------------------------------------------------------------------------------------------------
+
+19 / 02 / 2026
+
+after saving - stocks will not reflect right away
+
+will only reflect after including signed documents
+
+confirmation button
+
+restriction - cant be confirmed until no attached scanned picture
+
+
+----------------------------------------------------------------------------------------------------
+

@@ -28,6 +28,11 @@ $formData = [
     'cost_per_unit' => '',
     'expiry_date' => '',
     'program' => '',
+    'po_no' => '',
+    'place_of_delivery' => '',
+    'date_of_delivery' => '',
+    'delivery_term' => '',
+    'payment_term' => '',
 ];
 
 $editingId = 0;
@@ -67,6 +72,11 @@ try {
             cost_per_unit DECIMAL(12,2) DEFAULT 0.00,
             expiry_date DATE DEFAULT NULL,
             program VARCHAR(255) DEFAULT NULL,
+            po_no VARCHAR(100) DEFAULT NULL,
+            place_of_delivery VARCHAR(255) DEFAULT NULL,
+            date_of_delivery DATE DEFAULT NULL,
+            delivery_term VARCHAR(255) DEFAULT NULL,
+            payment_term VARCHAR(255) DEFAULT NULL,
             PRIMARY KEY (id)
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci'
     );
@@ -79,6 +89,11 @@ try {
             cost_per_unit DECIMAL(12,2) DEFAULT 0.00,
             expiry_date DATE DEFAULT NULL,
             program VARCHAR(255) DEFAULT NULL,
+            po_no VARCHAR(100) DEFAULT NULL,
+            place_of_delivery VARCHAR(255) DEFAULT NULL,
+            date_of_delivery DATE DEFAULT NULL,
+            delivery_term VARCHAR(255) DEFAULT NULL,
+            payment_term VARCHAR(255) DEFAULT NULL,
             added_by VARCHAR(150) DEFAULT NULL,
             added_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP,
             PRIMARY KEY (id)
@@ -88,6 +103,46 @@ try {
     $expiryColumnStmt = $pdo->query("SHOW COLUMNS FROM products LIKE 'expiry_date'");
     if ($expiryColumnStmt && $expiryColumnStmt->fetch()) {
         $hasProductsExpiryDate = true;
+    }
+    $poNoColumnStmt = $pdo->query("SHOW COLUMNS FROM products LIKE 'po_no'");
+    if (!$poNoColumnStmt || !$poNoColumnStmt->fetch()) {
+        $pdo->exec('ALTER TABLE products ADD COLUMN po_no VARCHAR(100) DEFAULT NULL AFTER program');
+    }
+    $placeDeliveryColumnStmt = $pdo->query("SHOW COLUMNS FROM products LIKE 'place_of_delivery'");
+    if (!$placeDeliveryColumnStmt || !$placeDeliveryColumnStmt->fetch()) {
+        $pdo->exec('ALTER TABLE products ADD COLUMN place_of_delivery VARCHAR(255) DEFAULT NULL AFTER po_no');
+    }
+    $dateDeliveryColumnStmt = $pdo->query("SHOW COLUMNS FROM products LIKE 'date_of_delivery'");
+    if (!$dateDeliveryColumnStmt || !$dateDeliveryColumnStmt->fetch()) {
+        $pdo->exec('ALTER TABLE products ADD COLUMN date_of_delivery DATE DEFAULT NULL AFTER place_of_delivery');
+    }
+    $deliveryTermColumnStmt = $pdo->query("SHOW COLUMNS FROM products LIKE 'delivery_term'");
+    if (!$deliveryTermColumnStmt || !$deliveryTermColumnStmt->fetch()) {
+        $pdo->exec('ALTER TABLE products ADD COLUMN delivery_term VARCHAR(255) DEFAULT NULL AFTER date_of_delivery');
+    }
+    $paymentTermColumnStmt = $pdo->query("SHOW COLUMNS FROM products LIKE 'payment_term'");
+    if (!$paymentTermColumnStmt || !$paymentTermColumnStmt->fetch()) {
+        $pdo->exec('ALTER TABLE products ADD COLUMN payment_term VARCHAR(255) DEFAULT NULL AFTER delivery_term');
+    }
+    $historyPoNoColumnStmt = $pdo->query("SHOW COLUMNS FROM item_add_history LIKE 'po_no'");
+    if (!$historyPoNoColumnStmt || !$historyPoNoColumnStmt->fetch()) {
+        $pdo->exec('ALTER TABLE item_add_history ADD COLUMN po_no VARCHAR(100) DEFAULT NULL AFTER program');
+    }
+    $historyPlaceDeliveryColumnStmt = $pdo->query("SHOW COLUMNS FROM item_add_history LIKE 'place_of_delivery'");
+    if (!$historyPlaceDeliveryColumnStmt || !$historyPlaceDeliveryColumnStmt->fetch()) {
+        $pdo->exec('ALTER TABLE item_add_history ADD COLUMN place_of_delivery VARCHAR(255) DEFAULT NULL AFTER po_no');
+    }
+    $historyDateDeliveryColumnStmt = $pdo->query("SHOW COLUMNS FROM item_add_history LIKE 'date_of_delivery'");
+    if (!$historyDateDeliveryColumnStmt || !$historyDateDeliveryColumnStmt->fetch()) {
+        $pdo->exec('ALTER TABLE item_add_history ADD COLUMN date_of_delivery DATE DEFAULT NULL AFTER place_of_delivery');
+    }
+    $historyDeliveryTermColumnStmt = $pdo->query("SHOW COLUMNS FROM item_add_history LIKE 'delivery_term'");
+    if (!$historyDeliveryTermColumnStmt || !$historyDeliveryTermColumnStmt->fetch()) {
+        $pdo->exec('ALTER TABLE item_add_history ADD COLUMN delivery_term VARCHAR(255) DEFAULT NULL AFTER date_of_delivery');
+    }
+    $historyPaymentTermColumnStmt = $pdo->query("SHOW COLUMNS FROM item_add_history LIKE 'payment_term'");
+    if (!$historyPaymentTermColumnStmt || !$historyPaymentTermColumnStmt->fetch()) {
+        $pdo->exec('ALTER TABLE item_add_history ADD COLUMN payment_term VARCHAR(255) DEFAULT NULL AFTER delivery_term');
     }
     $productBatchesStmt = $pdo->query("SHOW TABLES LIKE 'product_batches'");
     if ($productBatchesStmt && $productBatchesStmt->fetch()) {
@@ -117,6 +172,11 @@ try {
             $formData['cost_per_unit'] = trim($_POST['cost_per_unit'] ?? '');
             $formData['expiry_date'] = trim($_POST['expiry_date'] ?? '');
             $formData['program'] = trim($_POST['program'] ?? '');
+            $formData['po_no'] = trim($_POST['po_no'] ?? '');
+            $formData['place_of_delivery'] = trim($_POST['place_of_delivery'] ?? '');
+            $formData['date_of_delivery'] = trim($_POST['date_of_delivery'] ?? '');
+            $formData['delivery_term'] = trim($_POST['delivery_term'] ?? '');
+            $formData['payment_term'] = trim($_POST['payment_term'] ?? '');
 
             if ($formData['product_description'] === '') {
                 $errors[] = 'Description is required.';
@@ -136,14 +196,28 @@ try {
             if ($hasProductsExpiryDate && $formData['expiry_date'] !== '' && !preg_match('/^\d{4}-\d{2}-\d{2}$/', $formData['expiry_date'])) {
                 $errors[] = 'Expiry date must be a valid date.';
             }
+            if ($formData['date_of_delivery'] !== '' && !preg_match('/^\d{4}-\d{2}-\d{2}$/', $formData['date_of_delivery'])) {
+                $errors[] = 'Date of delivery must be a valid date.';
+            }
 
             if (empty($errors)) {
                 if ($action === 'create') {
                     $newProductId = null;
                     if ($hasProductsExpiryDate) {
                         $insertStmt = $pdo->prepare(
-                            'INSERT INTO products (product_description, uom, cost_per_unit, expiry_date, program)
-                             VALUES (?, ?, ?, ?, ?)'
+                            'INSERT INTO products (
+                                product_description,
+                                uom,
+                                cost_per_unit,
+                                expiry_date,
+                                program,
+                                po_no,
+                                place_of_delivery,
+                                date_of_delivery,
+                                delivery_term,
+                                payment_term
+                            )
+                             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
                         );
                         $insertStmt->execute([
                             $formData['product_description'],
@@ -151,18 +225,38 @@ try {
                             (float) $formData['cost_per_unit'],
                             $formData['expiry_date'] !== '' ? $formData['expiry_date'] : null,
                             $formData['program'] !== '' ? $formData['program'] : null,
+                            $formData['po_no'] !== '' ? $formData['po_no'] : null,
+                            $formData['place_of_delivery'] !== '' ? $formData['place_of_delivery'] : null,
+                            $formData['date_of_delivery'] !== '' ? $formData['date_of_delivery'] : null,
+                            $formData['delivery_term'] !== '' ? $formData['delivery_term'] : null,
+                            $formData['payment_term'] !== '' ? $formData['payment_term'] : null,
                         ]);
                         $newProductId = (int) $pdo->lastInsertId();
                     } else {
                         $insertStmt = $pdo->prepare(
-                            'INSERT INTO products (product_description, uom, cost_per_unit, program)
-                             VALUES (?, ?, ?, ?)'
+                            'INSERT INTO products (
+                                product_description,
+                                uom,
+                                cost_per_unit,
+                                program,
+                                po_no,
+                                place_of_delivery,
+                                date_of_delivery,
+                                delivery_term,
+                                payment_term
+                            )
+                             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)'
                         );
                         $insertStmt->execute([
                             $formData['product_description'],
                             $formData['uom'],
                             (float) $formData['cost_per_unit'],
                             $formData['program'] !== '' ? $formData['program'] : null,
+                            $formData['po_no'] !== '' ? $formData['po_no'] : null,
+                            $formData['place_of_delivery'] !== '' ? $formData['place_of_delivery'] : null,
+                            $formData['date_of_delivery'] !== '' ? $formData['date_of_delivery'] : null,
+                            $formData['delivery_term'] !== '' ? $formData['delivery_term'] : null,
+                            $formData['payment_term'] !== '' ? $formData['payment_term'] : null,
                         ]);
                         $newProductId = (int) $pdo->lastInsertId();
                     }
@@ -184,8 +278,21 @@ try {
 
                     $historyStmt = $pdo->prepare(
                         'INSERT INTO item_add_history
-                            (product_id, product_description, uom, cost_per_unit, expiry_date, program, added_by)
-                         VALUES (?, ?, ?, ?, ?, ?, ?)'
+                            (
+                                product_id,
+                                product_description,
+                                uom,
+                                cost_per_unit,
+                                expiry_date,
+                                program,
+                                po_no,
+                                place_of_delivery,
+                                date_of_delivery,
+                                delivery_term,
+                                payment_term,
+                                added_by
+                            )
+                         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
                     );
                     $historyStmt->execute([
                         $newProductId > 0 ? $newProductId : null,
@@ -194,6 +301,11 @@ try {
                         (float) $formData['cost_per_unit'],
                         $formData['expiry_date'] !== '' ? $formData['expiry_date'] : null,
                         $formData['program'] !== '' ? $formData['program'] : null,
+                        $formData['po_no'] !== '' ? $formData['po_no'] : null,
+                        $formData['place_of_delivery'] !== '' ? $formData['place_of_delivery'] : null,
+                        $formData['date_of_delivery'] !== '' ? $formData['date_of_delivery'] : null,
+                        $formData['delivery_term'] !== '' ? $formData['delivery_term'] : null,
+                        $formData['payment_term'] !== '' ? $formData['payment_term'] : null,
                         $username,
                     ]);
                     header('Location: ' . buildItemListUrl($returnSearch, $returnSort, 'Item added.'));
@@ -206,7 +318,16 @@ try {
                     if ($hasProductsExpiryDate) {
                         $updateStmt = $pdo->prepare(
                             'UPDATE products
-                             SET product_description = ?, uom = ?, cost_per_unit = ?, expiry_date = ?, program = ?
+                             SET product_description = ?,
+                                 uom = ?,
+                                 cost_per_unit = ?,
+                                 expiry_date = ?,
+                                 program = ?,
+                                 po_no = ?,
+                                 place_of_delivery = ?,
+                                 date_of_delivery = ?,
+                                 delivery_term = ?,
+                                 payment_term = ?
                              WHERE id = ?'
                         );
                         $updateStmt->execute([
@@ -215,12 +336,25 @@ try {
                             (float) $formData['cost_per_unit'],
                             $formData['expiry_date'] !== '' ? $formData['expiry_date'] : null,
                             $formData['program'] !== '' ? $formData['program'] : null,
+                            $formData['po_no'] !== '' ? $formData['po_no'] : null,
+                            $formData['place_of_delivery'] !== '' ? $formData['place_of_delivery'] : null,
+                            $formData['date_of_delivery'] !== '' ? $formData['date_of_delivery'] : null,
+                            $formData['delivery_term'] !== '' ? $formData['delivery_term'] : null,
+                            $formData['payment_term'] !== '' ? $formData['payment_term'] : null,
                             $updateId,
                         ]);
                     } else {
                         $updateStmt = $pdo->prepare(
                             'UPDATE products
-                             SET product_description = ?, uom = ?, cost_per_unit = ?, program = ?
+                             SET product_description = ?,
+                                 uom = ?,
+                                 cost_per_unit = ?,
+                                 program = ?,
+                                 po_no = ?,
+                                 place_of_delivery = ?,
+                                 date_of_delivery = ?,
+                                 delivery_term = ?,
+                                 payment_term = ?
                              WHERE id = ?'
                         );
                         $updateStmt->execute([
@@ -228,6 +362,11 @@ try {
                             $formData['uom'],
                             (float) $formData['cost_per_unit'],
                             $formData['program'] !== '' ? $formData['program'] : null,
+                            $formData['po_no'] !== '' ? $formData['po_no'] : null,
+                            $formData['place_of_delivery'] !== '' ? $formData['place_of_delivery'] : null,
+                            $formData['date_of_delivery'] !== '' ? $formData['date_of_delivery'] : null,
+                            $formData['delivery_term'] !== '' ? $formData['delivery_term'] : null,
+                            $formData['payment_term'] !== '' ? $formData['payment_term'] : null,
                             $updateId,
                         ]);
                     }
@@ -288,6 +427,11 @@ try {
                            p.cost_per_unit,
                            COALESCE(b.expiry_date, p.expiry_date) AS expiry_date,
                            p.program,
+                           p.po_no,
+                           p.place_of_delivery,
+                           p.date_of_delivery,
+                           p.delivery_term,
+                           p.payment_term,
                            b.batch_number,
                            COALESCE(b.stock_quantity, 0) AS stock
                        FROM products p
@@ -302,6 +446,11 @@ try {
                            p.cost_per_unit,
                            b.expiry_date AS expiry_date,
                            p.program,
+                           p.po_no,
+                           p.place_of_delivery,
+                           p.date_of_delivery,
+                           p.delivery_term,
+                           p.payment_term,
                            b.batch_number,
                            COALESCE(b.stock_quantity, 0) AS stock
                        FROM products p
@@ -313,8 +462,8 @@ try {
                 $editStmt->execute([$editingId, $editingBatchNumber, $editingBatchNumber]);
             } else {
                 $editSelect = $hasProductsExpiryDate
-                    ? 'SELECT id, product_description, uom, cost_per_unit, expiry_date, program, NULL AS batch_number, 0 AS stock FROM products WHERE id = ? LIMIT 1'
-                    : 'SELECT id, product_description, uom, cost_per_unit, NULL AS expiry_date, program, NULL AS batch_number, 0 AS stock FROM products WHERE id = ? LIMIT 1';
+                    ? 'SELECT id, product_description, uom, cost_per_unit, expiry_date, program, po_no, place_of_delivery, date_of_delivery, delivery_term, payment_term, NULL AS batch_number, 0 AS stock FROM products WHERE id = ? LIMIT 1'
+                    : 'SELECT id, product_description, uom, cost_per_unit, NULL AS expiry_date, program, po_no, place_of_delivery, date_of_delivery, delivery_term, payment_term, NULL AS batch_number, 0 AS stock FROM products WHERE id = ? LIMIT 1';
                 $editStmt = $pdo->prepare($editSelect);
                 $editStmt->execute([$editingId]);
             }
@@ -330,6 +479,11 @@ try {
                     'cost_per_unit' => (string) ($editingItem['cost_per_unit'] ?? ''),
                     'expiry_date' => (string) ($editingItem['expiry_date'] ?? ''),
                     'program' => (string) ($editingItem['program'] ?? ''),
+                    'po_no' => (string) ($editingItem['po_no'] ?? ''),
+                    'place_of_delivery' => (string) ($editingItem['place_of_delivery'] ?? ''),
+                    'date_of_delivery' => (string) ($editingItem['date_of_delivery'] ?? ''),
+                    'delivery_term' => (string) ($editingItem['delivery_term'] ?? ''),
+                    'payment_term' => (string) ($editingItem['payment_term'] ?? ''),
                 ];
             }
         }
@@ -354,6 +508,11 @@ try {
             p.cost_per_unit,
             ' . $expirySelectSql . ' AS expiry_date,
             p.program,
+            p.po_no,
+            p.place_of_delivery,
+            p.date_of_delivery,
+            p.delivery_term,
+            p.payment_term,
             ' . $batchSelectSql . '
         FROM products p
         ' . $batchJoinSql;
@@ -398,7 +557,7 @@ try {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Item List - Supply</title>
-    <link rel="stylesheet" href="style.css?v=20260212">
+    <link rel="stylesheet" href="style.css?v=20260219">
 </head>
 <body>
     <header class="navbar navbar-expand-lg navbar-light bg-white app-header px-3 px-md-4">
@@ -428,7 +587,7 @@ try {
                 <div class="card-body">
                     <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
                         <h1 class="h5 mb-0">Item List</h1>
-                        <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#itemFormModal">
+                        <button type="button" class="btn btn-outline-neutral-black item-list-uniform-btn" data-bs-toggle="modal" data-bs-target="#itemFormModal">
                             Add Item
                         </button>
                     </div>
@@ -468,10 +627,10 @@ try {
                                         <tr>
                                             <th scope="col" class="text-nowrap">No.</th>
                                             <th scope="col" class="text-nowrap">Product Description</th>
-                                            <th scope="col" class="text-nowrap">Batch Number</th>
-                                            <th scope="col" class="text-nowrap">UOM</th>
+                                            <th scope="col" class="text-nowrap text-center">Batch Number</th>
+                                            <th scope="col" class="text-nowrap text-center">UOM</th>
                                             <th scope="col" class="text-nowrap">Stock</th>
-                                            <th scope="col" class="text-nowrap">Cost Per Unit</th>
+                                            <th scope="col" class="text-nowrap text-center">Cost Per Unit</th>
                                             <th scope="col" class="text-nowrap">Expiry Date</th>
                                             <th scope="col" class="text-end text-nowrap">Actions</th>
                                         </tr>
@@ -481,16 +640,35 @@ try {
                                             <tr>
                                                 <td><?= $index + 1 ?></td>
                                                 <td><?= htmlspecialchars($item['product_description'] ?? '') ?></td>
-                                                <td><?= htmlspecialchars((string) ($item['batch_number'] ?? '-')) ?></td>
-                                                <td><?= htmlspecialchars($item['uom'] ?? '-') ?></td>
+                                                <td class="text-center"><?= htmlspecialchars((string) ($item['batch_number'] ?? '-')) ?></td>
+                                                <td class="text-center"><?= htmlspecialchars($item['uom'] ?? '-') ?></td>
                                                 <td><?= (int) ($item['stock'] ?? 0) ?></td>
-                                                <td><?= number_format((float) $item['cost_per_unit'], 2) ?></td>
+                                                <td class="text-center"><?= number_format((float) $item['cost_per_unit'], 2) ?></td>
                                                 <td><?= htmlspecialchars($item['expiry_date'] ?? '-') ?></td>
                                                 <td class="text-end">
                                                     <div class="d-inline-flex gap-1">
+                                                        <button
+                                                            type="button"
+                                                            class="btn btn-outline-neutral-black item-list-action-btn item-details-btn"
+                                                            data-item-no="<?= (int) ($index + 1) ?>"
+                                                            data-product-description="<?= htmlspecialchars((string) ($item['product_description'] ?? ''), ENT_QUOTES) ?>"
+                                                            data-batch-number="<?= htmlspecialchars((string) ($item['batch_number'] ?? ''), ENT_QUOTES) ?>"
+                                                            data-uom="<?= htmlspecialchars((string) ($item['uom'] ?? ''), ENT_QUOTES) ?>"
+                                                            data-stock="<?= (int) ($item['stock'] ?? 0) ?>"
+                                                            data-cost-per-unit="<?= htmlspecialchars(number_format((float) ($item['cost_per_unit'] ?? 0), 2, '.', ''), ENT_QUOTES) ?>"
+                                                            data-expiry-date="<?= htmlspecialchars((string) ($item['expiry_date'] ?? ''), ENT_QUOTES) ?>"
+                                                            data-program="<?= htmlspecialchars((string) ($item['program'] ?? ''), ENT_QUOTES) ?>"
+                                                            data-po-no="<?= htmlspecialchars((string) ($item['po_no'] ?? ''), ENT_QUOTES) ?>"
+                                                            data-place-of-delivery="<?= htmlspecialchars((string) ($item['place_of_delivery'] ?? ''), ENT_QUOTES) ?>"
+                                                            data-date-of-delivery="<?= htmlspecialchars((string) ($item['date_of_delivery'] ?? ''), ENT_QUOTES) ?>"
+                                                            data-delivery-term="<?= htmlspecialchars((string) ($item['delivery_term'] ?? ''), ENT_QUOTES) ?>"
+                                                            data-payment-term="<?= htmlspecialchars((string) ($item['payment_term'] ?? ''), ENT_QUOTES) ?>"
+                                                        >
+                                                            Full Details
+                                                        </button>
                                                         <a
                                                             href="<?= htmlspecialchars(buildItemListUrl($search, $sort, '', (int) $item['id'], (string) ($item['batch_number'] ?? ''))) ?>"
-                                                            class="btn btn-outline-secondary btn-sm"
+                                                            class="btn btn-outline-neutral-black item-list-action-btn"
                                                         >
                                                             Edit
                                                         </a>
@@ -499,7 +677,7 @@ try {
                                                             <input type="hidden" name="id" value="<?= (int) $item['id'] ?>">
                                                             <input type="hidden" name="return_q" value="<?= htmlspecialchars($search) ?>">
                                                             <input type="hidden" name="return_sort" value="<?= htmlspecialchars($sort) ?>">
-                                                            <button type="submit" class="btn btn-outline-danger btn-sm">Delete</button>
+                                                            <button type="submit" class="btn btn-outline-neutral-black item-list-action-btn">Delete</button>
                                                         </form>
                                                     </div>
                                                 </td>
@@ -532,7 +710,7 @@ try {
                                         <th>Product ID</th>
                                         <th>Description</th>
                                         <th>UOM</th>
-                                        <th>Cost</th>
+                                        <th class="text-center">Cost</th>
                                         <th>Expiry Date</th>
                                         <th>Program</th>
                                         <th>Added By</th>
@@ -546,7 +724,7 @@ try {
                                             <td><?= htmlspecialchars((string) ($history['product_id'] ?? '-')) ?></td>
                                             <td><?= htmlspecialchars((string) ($history['product_description'] ?? '')) ?></td>
                                             <td><?= htmlspecialchars((string) ($history['uom'] ?? '-')) ?></td>
-                                            <td><?= number_format((float) ($history['cost_per_unit'] ?? 0), 2) ?></td>
+                                            <td class="text-center"><?= number_format((float) ($history['cost_per_unit'] ?? 0), 2) ?></td>
                                             <td><?= htmlspecialchars((string) ($history['expiry_date'] ?? '-')) ?></td>
                                             <td><?= htmlspecialchars((string) ($history['program'] ?? '-')) ?></td>
                                             <td><?= htmlspecialchars((string) ($history['added_by'] ?? '-')) ?></td>
@@ -654,17 +832,142 @@ try {
                                     value="<?= htmlspecialchars($formData['expiry_date']) ?>"
                                 >
                             </div>
+                            <div class="col-md-6">
+                                <label for="po_no" class="form-label">PO Number</label>
+                                <input
+                                    type="text"
+                                    id="po_no"
+                                    name="po_no"
+                                    class="form-control"
+                                    value="<?= htmlspecialchars($formData['po_no']) ?>"
+                                    placeholder="PO Number"
+                                >
+                            </div>
+                            <div class="col-md-6">
+                                <label for="place_of_delivery" class="form-label">Place of Delivery</label>
+                                <input
+                                    type="text"
+                                    id="place_of_delivery"
+                                    name="place_of_delivery"
+                                    class="form-control"
+                                    value="<?= htmlspecialchars($formData['place_of_delivery']) ?>"
+                                    placeholder="Place of Delivery"
+                                >
+                            </div>
+                            <div class="col-md-6">
+                                <label for="date_of_delivery" class="form-label">Date of Delivery</label>
+                                <input
+                                    type="date"
+                                    id="date_of_delivery"
+                                    name="date_of_delivery"
+                                    class="form-control"
+                                    value="<?= htmlspecialchars($formData['date_of_delivery']) ?>"
+                                >
+                            </div>
+                            <div class="col-md-6">
+                                <label for="delivery_term" class="form-label">Delivery Term</label>
+                                <input
+                                    type="text"
+                                    id="delivery_term"
+                                    name="delivery_term"
+                                    class="form-control"
+                                    value="<?= htmlspecialchars($formData['delivery_term']) ?>"
+                                    placeholder="Delivery Term"
+                                >
+                            </div>
+                            <div class="col-md-6">
+                                <label for="payment_term" class="form-label">Payment Term</label>
+                                <input
+                                    type="text"
+                                    id="payment_term"
+                                    name="payment_term"
+                                    class="form-control"
+                                    value="<?= htmlspecialchars($formData['payment_term']) ?>"
+                                    placeholder="Payment Term"
+                                >
+                            </div>
                         </div>
                         <input type="hidden" name="program" value="<?= htmlspecialchars($formData['program']) ?>">
                         <div class="d-flex gap-2 mt-3">
-                            <button type="submit" class="btn btn-primary px-4">
+                            <button type="submit" class="btn btn-outline-neutral-black item-list-uniform-btn">
                                 <?= $isEditMode ? 'Update Item' : 'Add New Item' ?>
                             </button>
                             <?php if ($isEditMode): ?>
-                                <a href="<?= htmlspecialchars(buildItemListUrl($search, $sort)) ?>" class="btn btn-outline-secondary">Cancel Edit</a>
+                                <a href="<?= htmlspecialchars(buildItemListUrl($search, $sort)) ?>" class="btn btn-outline-neutral-black item-list-uniform-btn">Cancel Edit</a>
                             <?php endif; ?>
                         </div>
                     </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="itemDetailsModal" tabindex="-1" aria-labelledby="itemDetailsModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2 class="modal-title h5 mb-0" id="itemDetailsModalLabel">Item Full Details</h2>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="table-responsive">
+                        <table class="table table-sm table-bordered align-middle mb-0">
+                            <tbody>
+                                <tr>
+                                    <th style="width: 34%">No.</th>
+                                    <td id="detail_item_no">-</td>
+                                </tr>
+                                <tr>
+                                    <th>Product Description</th>
+                                    <td id="detail_product_description">-</td>
+                                </tr>
+                                <tr>
+                                    <th>Batch Number</th>
+                                    <td id="detail_batch_number">-</td>
+                                </tr>
+                                <tr>
+                                    <th>UOM</th>
+                                    <td id="detail_uom">-</td>
+                                </tr>
+                                <tr>
+                                    <th>Stock</th>
+                                    <td id="detail_stock">-</td>
+                                </tr>
+                                <tr>
+                                    <th>Cost Per Unit</th>
+                                    <td id="detail_cost_per_unit">-</td>
+                                </tr>
+                                <tr>
+                                    <th>Expiry Date</th>
+                                    <td id="detail_expiry_date">-</td>
+                                </tr>
+                                <tr>
+                                    <th>Program</th>
+                                    <td id="detail_program">-</td>
+                                </tr>
+                                <tr>
+                                    <th>PO Number</th>
+                                    <td id="detail_po_no">-</td>
+                                </tr>
+                                <tr>
+                                    <th>Place of Delivery</th>
+                                    <td id="detail_place_of_delivery">-</td>
+                                </tr>
+                                <tr>
+                                    <th>Date of Delivery</th>
+                                    <td id="detail_date_of_delivery">-</td>
+                                </tr>
+                                <tr>
+                                    <th>Delivery Term</th>
+                                    <td id="detail_delivery_term">-</td>
+                                </tr>
+                                <tr>
+                                    <th>Payment Term</th>
+                                    <td id="detail_payment_term">-</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
             </div>
         </div>
