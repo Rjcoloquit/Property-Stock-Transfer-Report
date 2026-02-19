@@ -98,7 +98,7 @@ try {
 
     if ($hasProductsExpiryDate) {
         $descriptionStmt = $pdo->query('
-            SELECT id, product_description, uom, cost_per_unit, program, expiry_date
+            SELECT id, product_description, uom, cost_per_unit, program, po_no, expiry_date
             FROM products
             WHERE product_description IS NOT NULL AND TRIM(product_description) <> ""
             ORDER BY id DESC
@@ -111,6 +111,7 @@ try {
                 p.uom,
                 p.cost_per_unit,
                 p.program,
+                p.po_no,
                 b.expiry_date AS expiry_date
             FROM products p
             LEFT JOIN (
@@ -124,7 +125,7 @@ try {
         ');
     } else {
         $descriptionStmt = $pdo->query('
-            SELECT id, product_description, uom, cost_per_unit, program, NULL AS expiry_date
+            SELECT id, product_description, uom, cost_per_unit, program, po_no, NULL AS expiry_date
             FROM products
             WHERE product_description IS NOT NULL AND TRIM(product_description) <> ""
             ORDER BY id DESC
@@ -142,6 +143,7 @@ try {
             'unit'             => $row['uom'] !== null ? (string)$row['uom'] : '',
             'unit_cost'        => (string)$row['cost_per_unit'],
             'program'          => $row['program'] !== null ? (string)$row['program'] : '',
+            'po_no'            => isset($row['po_no']) && $row['po_no'] !== null ? (string)$row['po_no'] : '',
             'expiration_date'  => isset($row['expiry_date']) && $row['expiry_date'] !== null ? (string)$row['expiry_date'] : '',
         ];
     }

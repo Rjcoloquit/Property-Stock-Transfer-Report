@@ -45,6 +45,7 @@ $batchNumberOptions = [];
 $batchNumbersByDescription = [];
 $batchMetaByDescription = [];
 $unitCostByDescription = [];
+$poNoByDescription = [];
 $recipientOptions = [];
 $hasProductBatchesTable = false;
 $addingRefId = 0;
@@ -284,6 +285,36 @@ try {
             continue;
         }
         $unitCostByDescription[$descName] = number_format((float) ($row['unit_cost'] ?? 0), 2, '.', '');
+    }
+
+    $poNoStmt = $pdo->query('
+        SELECT description_name, po_no
+        FROM (
+            SELECT
+                TRIM(product_description) AS description_name,
+                po_no,
+                1 AS source_priority
+            FROM products
+            WHERE product_description IS NOT NULL AND TRIM(product_description) <> ""
+              AND po_no IS NOT NULL AND TRIM(po_no) <> ""
+            UNION ALL
+            SELECT
+                TRIM(description) AS description_name,
+                po_no,
+                2 AS source_priority
+            FROM inventory_records
+            WHERE description IS NOT NULL AND TRIM(description) <> ""
+              AND po_no IS NOT NULL AND TRIM(po_no) <> ""
+        ) p
+        ORDER BY description_name ASC, source_priority ASC
+    ');
+    $poNoRows = $poNoStmt->fetchAll();
+    foreach ($poNoRows as $row) {
+        $descName = trim((string) ($row['description_name'] ?? ''));
+        if ($descName === '' || isset($poNoByDescription[$descName])) {
+            continue;
+        }
+        $poNoByDescription[$descName] = trim((string) ($row['po_no'] ?? ''));
     }
 
     $recipientSourceSelects = [
@@ -984,7 +1015,7 @@ try {
                                             <span class="report-group-chip"><strong>Date:</strong> <?= htmlspecialchars($group['record_date']) ?></span>
                                             <span class="report-group-chip report-group-chip-recipient"><strong>Recipient:</strong> <?= htmlspecialchars($group['recipient']) ?></span>
                                         </div>
-                                        <div class="d-inline-flex align-items-center gap-1">
+                                        <div class="report-group-head-actions">
                                             <button
                                                 type="button"
                                                 class="btn btn-outline-secondary btn-sm report-print-btn"
@@ -1010,49 +1041,51 @@ try {
                                         </div>
                                     </div>
                                     <div class="table-responsive report-group-table-wrap">
-                                        <table class="table table-striped table-hover align-middle mb-0 report-group-table">
-                                            <thead class="table-light">
+                                        <table class="table align-middle mb-0 report-group-table">
+                                            <colgroup>
+                                                <col class="report-col-description">
+                                                <col class="report-col-batch">
+                                                <col class="report-col-program">
+                                                <col class="report-col-po">
+                                                <col class="report-col-unit">
+                                                <col class="report-col-expiry">
+                                                <col class="report-col-qty">
+                                                <col class="report-col-action">
+                                            </colgroup>
+                                            <thead>
                                                 <tr>
-                                                    <th scope="col" class="report-col-description">Description</th>
-                                                    <th scope="col" class="report-col-batch">Batch Number</th>
-                                                    <th scope="col" class="report-col-program">Program</th>
-                                                    <th scope="col" class="report-col-po">PO Number</th>
-                                                    <th scope="col" class="report-col-unit">Unit (OUM)</th>
-                                                    <th scope="col" class="report-col-expiry">Expiration Date</th>
-                                                    <th scope="col" class="report-col-qty text-end">Summary of Quantity</th>
-                                                    <th scope="col" class="report-col-action text-end">Action</th>
+                                                    <th class="report-col-description">Description</th>
+                                                    <th class="report-col-batch">Batch No.</th>
+                                                    <th class="report-col-program">Program</th>
+                                                    <th class="report-col-po">PO No.</th>
+                                                    <th class="report-col-unit">Unit</th>
+                                                    <th class="report-col-expiry">Exp. Date</th>
+                                                    <th class="report-col-qty">Qty</th>
+                                                    <th class="report-col-action">Action</th>
                                                 </tr>
                                             </thead>
                                             <tbody>
                                                 <?php foreach ($group['items'] as $record): ?>
                                                     <tr>
-                                                        <td class="report-col-description report-wrap-text" title="<?= htmlspecialchars((string) ($record['description'] ?? '-')) ?>">
+                                                        <td class="report-col-description" title="<?= htmlspecialchars((string) ($record['description'] ?? '-')) ?>">
                                                             <?= htmlspecialchars($record['description'] ?? '-') ?>
                                                         </td>
-                                                        <td class="report-col-batch report-wrap-text" title="<?= htmlspecialchars((string) ($record['batch_number'] ?? '-')) ?>">
-                                                            <?= htmlspecialchars($record['batch_number'] ?? '-') ?>
-                                                        </td>
-                                                        <td class="report-col-program report-wrap-text" title="<?= htmlspecialchars((string) ($record['program'] ?? '-')) ?>">
-                                                            <?= htmlspecialchars($record['program'] ?? '-') ?>
-                                                        </td>
-                                                        <td class="report-col-po report-wrap-text" title="<?= htmlspecialchars((string) ($record['po_no'] ?? '-')) ?>">
-                                                            <?= htmlspecialchars($record['po_no'] ?? '-') ?>
-                                                        </td>
+                                                        <td class="report-col-batch"><?= htmlspecialchars($record['batch_number'] ?? '-') ?></td>
+                                                        <td class="report-col-program"><?= htmlspecialchars($record['program'] ?? '-') ?></td>
+                                                        <td class="report-col-po"><?= htmlspecialchars($record['po_no'] ?? '-') ?></td>
                                                         <td class="report-col-unit"><?= htmlspecialchars($record['unit'] ?? '-') ?></td>
-                                                        <td class="report-col-expiry text-nowrap"><?= htmlspecialchars($record['expiration_date'] ?? '-') ?></td>
-                                                        <td class="report-col-qty text-end text-nowrap"><?= (int) ($record['quantity'] ?? 0) ?></td>
-                                                        <td class="report-col-action text-end">
-                                                            <div class="d-inline-flex gap-1">
-                                                                <form method="post" action="report.php" onsubmit="return confirm('Delete this transaction?');">
-                                                                    <input type="hidden" name="action" value="delete">
-                                                                    <input type="hidden" name="id" value="<?= (int) ($record['id'] ?? 0) ?>">
-                                                                    <input type="hidden" name="return_q" value="<?= htmlspecialchars($search) ?>">
-                                                                    <input type="hidden" name="return_date_from" value="<?= htmlspecialchars($dateFrom) ?>">
-                                                                    <input type="hidden" name="return_date_to" value="<?= htmlspecialchars($dateTo) ?>">
-                                                                    <input type="hidden" name="return_sort" value="<?= htmlspecialchars($sort) ?>">
-                                                                    <button type="submit" class="btn btn-outline-danger btn-sm">Delete</button>
-                                                                </form>
-                                                            </div>
+                                                        <td class="report-col-expiry"><?= htmlspecialchars($record['expiration_date'] ?? '-') ?></td>
+                                                        <td class="report-col-qty"><?= (int) ($record['quantity'] ?? 0) ?></td>
+                                                        <td class="report-col-action">
+                                                            <form method="post" action="report.php" onsubmit="return confirm('Delete this transaction?');" class="d-inline">
+                                                                <input type="hidden" name="action" value="delete">
+                                                                <input type="hidden" name="id" value="<?= (int) ($record['id'] ?? 0) ?>">
+                                                                <input type="hidden" name="return_q" value="<?= htmlspecialchars($search) ?>">
+                                                                <input type="hidden" name="return_date_from" value="<?= htmlspecialchars($dateFrom) ?>">
+                                                                <input type="hidden" name="return_date_to" value="<?= htmlspecialchars($dateTo) ?>">
+                                                                <input type="hidden" name="return_sort" value="<?= htmlspecialchars($sort) ?>">
+                                                                <button type="submit" class="btn btn-outline-danger btn-sm">Delete</button>
+                                                            </form>
                                                         </td>
                                                     </tr>
                                                 <?php endforeach; ?>
@@ -1308,9 +1341,9 @@ try {
                                                 <input
                                                     type="text"
                                                     name="po_number[<?= $itemId ?>]"
-                                                    class="form-control form-control-sm"
+                                                    class="form-control form-control-sm edit-group-po-number"
                                                     value="<?= htmlspecialchars((string) ($item['po_no'] ?? '')) ?>"
-                                                    placeholder="PO Number"
+                                                    placeholder="PO No."
                                                 >
                                             </td>
                                             <td>
@@ -1512,6 +1545,7 @@ try {
             batchNumbersByDescription: <?= json_encode($batchNumbersByDescription, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>,
             batchMetaByDescription: <?= json_encode($batchMetaByDescription, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>,
             unitCostByDescription: <?= json_encode($unitCostByDescription, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>,
+            poNoByDescription: <?= json_encode($poNoByDescription, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>,
             hasProductBatches: <?= $hasProductBatchesTable ? 'true' : 'false' ?>,
             showEditModal: <?= $showEditModal ? 'true' : 'false' ?>,
             showAddModal: <?= $showAddModal ? 'true' : 'false' ?>,
