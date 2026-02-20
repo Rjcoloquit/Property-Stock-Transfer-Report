@@ -618,6 +618,139 @@ body {
     justify-content: center;
 }
 
+.stock-card-head-table th {
+    width: 42%;
+    white-space: nowrap;
+    background: #f7fbf8;
+    font-weight: 600;
+}
+
+.stock-card-head-table td,
+.stock-card-head-table th,
+.stock-card-table td,
+.stock-card-table th {
+    vertical-align: middle;
+}
+
+.stock-card-table tfoot th {
+    background: #f7fbf8;
+}
+
+.stock-card-page .app-card {
+    border-color: #ced8d1;
+}
+
+.stock-card-sheet {
+    border: 1px solid #111;
+    background: #fff;
+    padding: 8px;
+}
+
+.stock-card-master-table,
+.stock-card-ledger-table {
+    border-color: #111;
+}
+
+.stock-card-master-table th,
+.stock-card-master-table td,
+.stock-card-ledger-table th,
+.stock-card-ledger-table td {
+    border-color: #111 !important;
+    padding: 0.22rem 0.32rem;
+    vertical-align: middle;
+}
+
+.stock-card-title-cell {
+    text-align: center;
+    font-weight: 700;
+    font-size: 0.95rem;
+    letter-spacing: 0.3px;
+}
+
+.stock-card-label-cell {
+    width: 23%;
+    white-space: nowrap;
+    font-weight: 600;
+    font-size: 0.76rem;
+    background: #fff;
+}
+
+.stock-card-line-input {
+    border: 0;
+    border-bottom: 1px solid transparent;
+    border-radius: 0;
+    width: 100%;
+    min-height: 20px;
+    font-size: 0.76rem;
+    padding: 0 2px;
+    background: transparent;
+}
+
+.stock-card-line-input:focus {
+    outline: none;
+    box-shadow: none;
+    border-bottom-color: #444;
+}
+
+.stock-card-ledger-table thead th {
+    text-transform: none;
+    font-size: 0.78rem;
+    text-align: center;
+    font-weight: 700;
+    background: #fff;
+}
+
+.stock-col-date { width: 15%; }
+.stock-col-qty { width: 10%; }
+.stock-col-cost { width: 12%; }
+.stock-col-ref { width: 18%; }
+.stock-col-remarks { width: 25%; }
+
+.stock-card-totals {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(220px, 1fr));
+    gap: 8px 18px;
+}
+
+.stock-total-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.8rem;
+}
+
+.stock-total-line {
+    border-bottom: 1px solid #111;
+    flex: 1;
+    min-height: 12px;
+}
+
+@media print {
+    .stock-card-page .app-header,
+    .stock-card-page .stock-card-print-btn {
+        display: none !important;
+    }
+    .stock-card-page main.py-4 {
+        padding-top: 0 !important;
+        padding-bottom: 0 !important;
+    }
+    .stock-card-page .container {
+        max-width: 100% !important;
+        width: 100% !important;
+        padding: 0 !important;
+        margin: 0 !important;
+    }
+    .stock-card-page .card,
+    .stock-card-page .card-body {
+        border: 0 !important;
+        box-shadow: none !important;
+        padding: 0 !important;
+    }
+    .stock-card-sheet {
+        border: 1px solid #111 !important;
+    }
+}
+
 .report-tx-table {
     table-layout: auto;
     margin-bottom: 0;

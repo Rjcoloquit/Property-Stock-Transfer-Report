@@ -1,0 +1,336 @@
+<?php
+session_start();
+
+if (empty($_SESSION['user_id'])) {
+    header('Location: login.php');
+    exit;
+}
+
+require_once __DIR__ . '/config/database.php';
+
+$username = $_SESSION['username'] ?? $_SESSION['full_name'] ?? 'User';
+$message = trim((string) ($_GET['msg'] ?? ''));
+$search = trim((string) ($_GET['q'] ?? ''));
+$selectedCardId = isset($_GET['card_id']) ? (int) $_GET['card_id'] : 0;
+$error = '';
+
+$cards = [];
+$formData = [
+    'po_contract_no' => '',
+    'supplier' => '',
+    'item_description' => '',
+    'dosage_form' => '',
+    'dosage_strength' => '',
+    'uom' => '',
+    'sku_code' => '',
+    'entity_name' => '',
+    'fund_cluster' => '',
+    'unit_cost' => '',
+    'mode_of_procurement' => '',
+    'end_user_program' => '',
+    'batch_no' => '',
+];
+$ledgerRows = [];
+
+try {
+    $pdo = getConnection();
+    $pdo->exec(
+        'CREATE TABLE IF NOT EXISTS stock_cards (
+            id INT NOT NULL AUTO_INCREMENT,
+            po_contract_no VARCHAR(255) DEFAULT NULL,
+            supplier VARCHAR(255) DEFAULT NULL,
+            item_description TEXT,
+            dosage_form VARCHAR(255) DEFAULT NULL,
+            dosage_strength VARCHAR(255) DEFAULT NULL,
+            uom VARCHAR(100) DEFAULT NULL,
+            sku_code VARCHAR(150) DEFAULT NULL,
+            entity_name VARCHAR(255) DEFAULT NULL,
+            fund_cluster VARCHAR(255) DEFAULT NULL,
+            unit_cost DECIMAL(12,2) DEFAULT NULL,
+            mode_of_procurement VARCHAR(255) DEFAULT NULL,
+            end_user_program VARCHAR(255) DEFAULT NULL,
+            batch_no VARCHAR(120) DEFAULT NULL,
+            ledger_rows LONGTEXT,
+            item_key VARCHAR(400) DEFAULT NULL,
+            source_type VARCHAR(30) NOT NULL DEFAULT "manual",
+            created_by VARCHAR(150) DEFAULT NULL,
+            created_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP,
+            PRIMARY KEY (id)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci'
+    );
+    $itemKeyColumnStmt = $pdo->query("SHOW COLUMNS FROM stock_cards LIKE 'item_key'");
+    if (!$itemKeyColumnStmt || !$itemKeyColumnStmt->fetch()) {
+        $pdo->exec('ALTER TABLE stock_cards ADD COLUMN item_key VARCHAR(400) DEFAULT NULL AFTER ledger_rows');
+    }
+    $sourceTypeColumnStmt = $pdo->query("SHOW COLUMNS FROM stock_cards LIKE 'source_type'");
+    if (!$sourceTypeColumnStmt || !$sourceTypeColumnStmt->fetch()) {
+        $pdo->exec('ALTER TABLE stock_cards ADD COLUMN source_type VARCHAR(30) NOT NULL DEFAULT "manual" AFTER item_key');
+    }
+
+    $params = [];
+    $where = ['source_type = "release"'];
+    if ($search !== '') {
+        $where[] = '(item_description LIKE :q OR batch_no LIKE :q OR po_contract_no LIKE :q OR end_user_program LIKE :q)';
+        $params['q'] = '%' . $search . '%';
+    }
+    $listSql = '
+        SELECT id, po_contract_no, item_description, batch_no, uom, end_user_program, created_at
+        FROM stock_cards
+        WHERE ' . implode(' AND ', $where) . '
+        ORDER BY created_at DESC, id DESC
+    ';
+    $listStmt = $pdo->prepare($listSql);
+    $listStmt->execute($params);
+    $cards = $listStmt->fetchAll();
+
+    if ($selectedCardId <= 0 && !empty($cards)) {
+        $selectedCardId = (int) ($cards[0]['id'] ?? 0);
+    }
+
+    if ($selectedCardId > 0) {
+        $cardStmt = $pdo->prepare('
+            SELECT
+                id,
+                po_contract_no,
+                supplier,
+                item_description,
+                dosage_form,
+                dosage_strength,
+                uom,
+                sku_code,
+                entity_name,
+                fund_cluster,
+                unit_cost,
+                mode_of_procurement,
+                end_user_program,
+                batch_no,
+                ledger_rows
+            FROM stock_cards
+            WHERE id = ? AND source_type = "release"
+            LIMIT 1
+        ');
+        $cardStmt->execute([$selectedCardId]);
+        $selectedCard = $cardStmt->fetch();
+
+        if ($selectedCard) {
+            foreach ($formData as $key => $value) {
+                $formData[$key] = (string) ($selectedCard[$key] ?? '');
+            }
+            $decodedRows = json_decode((string) ($selectedCard['ledger_rows'] ?? ''), true);
+            if (is_array($decodedRows)) {
+                foreach ($decodedRows as $row) {
+                    if (!is_array($row)) {
+                        continue;
+                    }
+                    $ledgerRows[] = [
+                        'entry_date' => (string) ($row['entry_date'] ?? ''),
+                        'received' => (string) ($row['received'] ?? ''),
+                        'issued' => (string) ($row['issued'] ?? ''),
+                        'balance' => (string) ($row['balance'] ?? ''),
+                        'total_cost' => (string) ($row['total_cost'] ?? ''),
+                        'ref_no' => (string) ($row['ref_no'] ?? ''),
+                        'remarks' => (string) ($row['remarks'] ?? ''),
+                    ];
+                }
+            }
+        }
+    }
+} catch (PDOException $e) {
+    $error = 'Unable to load released stock cards right now.';
+}
+
+while (count($ledgerRows) < 18) {
+    $ledgerRows[] = [
+        'entry_date' => '',
+        'received' => '',
+        'issued' => '',
+        'balance' => '',
+        'total_cost' => '',
+        'ref_no' => '',
+        'remarks' => '',
+    ];
+}
+?>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stock Card - Supply</title>
+    <link rel="stylesheet" href="style.css?v=20260219">
+</head>
+<body class="stock-card-page">
+    <header class="navbar navbar-expand-lg navbar-light bg-white app-header px-3 px-md-4">
+        <div class="container-fluid">
+            <span class="navbar-brand mb-0 h6 app-header-title d-flex align-items-center gap-2">
+                <?php if (file_exists(__DIR__ . '/PHO.png')): ?>
+                    <a href="home.php" class="app-header-logo-link" aria-label="Go to homepage">
+                        <img src="PHO.png" alt="Palawan Health Office Logo" class="app-logo-circle" style="height: 40px; width: 40px;">
+                    </a>
+                <?php endif; ?>
+                <span class="d-inline-flex flex-column lh-sm">
+                    <span>Provincial Health Office</span>
+                    <small class="fw-normal" style="font-size: 0.72rem;">Stock Card (Released PTR)</small>
+                </span>
+            </span>
+            <div class="app-header-actions">
+                <span class="app-user-chip"><?= htmlspecialchars($username) ?></span>
+                <a href="home.php" class="btn btn-outline-secondary btn-sm app-header-action-link">Home</a>
+                <a href="pending_transactions.php" class="btn btn-outline-secondary btn-sm app-header-action-link">Pending</a>
+                <a href="report.php" class="btn btn-outline-secondary btn-sm app-header-action-link">Report</a>
+                <a href="logout.php" class="btn btn-outline-secondary btn-sm app-header-action-link">Log out</a>
+            </div>
+        </div>
+    </header>
+
+    <main class="py-4">
+        <div class="container">
+            <div class="card app-card mb-3">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+                        <h1 class="h5 mb-0">Released PTR Stock Cards</h1>
+                        <button type="button" class="btn btn-outline-secondary btn-sm stock-card-print-btn" onclick="window.print()">Print</button>
+                    </div>
+
+                    <form method="get" action="stock_card.php" class="row g-2 mb-3">
+                        <div class="col-md-10">
+                            <input type="text" name="q" class="form-control" value="<?= htmlspecialchars($search) ?>" placeholder="Search item, batch, PTR, or end user">
+                        </div>
+                        <div class="col-md-2 d-grid">
+                            <button type="submit" class="btn btn-outline-secondary">Search</button>
+                        </div>
+                    </form>
+
+                    <?php if ($message !== ''): ?>
+                        <div class="alert alert-success py-2 mb-2"><?= htmlspecialchars($message) ?></div>
+                    <?php endif; ?>
+                    <?php if ($error !== ''): ?>
+                        <div class="alert alert-danger py-2 mb-0"><?= htmlspecialchars($error) ?></div>
+                    <?php elseif (empty($cards)): ?>
+                        <div class="alert alert-info py-2 mb-0">No released PTR stock cards yet.</div>
+                    <?php else: ?>
+                        <div class="table-responsive">
+                            <table class="table table-sm table-striped align-middle mb-0">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>PTR Ref</th>
+                                        <th>Item Description</th>
+                                        <th>Batch</th>
+                                        <th>Unit</th>
+                                        <th>End User</th>
+                                        <th>Updated</th>
+                                        <th class="text-center">Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <?php foreach ($cards as $card): ?>
+                                        <?php $cardId = (int) ($card['id'] ?? 0); ?>
+                                        <tr>
+                                            <td><?= htmlspecialchars((string) ($card['po_contract_no'] ?? '-')) ?></td>
+                                            <td><?= htmlspecialchars((string) ($card['item_description'] ?? '-')) ?></td>
+                                            <td><?= htmlspecialchars((string) ($card['batch_no'] ?? '-')) ?></td>
+                                            <td><?= htmlspecialchars((string) ($card['uom'] ?? '-')) ?></td>
+                                            <td><?= htmlspecialchars((string) ($card['end_user_program'] ?? '-')) ?></td>
+                                            <td><?= htmlspecialchars((string) ($card['created_at'] ?? '-')) ?></td>
+                                            <td class="text-center">
+                                                <a href="stock_card.php?card_id=<?= $cardId ?>" class="btn btn-outline-secondary btn-sm <?= $cardId === $selectedCardId ? 'active' : '' ?>">Open</a>
+                                            </td>
+                                        </tr>
+                                    <?php endforeach; ?>
+                                </tbody>
+                            </table>
+                        </div>
+                    <?php endif; ?>
+                </div>
+            </div>
+
+            <div class="card app-card">
+                <div class="card-body">
+                    <div class="stock-card-sheet">
+                        <div class="table-responsive">
+                            <table class="table table-bordered table-sm mb-0 stock-card-master-table">
+                                <tbody>
+                                    <tr>
+                                        <td colspan="2" class="stock-card-title-cell">STOCK CARD</td>
+                                        <th class="stock-card-label-cell">Stock Keeping Unit (SKU) Code:</th>
+                                        <td><input type="text" class="stock-card-line-input" value="<?= htmlspecialchars($formData['sku_code']) ?>" readonly></td>
+                                    </tr>
+                                    <tr>
+                                        <th class="stock-card-label-cell">P.O. / Contract #:</th>
+                                        <td><input type="text" class="stock-card-line-input" value="<?= htmlspecialchars($formData['po_contract_no']) ?>" readonly></td>
+                                        <th class="stock-card-label-cell">Entity Name:</th>
+                                        <td><input type="text" class="stock-card-line-input" value="<?= htmlspecialchars($formData['entity_name']) ?>" readonly></td>
+                                    </tr>
+                                    <tr>
+                                        <th class="stock-card-label-cell">Supplier:</th>
+                                        <td><input type="text" class="stock-card-line-input" value="<?= htmlspecialchars($formData['supplier']) ?>" readonly></td>
+                                        <th class="stock-card-label-cell">Fund Cluster:</th>
+                                        <td><input type="text" class="stock-card-line-input" value="<?= htmlspecialchars($formData['fund_cluster']) ?>" readonly></td>
+                                    </tr>
+                                    <tr>
+                                        <th class="stock-card-label-cell">Item Description:</th>
+                                        <td><input type="text" class="stock-card-line-input" value="<?= htmlspecialchars($formData['item_description']) ?>" readonly></td>
+                                        <th class="stock-card-label-cell">Unit Cost:</th>
+                                        <td><input type="text" class="stock-card-line-input text-end" value="<?= htmlspecialchars($formData['unit_cost']) ?>" readonly></td>
+                                    </tr>
+                                    <tr>
+                                        <th class="stock-card-label-cell">Dosage Form:</th>
+                                        <td><input type="text" class="stock-card-line-input" value="<?= htmlspecialchars($formData['dosage_form']) ?>" readonly></td>
+                                        <th class="stock-card-label-cell">Mode of Procurement:</th>
+                                        <td><input type="text" class="stock-card-line-input" value="<?= htmlspecialchars($formData['mode_of_procurement']) ?>" readonly></td>
+                                    </tr>
+                                    <tr>
+                                        <th class="stock-card-label-cell">Dosage Strength:</th>
+                                        <td><input type="text" class="stock-card-line-input" value="<?= htmlspecialchars($formData['dosage_strength']) ?>" readonly></td>
+                                        <th class="stock-card-label-cell">End User (Program):</th>
+                                        <td><input type="text" class="stock-card-line-input" value="<?= htmlspecialchars($formData['end_user_program']) ?>" readonly></td>
+                                    </tr>
+                                    <tr>
+                                        <th class="stock-card-label-cell">Unit of Measure:</th>
+                                        <td><input type="text" class="stock-card-line-input" value="<?= htmlspecialchars($formData['uom']) ?>" readonly></td>
+                                        <th class="stock-card-label-cell">Batch No.:</th>
+                                        <td><input type="text" class="stock-card-line-input" value="<?= htmlspecialchars($formData['batch_no']) ?>" readonly></td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <div class="table-responsive mt-2">
+                            <table class="table table-bordered table-sm mb-0 stock-card-ledger-table">
+                                <thead>
+                                    <tr>
+                                        <th rowspan="2" class="stock-col-date">Date</th>
+                                        <th colspan="4" class="text-center">Quantity</th>
+                                        <th rowspan="2" class="stock-col-ref">DR/SI/RIS/PTR/BL No.</th>
+                                        <th rowspan="2" class="stock-col-remarks">Recipient / Remarks</th>
+                                    </tr>
+                                    <tr>
+                                        <th class="stock-col-qty text-center">Received</th>
+                                        <th class="stock-col-qty text-center">Issued</th>
+                                        <th class="stock-col-qty text-center">Balance</th>
+                                        <th class="stock-col-cost text-center">Total Cost</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <?php foreach ($ledgerRows as $row): ?>
+                                        <tr>
+                                            <td><input type="text" class="stock-card-line-input" value="<?= htmlspecialchars((string) ($row['entry_date'] ?? '')) ?>" readonly></td>
+                                            <td><input type="text" class="stock-card-line-input text-end" value="<?= htmlspecialchars((string) ($row['received'] ?? '')) ?>" readonly></td>
+                                            <td><input type="text" class="stock-card-line-input text-end" value="<?= htmlspecialchars((string) ($row['issued'] ?? '')) ?>" readonly></td>
+                                            <td><input type="text" class="stock-card-line-input text-end" value="<?= htmlspecialchars((string) ($row['balance'] ?? '')) ?>" readonly></td>
+                                            <td><input type="text" class="stock-card-line-input text-end" value="<?= htmlspecialchars((string) ($row['total_cost'] ?? '')) ?>" readonly></td>
+                                            <td><input type="text" class="stock-card-line-input" value="<?= htmlspecialchars((string) ($row['ref_no'] ?? '')) ?>" readonly></td>
+                                            <td><input type="text" class="stock-card-line-input" value="<?= htmlspecialchars((string) ($row['remarks'] ?? '')) ?>" readonly></td>
+                                        </tr>
+                                    <?php endforeach; ?>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+</body>
+</html>
+

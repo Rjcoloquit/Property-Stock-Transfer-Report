@@ -177,6 +177,10 @@ try {
                                     <span class="dashboard-nav-title">Pending Transactions</span>
                                     <span class="dashboard-nav-meta">Release PTR before stock deduction and printing</span>
                                 </a>
+                                <a href="stock_card.php" class="dashboard-nav-link">
+                                    <span class="dashboard-nav-title">Stock Card</span>
+                                    <span class="dashboard-nav-meta">Prepare stock card details and running balances</span>
+                                </a>
                                 <a href="item_list.php" class="dashboard-nav-link">
                                     <span class="dashboard-nav-title">Manage Items</span>
                                     <span class="dashboard-nav-meta">Maintain item descriptions and costs</span>

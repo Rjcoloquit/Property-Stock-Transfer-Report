@@ -54,6 +54,39 @@ try {
         $pdo->exec('ALTER TABLE inventory_records ADD COLUMN released_at DATETIME DEFAULT NULL AFTER release_status');
     }
 
+    $pdo->exec(
+        'CREATE TABLE IF NOT EXISTS stock_cards (
+            id INT NOT NULL AUTO_INCREMENT,
+            po_contract_no VARCHAR(255) DEFAULT NULL,
+            supplier VARCHAR(255) DEFAULT NULL,
+            item_description TEXT,
+            dosage_form VARCHAR(255) DEFAULT NULL,
+            dosage_strength VARCHAR(255) DEFAULT NULL,
+            uom VARCHAR(100) DEFAULT NULL,
+            sku_code VARCHAR(150) DEFAULT NULL,
+            entity_name VARCHAR(255) DEFAULT NULL,
+            fund_cluster VARCHAR(255) DEFAULT NULL,
+            unit_cost DECIMAL(12,2) DEFAULT NULL,
+            mode_of_procurement VARCHAR(255) DEFAULT NULL,
+            end_user_program VARCHAR(255) DEFAULT NULL,
+            batch_no VARCHAR(120) DEFAULT NULL,
+            ledger_rows LONGTEXT,
+            item_key VARCHAR(400) DEFAULT NULL,
+            source_type VARCHAR(30) NOT NULL DEFAULT "manual",
+            created_by VARCHAR(150) DEFAULT NULL,
+            created_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP,
+            PRIMARY KEY (id)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci'
+    );
+    $itemKeyColumnStmt = $pdo->query("SHOW COLUMNS FROM stock_cards LIKE 'item_key'");
+    if (!$itemKeyColumnStmt || !$itemKeyColumnStmt->fetch()) {
+        $pdo->exec('ALTER TABLE stock_cards ADD COLUMN item_key VARCHAR(400) DEFAULT NULL AFTER ledger_rows');
+    }
+    $sourceTypeColumnStmt = $pdo->query("SHOW COLUMNS FROM stock_cards LIKE 'source_type'");
+    if (!$sourceTypeColumnStmt || !$sourceTypeColumnStmt->fetch()) {
+        $pdo->exec('ALTER TABLE stock_cards ADD COLUMN source_type VARCHAR(30) NOT NULL DEFAULT "manual" AFTER item_key');
+    }
+
     normalizeExistingPtrNumbers($pdo);
 
     $hasProductBatchesTable = false;
@@ -82,7 +115,7 @@ try {
             try {
                 if ($releasePtrNo !== '') {
                     $pendingRowsStmt = $pdo->prepare('
-                        SELECT id, ptr_no, description, batch_number, batch_id, quantity
+                        SELECT id, ptr_no, record_date, recipient, description, batch_number, batch_id, unit, quantity, unit_cost, program
                         FROM inventory_records
                         WHERE ptr_no = ? AND COALESCE(release_status, "released") = "pending"
                         ORDER BY id ASC
@@ -91,7 +124,7 @@ try {
                     $pendingRowsStmt->execute([$releasePtrNo]);
                 } else {
                     $pendingRowsStmt = $pdo->prepare('
-                        SELECT id, ptr_no, description, batch_number, batch_id, quantity
+                        SELECT id, ptr_no, record_date, recipient, description, batch_number, batch_id, unit, quantity, unit_cost, program
                         FROM inventory_records
                         WHERE id = ? AND COALESCE(release_status, "released") = "pending"
                         ORDER BY id ASC
@@ -160,10 +193,12 @@ try {
                     };
 
                     $stockDeductionPlan = [];
+                    $releaseCardRows = [];
                     foreach ($pendingRows as $row) {
                         $description = trim((string) ($row['description'] ?? ''));
                         $batchNumber = trim((string) ($row['batch_number'] ?? ''));
                         $rowBatchId = (int) ($row['batch_id'] ?? 0);
+                        $unitValue = trim((string) ($row['unit'] ?? ''));
                         $quantity = (int) ($row['quantity'] ?? 0);
                         if ($batchNumber === '') {
                             throw new RuntimeException('Batch number is required before release.');
@@ -181,6 +216,24 @@ try {
                         }
 
                         $stockDeductionPlan[$batchId] = ($stockDeductionPlan[$batchId] ?? 0) + $quantity;
+
+                        $itemKey = strtolower($description) . '|' . strtolower($unitValue) . '|' . strtolower($batchNumber);
+                        if (!isset($releaseCardRows[$itemKey])) {
+                            $releaseCardRows[$itemKey] = [
+                                'item_key' => $itemKey,
+                                'description' => $description,
+                                'unit' => $unitValue,
+                                'batch_no' => $batchNumber,
+                                'program' => trim((string) ($row['program'] ?? '')),
+                                'unit_cost' => (float) ($row['unit_cost'] ?? 0),
+                                'record_date' => (string) ($row['record_date'] ?? ''),
+                                'ptr_no' => (string) ($row['ptr_no'] ?? ''),
+                                'recipient' => trim((string) ($row['recipient'] ?? '')),
+                                'batch_id' => $batchId,
+                                'issued_qty' => 0,
+                            ];
+                        }
+                        $releaseCardRows[$itemKey]['issued_qty'] += $quantity;
                     }
 
                     if (!empty($stockDeductionPlan)) {
@@ -216,6 +269,119 @@ try {
                             }
                         }
                     }
+
+                    $firstAffectedCardId = 0;
+                    if (!empty($releaseCardRows)) {
+                        $readCardStmt = $pdo->prepare('
+                            SELECT id, ledger_rows
+                            FROM stock_cards
+                            WHERE item_key = ? AND source_type = "release"
+                            ORDER BY id ASC
+                            LIMIT 1
+                            FOR UPDATE
+                        ');
+                        $insertCardStmt = $pdo->prepare('
+                            INSERT INTO stock_cards
+                            (
+                                po_contract_no,
+                                supplier,
+                                item_description,
+                                uom,
+                                unit_cost,
+                                end_user_program,
+                                batch_no,
+                                ledger_rows,
+                                item_key,
+                                source_type,
+                                created_by
+                            )
+                            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, "release", ?)
+                        ');
+                        $updateCardStmt = $pdo->prepare('
+                            UPDATE stock_cards
+                            SET
+                                po_contract_no = ?,
+                                item_description = ?,
+                                uom = ?,
+                                unit_cost = ?,
+                                end_user_program = ?,
+                                batch_no = ?,
+                                ledger_rows = ?
+                            WHERE id = ?
+                        ');
+                        $readBatchStockStmt = $pdo->prepare('SELECT stock_quantity FROM product_batches WHERE id = ? LIMIT 1');
+
+                        foreach ($releaseCardRows as $card) {
+                            $itemKey = (string) ($card['item_key'] ?? '');
+                            if ($itemKey === '') {
+                                continue;
+                            }
+
+                            $readCardStmt->execute([$itemKey]);
+                            $existingCard = $readCardStmt->fetch();
+                            $ledgerRows = [];
+                            $cardId = 0;
+                            if ($existingCard) {
+                                $cardId = (int) ($existingCard['id'] ?? 0);
+                                $decodedRows = json_decode((string) ($existingCard['ledger_rows'] ?? ''), true);
+                                if (is_array($decodedRows)) {
+                                    $ledgerRows = $decodedRows;
+                                }
+                            }
+
+                            $batchId = (int) ($card['batch_id'] ?? 0);
+                            $remainingStock = 0.0;
+                            if ($batchId > 0) {
+                                $readBatchStockStmt->execute([$batchId]);
+                                $batchStockRow = $readBatchStockStmt->fetch();
+                                $remainingStock = (float) ($batchStockRow['stock_quantity'] ?? 0);
+                            }
+
+                            $unitCost = (float) ($card['unit_cost'] ?? 0);
+                            $ledgerRows[] = [
+                                'entry_date' => (string) ($card['record_date'] ?? ''),
+                                'received' => '0',
+                                'issued' => (string) (int) ($card['issued_qty'] ?? 0),
+                                'balance' => number_format($remainingStock, 2, '.', ''),
+                                'total_cost' => number_format($remainingStock * $unitCost, 2, '.', ''),
+                                'ref_no' => (string) ($card['ptr_no'] ?? ''),
+                                'remarks' => (string) ($card['recipient'] ?? ''),
+                            ];
+                            $ledgerJson = json_encode($ledgerRows, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+
+                            if ($cardId > 0) {
+                                $updateCardStmt->execute([
+                                    ((string) ($card['ptr_no'] ?? '')) !== '' ? ('PTR ' . (string) $card['ptr_no']) : null,
+                                    (string) ($card['description'] ?? ''),
+                                    ((string) ($card['unit'] ?? '')) !== '' ? (string) $card['unit'] : null,
+                                    $unitCost,
+                                    ((string) ($card['program'] ?? '')) !== '' ? (string) $card['program'] : null,
+                                    ((string) ($card['batch_no'] ?? '')) !== '' ? (string) $card['batch_no'] : null,
+                                    $ledgerJson,
+                                    $cardId,
+                                ]);
+                                if ($firstAffectedCardId <= 0) {
+                                    $firstAffectedCardId = $cardId;
+                                }
+                            } else {
+                                $insertCardStmt->execute([
+                                    ((string) ($card['ptr_no'] ?? '')) !== '' ? ('PTR ' . (string) $card['ptr_no']) : null,
+                                    null,
+                                    (string) ($card['description'] ?? ''),
+                                    ((string) ($card['unit'] ?? '')) !== '' ? (string) $card['unit'] : null,
+                                    $unitCost,
+                                    ((string) ($card['program'] ?? '')) !== '' ? (string) $card['program'] : null,
+                                    ((string) ($card['batch_no'] ?? '')) !== '' ? (string) $card['batch_no'] : null,
+                                    $ledgerJson,
+                                    $itemKey,
+                                    $username,
+                                ]);
+                                if ($firstAffectedCardId <= 0) {
+                                    $firstAffectedCardId = (int) $pdo->lastInsertId();
+                                }
+                            }
+                        }
+                    }
                 }
 
                 if ($releasePtrNo !== '') {
@@ -240,8 +406,12 @@ try {
 
                 $pdo->commit();
                 $releasedPtrNo = $releasePtrNo !== '' ? $releasePtrNo : (string) ($pendingRows[0]['ptr_no'] ?? '');
-                $redirectMsg = 'Stock updated from released PTR' . ($releasedPtrNo !== '' ? ' ' . $releasedPtrNo : '') . '.';
-                header('Location: item_list.php?msg=' . urlencode($redirectMsg));
+                $redirectMsg = 'Released PTR moved to Stock Card' . ($releasedPtrNo !== '' ? ' ' . $releasedPtrNo : '') . '.';
+                $redirectUrl = 'stock_card.php?msg=' . urlencode($redirectMsg);
+                if ($firstAffectedCardId > 0) {
+                    $redirectUrl .= '&card_id=' . $firstAffectedCardId;
+                }
+                header('Location: ' . $redirectUrl);
                 exit;
             } catch (Throwable $releaseError) {
                 if ($pdo->inTransaction()) {
