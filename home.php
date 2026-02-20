@@ -189,6 +189,10 @@ try {
                                     <span class="dashboard-nav-title">Notifications</span>
                                     <span class="dashboard-nav-meta">Track expiration alerts by priority</span>
                                 </a>
+                                <a href="incident_report.php" class="dashboard-nav-link">
+                                    <span class="dashboard-nav-title">Incident Report</span>
+                                    <span class="dashboard-nav-meta">Warehouse operations incident report (Annex 16)</span>
+                                </a>
                             </nav>
                         </div>
                     </div>

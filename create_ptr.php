@@ -553,6 +553,7 @@ $previewLineRows = 10;
                 </span>
                 <a href="home.php" class="btn btn-outline-secondary btn-sm app-header-action-link">Home</a>
                 <a href="report.php" class="btn btn-outline-secondary btn-sm app-header-action-link">Report</a>
+                <a href="incident_report.php" class="btn btn-outline-secondary btn-sm app-header-action-link">Incident Report</a>
                 <a href="pending_transactions.php" class="btn btn-outline-secondary btn-sm app-header-action-link">Pending</a>
                 <a href="logout.php" class="btn btn-outline-secondary btn-sm app-header-action-link">Log out</a>
             </div>

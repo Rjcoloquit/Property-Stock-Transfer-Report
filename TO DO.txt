@@ -38,7 +38,7 @@ transaction history edit button /
 MGA GAGAWIN SA LUNES: (GOODS NA)
 
 isang page lang, walang scroll side /
-isang enter lang sana tapos lahat na ng nasa ptr maeedit (pending)
+isang enter lang sana tapos lahat na ng nasa ptr maeedit (pending) 
 bawal maedit ptr number /
 bawal maedit lahat -> maliban sa - description, batch number, program, at recipient /
 
@@ -52,7 +52,7 @@ editable asignatory
 fit the preview
 outbound report
 incident report
-stock card - ilan nareceive at ilan nailabas - end user ay si program - lagyan ng batch number
+stock card - ilan nareceive at ilan nailabas - end user ay si program - lagyan ng batch number /
 
 PO number additional table for supplier
 
@@ -94,4 +94,3 @@ restriction - cant be confirmed until no attached scanned picture
 
 
 ----------------------------------------------------------------------------------------------------
-

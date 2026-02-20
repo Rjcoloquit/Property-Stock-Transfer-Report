@@ -927,6 +927,7 @@ try {
             <div class="app-header-actions">
                 <span class="app-user-chip"><?= htmlspecialchars($username) ?></span>
                 <a href="home.php" class="btn btn-outline-secondary btn-sm app-header-action-link report-header-btn">Home</a>
+                <a href="incident_report.php" class="btn btn-outline-secondary btn-sm app-header-action-link report-header-btn">Incident Report</a>
                 <a href="create_ptr.php" class="btn btn-outline-secondary btn-sm app-header-action-link report-header-btn">Create PTR</a>
                 <a href="pending_transactions.php" class="btn btn-outline-secondary btn-sm app-header-action-link report-header-btn">Pending</a>
                 <a href="logout.php" class="btn btn-outline-secondary btn-sm app-header-action-link report-header-btn">Log out</a>
