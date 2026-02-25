@@ -197,6 +197,44 @@ body {
     padding: 0.24rem 0.65rem;
 }
 
+/* Add/Edit Item modal – professional form layout */
+.item-form-modal-content .modal-header {
+    padding: 1.25rem 1.5rem 0;
+}
+.item-form-modal-content .modal-body {
+    padding: 0.5rem 1.5rem 1rem;
+}
+.item-form-section {
+    padding-bottom: 0.25rem;
+}
+.item-form-section-title {
+    font-size: 0.7rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: #28804b;
+    margin: 0 0 0.75rem 0;
+    padding-bottom: 0.35rem;
+    border-bottom: 1px solid #d7f0e1;
+}
+.item-form-label {
+    font-size: 0.8125rem;
+    font-weight: 600;
+    color: #1f3b2d;
+    margin-bottom: 0.25rem;
+}
+.item-form-input {
+    font-size: 0.9rem;
+    border-radius: 0.4rem;
+    border-color: #c5e6d4;
+}
+.item-form-input::placeholder {
+    color: #7a9b8a;
+}
+.item-form-modal-content .modal-footer {
+    border-radius: 0 0 0.75rem 0.75rem;
+}
+
 .form-control:focus,
 .form-select:focus {
     border-color: #28804b;
@@ -726,8 +764,15 @@ body {
 }
 
 @media print {
+    @page {
+        size: A4 landscape;
+        margin: 8mm;
+    }
     .stock-card-page .app-header,
     .stock-card-page .stock-card-print-btn {
+        display: none !important;
+    }
+    .stock-card-page .stock-card-list-card {
         display: none !important;
     }
     .stock-card-page main.py-4 {
@@ -748,6 +793,42 @@ body {
     }
     .stock-card-sheet {
         border: 1px solid #111 !important;
+        width: 100% !important;
+        max-width: 100% !important;
+        box-sizing: border-box;
+        padding: 6px !important;
+        break-inside: avoid;
+        page-break-inside: avoid;
+    }
+    .stock-card-page .stock-card-print-card {
+        margin: 0 !important;
+    }
+    .stock-card-page .stock-card-master-table th,
+    .stock-card-page .stock-card-master-table td,
+    .stock-card-page .stock-card-ledger-table th,
+    .stock-card-page .stock-card-ledger-table td {
+        padding: 0.12rem 0.24rem !important;
+        font-size: 0.7rem !important;
+        line-height: 1.2 !important;
+    }
+    .stock-card-page .stock-card-title-cell {
+        font-size: 0.92rem !important;
+    }
+    .stock-card-page .stock-card-label-cell {
+        font-size: 0.68rem !important;
+    }
+    .stock-card-page .stock-card-ledger-table thead th {
+        font-size: 0.68rem !important;
+    }
+    .stock-card-page .stock-card-line-input {
+        min-height: 16px !important;
+        font-size: 0.68rem !important;
+        line-height: 1.2 !important;
+        padding: 0 2px !important;
+    }
+    .stock-card-page .stock-card-ledger-table tbody tr {
+        break-inside: avoid;
+        page-break-inside: avoid;
     }
 }
 

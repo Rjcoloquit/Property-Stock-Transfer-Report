@@ -37,6 +37,7 @@ function createBlankItem(): array
         'batch_id'        => 0,
         'description'     => '',
         'batch_number'    => '',
+        'supplier'        => '',
         'quantity'        => '',
         'unit'            => '',
         'unit_cost'       => '',
@@ -76,6 +77,10 @@ try {
     if (!$poNoColumnStmt || !$poNoColumnStmt->fetch()) {
         $pdo->exec('ALTER TABLE inventory_records ADD COLUMN po_no VARCHAR(100) DEFAULT NULL AFTER program');
     }
+    $supplierColumnStmt = $pdo->query("SHOW COLUMNS FROM inventory_records LIKE 'supplier'");
+    if (!$supplierColumnStmt || !$supplierColumnStmt->fetch()) {
+        $pdo->exec('ALTER TABLE inventory_records ADD COLUMN supplier VARCHAR(255) DEFAULT NULL AFTER po_no');
+    }
     $releaseStatusColumnStmt = $pdo->query("SHOW COLUMNS FROM inventory_records LIKE 'release_status'");
     if (!$releaseStatusColumnStmt || !$releaseStatusColumnStmt->fetch()) {
         $pdo->exec("ALTER TABLE inventory_records ADD COLUMN release_status VARCHAR(20) NOT NULL DEFAULT 'released' AFTER record_date");
@@ -109,9 +114,14 @@ try {
         $hasProductBatchesTable = true;
     }
 
+    $productsSupplierStmt = $pdo->query("SHOW COLUMNS FROM products LIKE 'supplier'");
+    if (!$productsSupplierStmt || !$productsSupplierStmt->fetch()) {
+        $pdo->exec('ALTER TABLE products ADD COLUMN supplier VARCHAR(255) DEFAULT NULL AFTER po_no');
+    }
+
     if ($hasProductsExpiryDate) {
         $descriptionStmt = $pdo->query('
-            SELECT id, product_description, uom, cost_per_unit, program, po_no, expiry_date
+            SELECT id, product_description, uom, cost_per_unit, program, po_no, supplier, expiry_date
             FROM products
             WHERE product_description IS NOT NULL AND TRIM(product_description) <> ""
             ORDER BY id DESC
@@ -125,6 +135,7 @@ try {
                 p.cost_per_unit,
                 p.program,
                 p.po_no,
+                p.supplier,
                 b.expiry_date AS expiry_date
             FROM products p
             LEFT JOIN (
@@ -138,7 +149,7 @@ try {
         ');
     } else {
         $descriptionStmt = $pdo->query('
-            SELECT id, product_description, uom, cost_per_unit, program, po_no, NULL AS expiry_date
+            SELECT id, product_description, uom, cost_per_unit, program, po_no, supplier, NULL AS expiry_date
             FROM products
             WHERE product_description IS NOT NULL AND TRIM(product_description) <> ""
             ORDER BY id DESC
@@ -157,6 +168,7 @@ try {
             'unit_cost'        => (string)$row['cost_per_unit'],
             'program'          => $row['program'] !== null ? (string)$row['program'] : '',
             'po_no'            => isset($row['po_no']) && $row['po_no'] !== null ? (string)$row['po_no'] : '',
+            'supplier'         => isset($row['supplier']) && $row['supplier'] !== null ? (string)$row['supplier'] : '',
             'expiration_date'  => isset($row['expiry_date']) && $row['expiry_date'] !== null ? (string)$row['expiry_date'] : '',
         ];
     }
@@ -299,6 +311,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $batchExpiration = (string) ($batchMetaByDescription[$description][$batchNumber]['expiration_date'] ?? '');
             }
             $item['expiration_date'] = $batchExpiration !== '' ? $batchExpiration : $selectedProduct['expiration_date'];
+            $item['supplier'] = $selectedProduct['supplier'] ?? '';
             $data['items'][] = $item;
             continue;
         }
@@ -308,6 +321,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $item['unit'] = $unitRaw !== '' ? $unitRaw : $selectedProduct['unit'];
             $item['unit_cost'] = number_format((float) $selectedProduct['unit_cost'], 2, '.', '');
             $item['expiration_date'] = $selectedProduct['expiration_date'];
+            $item['supplier'] = $selectedProduct['supplier'] ?? '';
             $data['items'][] = $item;
             continue;
         }
@@ -315,6 +329,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $selectedProduct = $productMetaByDescription[$description];
         $item['unit'] = $unitRaw !== '' ? $unitRaw : $selectedProduct['unit'];
         $item['unit_cost'] = number_format((float) $selectedProduct['unit_cost'], 2, '.', '');
+        $item['supplier'] = $selectedProduct['supplier'] ?? '';
         $batchExpiration = '';
         if ($batchNumber !== '' && isset($batchMetaByDescription[$description][$batchNumber])) {
             $batchExpiration = (string) ($batchMetaByDescription[$description][$batchNumber]['expiration_date'] ?? '');
@@ -378,6 +393,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         unit_cost,
                         program,
                         po_no,
+                        supplier,
                         recipient,
                         ptr_no,
                         record_date,
@@ -385,7 +401,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         released_at
                     )
                 VALUES
-                    (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ');
 
             $pdo->beginTransaction();
@@ -406,6 +422,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     (float) $item['unit_cost'],
                     $item['program'] !== '' ? $item['program'] : null,
                     $item['po_no'] !== '' ? $item['po_no'] : null,
+                    $item['supplier'] !== '' ? $item['supplier'] : null,
                     $data['recipient'],
                     $data['ptr_no'],
                     $data['record_date'],

@@ -15,6 +15,7 @@ $selectedCardId = isset($_GET['card_id']) ? (int) $_GET['card_id'] : 0;
 $error = '';
 
 $cards = [];
+$searchOptions = [];
 $formData = [
     'po_contract_no' => '',
     'supplier' => '',
@@ -83,6 +84,37 @@ try {
     $listStmt->execute($params);
     $cards = $listStmt->fetchAll();
 
+    $searchOptionsStmt = $pdo->query('
+        SELECT option_value
+        FROM (
+            SELECT DISTINCT TRIM(item_description) AS option_value
+            FROM stock_cards
+            WHERE source_type = "release"
+              AND item_description IS NOT NULL
+              AND TRIM(item_description) <> ""
+            UNION
+            SELECT DISTINCT TRIM(batch_no) AS option_value
+            FROM stock_cards
+            WHERE source_type = "release"
+              AND batch_no IS NOT NULL
+              AND TRIM(batch_no) <> ""
+            UNION
+            SELECT DISTINCT TRIM(po_contract_no) AS option_value
+            FROM stock_cards
+            WHERE source_type = "release"
+              AND po_contract_no IS NOT NULL
+              AND TRIM(po_contract_no) <> ""
+            UNION
+            SELECT DISTINCT TRIM(end_user_program) AS option_value
+            FROM stock_cards
+            WHERE source_type = "release"
+              AND end_user_program IS NOT NULL
+              AND TRIM(end_user_program) <> ""
+        ) options
+        ORDER BY option_value ASC
+    ');
+    $searchOptions = $searchOptionsStmt->fetchAll(PDO::FETCH_COLUMN);
+
     if ($selectedCardId <= 0 && !empty($cards)) {
         $selectedCardId = (int) ($cards[0]['id'] ?? 0);
     }
@@ -115,6 +147,15 @@ try {
         if ($selectedCard) {
             foreach ($formData as $key => $value) {
                 $formData[$key] = (string) ($selectedCard[$key] ?? '');
+            }
+            if (trim($formData['dosage_form']) === '') {
+                $formData['dosage_form'] = $formData['uom'];
+            }
+            if (trim($formData['entity_name']) === '') {
+                $formData['entity_name'] = 'PHO';
+            }
+            if (trim($formData['fund_cluster']) === '') {
+                $formData['fund_cluster'] = 'PHO';
             }
             $decodedRows = json_decode((string) ($selectedCard['ledger_rows'] ?? ''), true);
             if (is_array($decodedRows)) {
@@ -185,7 +226,7 @@ while (count($ledgerRows) < 18) {
 
     <main class="py-4">
         <div class="container">
-            <div class="card app-card mb-3">
+            <div class="card app-card mb-3 stock-card-list-card">
                 <div class="card-body">
                     <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
                         <h1 class="h5 mb-0">Released PTR Stock Cards</h1>
@@ -194,12 +235,24 @@ while (count($ledgerRows) < 18) {
 
                     <form method="get" action="stock_card.php" class="row g-2 mb-3">
                         <div class="col-md-10">
-                            <input type="text" name="q" class="form-control" value="<?= htmlspecialchars($search) ?>" placeholder="Search item, batch, PTR, or end user">
+                            <input
+                                type="text"
+                                name="q"
+                                class="form-control"
+                                list="stockCardSearchOptions"
+                                value="<?= htmlspecialchars($search) ?>"
+                                placeholder="Type to search (item, batch, PTR ref, or end user)"
+                            >
                         </div>
                         <div class="col-md-2 d-grid">
                             <button type="submit" class="btn btn-outline-secondary">Search</button>
                         </div>
                     </form>
+                    <datalist id="stockCardSearchOptions">
+                        <?php foreach ($searchOptions as $option): ?>
+                            <option value="<?= htmlspecialchars((string) $option) ?>"></option>
+                        <?php endforeach; ?>
+                    </datalist>
 
                     <?php if ($message !== ''): ?>
                         <div class="alert alert-success py-2 mb-2"><?= htmlspecialchars($message) ?></div>
@@ -244,7 +297,7 @@ while (count($ledgerRows) < 18) {
                 </div>
             </div>
 
-            <div class="card app-card">
+            <div class="card app-card stock-card-print-card">
                 <div class="card-body">
                     <div class="stock-card-sheet">
                         <div class="table-responsive">

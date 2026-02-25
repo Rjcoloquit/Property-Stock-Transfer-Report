@@ -45,6 +45,10 @@ try {
     if (!$poNoColumnStmt || !$poNoColumnStmt->fetch()) {
         $pdo->exec('ALTER TABLE inventory_records ADD COLUMN po_no VARCHAR(100) DEFAULT NULL AFTER program');
     }
+    $supplierColumnStmt = $pdo->query("SHOW COLUMNS FROM inventory_records LIKE 'supplier'");
+    if (!$supplierColumnStmt || !$supplierColumnStmt->fetch()) {
+        $pdo->exec('ALTER TABLE inventory_records ADD COLUMN supplier VARCHAR(255) DEFAULT NULL AFTER po_no');
+    }
     $releaseStatusColumnStmt = $pdo->query("SHOW COLUMNS FROM inventory_records LIKE 'release_status'");
     if (!$releaseStatusColumnStmt || !$releaseStatusColumnStmt->fetch()) {
         $pdo->exec("ALTER TABLE inventory_records ADD COLUMN release_status VARCHAR(20) NOT NULL DEFAULT 'released' AFTER record_date");
@@ -115,7 +119,7 @@ try {
             try {
                 if ($releasePtrNo !== '') {
                     $pendingRowsStmt = $pdo->prepare('
-                        SELECT id, ptr_no, record_date, recipient, description, batch_number, batch_id, unit, quantity, unit_cost, program
+                        SELECT id, ptr_no, record_date, recipient, description, batch_number, batch_id, unit, quantity, unit_cost, program, supplier
                         FROM inventory_records
                         WHERE ptr_no = ? AND COALESCE(release_status, "released") = "pending"
                         ORDER BY id ASC
@@ -124,7 +128,7 @@ try {
                     $pendingRowsStmt->execute([$releasePtrNo]);
                 } else {
                     $pendingRowsStmt = $pdo->prepare('
-                        SELECT id, ptr_no, record_date, recipient, description, batch_number, batch_id, unit, quantity, unit_cost, program
+                        SELECT id, ptr_no, record_date, recipient, description, batch_number, batch_id, unit, quantity, unit_cost, program, supplier
                         FROM inventory_records
                         WHERE id = ? AND COALESCE(release_status, "released") = "pending"
                         ORDER BY id ASC
@@ -225,6 +229,7 @@ try {
                                 'unit' => $unitValue,
                                 'batch_no' => $batchNumber,
                                 'program' => trim((string) ($row['program'] ?? '')),
+                                'supplier' => trim((string) ($row['supplier'] ?? '')),
                                 'unit_cost' => (float) ($row['unit_cost'] ?? 0),
                                 'record_date' => (string) ($row['record_date'] ?? ''),
                                 'ptr_no' => (string) ($row['ptr_no'] ?? ''),
@@ -286,26 +291,33 @@ try {
                                 po_contract_no,
                                 supplier,
                                 item_description,
+                                dosage_form,
                                 uom,
                                 unit_cost,
                                 end_user_program,
                                 batch_no,
+                                entity_name,
+                                fund_cluster,
                                 ledger_rows,
                                 item_key,
                                 source_type,
                                 created_by
                             )
-                            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, "release", ?)
+                            VALUES (?, ?, ?, ?, ?, ?, ?, ?, "PHO", "PHO", ?, ?, "release", ?)
                         ');
                         $updateCardStmt = $pdo->prepare('
                             UPDATE stock_cards
                             SET
                                 po_contract_no = ?,
+                                supplier = ?,
                                 item_description = ?,
+                                dosage_form = ?,
                                 uom = ?,
                                 unit_cost = ?,
                                 end_user_program = ?,
                                 batch_no = ?,
+                                entity_name = "PHO",
+                                fund_cluster = "PHO",
                                 ledger_rows = ?
                             WHERE id = ?
                         ');
@@ -329,19 +341,25 @@ try {
                                 }
                             }
 
-                            $batchId = (int) ($card['batch_id'] ?? 0);
-                            $remainingStock = 0.0;
-                            if ($batchId > 0) {
-                                $readBatchStockStmt->execute([$batchId]);
-                                $batchStockRow = $readBatchStockStmt->fetch();
-                                $remainingStock = (float) ($batchStockRow['stock_quantity'] ?? 0);
-                            }
-
                             $unitCost = (float) ($card['unit_cost'] ?? 0);
+                            $issuedQty = (int) ($card['issued_qty'] ?? 0);
+                            $remainingStock = 0.0;
+                            if (!empty($ledgerRows)) {
+                                $lastLedgerRow = $ledgerRows[count($ledgerRows) - 1];
+                                $previousBalance = (float) ($lastLedgerRow['balance'] ?? 0);
+                                $remainingStock = max(0, $previousBalance - $issuedQty);
+                            } else {
+                                $batchId = (int) ($card['batch_id'] ?? 0);
+                                if ($batchId > 0) {
+                                    $readBatchStockStmt->execute([$batchId]);
+                                    $batchStockRow = $readBatchStockStmt->fetch();
+                                    $remainingStock = (float) ($batchStockRow['stock_quantity'] ?? 0);
+                                }
+                            }
                             $ledgerRows[] = [
                                 'entry_date' => (string) ($card['record_date'] ?? ''),
                                 'received' => '0',
-                                'issued' => (string) (int) ($card['issued_qty'] ?? 0),
+                                'issued' => (string) $issuedQty,
                                 'balance' => number_format($remainingStock, 2, '.', ''),
                                 'total_cost' => number_format($remainingStock * $unitCost, 2, '.', ''),
                                 'ref_no' => (string) ($card['ptr_no'] ?? ''),
@@ -352,7 +370,9 @@ try {
                             if ($cardId > 0) {
                                 $updateCardStmt->execute([
                                     ((string) ($card['ptr_no'] ?? '')) !== '' ? ('PTR ' . (string) $card['ptr_no']) : null,
+                                    ((string) ($card['supplier'] ?? '')) !== '' ? (string) $card['supplier'] : null,
                                     (string) ($card['description'] ?? ''),
+                                    ((string) ($card['unit'] ?? '')) !== '' ? (string) $card['unit'] : null,
                                     ((string) ($card['unit'] ?? '')) !== '' ? (string) $card['unit'] : null,
                                     $unitCost,
                                     ((string) ($card['program'] ?? '')) !== '' ? (string) $card['program'] : null,
@@ -366,8 +386,9 @@ try {
                             } else {
                                 $insertCardStmt->execute([
                                     ((string) ($card['ptr_no'] ?? '')) !== '' ? ('PTR ' . (string) $card['ptr_no']) : null,
-                                    null,
+                                    ((string) ($card['supplier'] ?? '')) !== '' ? (string) $card['supplier'] : null,
                                     (string) ($card['description'] ?? ''),
+                                    ((string) ($card['unit'] ?? '')) !== '' ? (string) $card['unit'] : null,
                                     ((string) ($card['unit'] ?? '')) !== '' ? (string) $card['unit'] : null,
                                     $unitCost,
                                     ((string) ($card['program'] ?? '')) !== '' ? (string) $card['program'] : null,

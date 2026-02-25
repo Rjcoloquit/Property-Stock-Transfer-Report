@@ -17,6 +17,7 @@ $sort = $sort === 'desc' ? 'desc' : 'asc';
 $orderByDirection = $sort === 'desc' ? 'DESC' : 'ASC';
 $items = [];
 $itemAddHistory = [];
+$productDescriptionOptions = [];
 $error = '';
 $errors = [];
 
@@ -29,6 +30,7 @@ $formData = [
     'expiry_date' => '',
     'program' => '',
     'po_no' => '',
+    'supplier' => '',
     'place_of_delivery' => '',
     'date_of_delivery' => '',
     'delivery_term' => '',
@@ -60,6 +62,133 @@ function buildItemListUrl(string $search, string $sort, string $message = '', in
         $params['edit_batch'] = $editBatch;
     }
     return 'item_list.php' . (!empty($params) ? '?' . http_build_query($params) : '');
+}
+
+function appendReceivedStockCardEntry(
+    PDO $pdo,
+    string $username,
+    string $description,
+    string $uom,
+    string $batchNumber,
+    float $unitCost,
+    string $program,
+    string $poNo,
+    string $supplier,
+    int $receivedQty,
+    string $entryDate = ''
+): void {
+    $description = trim($description);
+    $uom = trim($uom);
+    $batchNumber = trim($batchNumber);
+    if ($description === '' || $uom === '' || $batchNumber === '' || $receivedQty <= 0) {
+        return;
+    }
+
+    $itemKey = strtolower($description) . '|' . strtolower($uom) . '|' . strtolower($batchNumber);
+    $readStmt = $pdo->prepare('
+        SELECT id, ledger_rows
+        FROM stock_cards
+        WHERE item_key = ? AND source_type = "release"
+        ORDER BY id ASC
+        LIMIT 1
+    ');
+    $readStmt->execute([$itemKey]);
+    $existingCard = $readStmt->fetch();
+
+    $ledgerRows = [];
+    $cardId = 0;
+    if ($existingCard) {
+        $cardId = (int) ($existingCard['id'] ?? 0);
+        $decodedRows = json_decode((string) ($existingCard['ledger_rows'] ?? ''), true);
+        if (is_array($decodedRows)) {
+            $ledgerRows = $decodedRows;
+        }
+    }
+
+    $lastBalance = 0.0;
+    if (!empty($ledgerRows)) {
+        $lastLedgerRow = $ledgerRows[count($ledgerRows) - 1];
+        $lastBalance = (float) ($lastLedgerRow['balance'] ?? 0);
+    }
+    $newBalance = $lastBalance + $receivedQty;
+    $entryDate = trim($entryDate) !== '' ? $entryDate : date('Y-m-d');
+
+    $ledgerRows[] = [
+        'entry_date' => $entryDate,
+        'received' => (string) $receivedQty,
+        'issued' => '0',
+        'balance' => number_format($newBalance, 2, '.', ''),
+        'total_cost' => number_format($newBalance * $unitCost, 2, '.', ''),
+        'ref_no' => $poNo !== '' ? ('PO ' . $poNo) : 'Manage Items',
+        'remarks' => 'Stock received via Manage Items',
+    ];
+    $ledgerJson = json_encode($ledgerRows, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+
+    if ($cardId > 0) {
+        $updateStmt = $pdo->prepare('
+            UPDATE stock_cards
+            SET
+                po_contract_no = ?,
+                supplier = ?,
+                item_description = ?,
+                dosage_form = ?,
+                uom = ?,
+                unit_cost = ?,
+                end_user_program = ?,
+                batch_no = ?,
+                entity_name = "PHO",
+                fund_cluster = "PHO",
+                ledger_rows = ?
+            WHERE id = ?
+        ');
+        $updateStmt->execute([
+            $poNo !== '' ? $poNo : null,
+            $supplier !== '' ? $supplier : null,
+            $description,
+            $uom,
+            $uom,
+            $unitCost,
+            $program !== '' ? $program : null,
+            $batchNumber,
+            $ledgerJson,
+            $cardId,
+        ]);
+        return;
+    }
+
+    $insertStmt = $pdo->prepare('
+        INSERT INTO stock_cards
+        (
+            po_contract_no,
+            supplier,
+            item_description,
+            dosage_form,
+            uom,
+            unit_cost,
+            end_user_program,
+            batch_no,
+            entity_name,
+            fund_cluster,
+            ledger_rows,
+            item_key,
+            source_type,
+            created_by
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, "PHO", "PHO", ?, ?, "release", ?)
+    ');
+    $insertStmt->execute([
+        $poNo !== '' ? $poNo : null,
+        $supplier !== '' ? $supplier : null,
+        $description,
+        $uom,
+        $uom,
+        $unitCost,
+        $program !== '' ? $program : null,
+        $batchNumber,
+        $ledgerJson,
+        $itemKey,
+        $username,
+    ]);
 }
 
 try {
@@ -124,6 +253,10 @@ try {
     if (!$paymentTermColumnStmt || !$paymentTermColumnStmt->fetch()) {
         $pdo->exec('ALTER TABLE products ADD COLUMN payment_term VARCHAR(255) DEFAULT NULL AFTER delivery_term');
     }
+    $supplierColumnStmt = $pdo->query("SHOW COLUMNS FROM products LIKE 'supplier'");
+    if (!$supplierColumnStmt || !$supplierColumnStmt->fetch()) {
+        $pdo->exec('ALTER TABLE products ADD COLUMN supplier VARCHAR(255) DEFAULT NULL AFTER po_no');
+    }
     $historyPoNoColumnStmt = $pdo->query("SHOW COLUMNS FROM item_add_history LIKE 'po_no'");
     if (!$historyPoNoColumnStmt || !$historyPoNoColumnStmt->fetch()) {
         $pdo->exec('ALTER TABLE item_add_history ADD COLUMN po_no VARCHAR(100) DEFAULT NULL AFTER program');
@@ -144,9 +277,45 @@ try {
     if (!$historyPaymentTermColumnStmt || !$historyPaymentTermColumnStmt->fetch()) {
         $pdo->exec('ALTER TABLE item_add_history ADD COLUMN payment_term VARCHAR(255) DEFAULT NULL AFTER delivery_term');
     }
+    $historySupplierColumnStmt = $pdo->query("SHOW COLUMNS FROM item_add_history LIKE 'supplier'");
+    if (!$historySupplierColumnStmt || !$historySupplierColumnStmt->fetch()) {
+        $pdo->exec('ALTER TABLE item_add_history ADD COLUMN supplier VARCHAR(255) DEFAULT NULL AFTER po_no');
+    }
     $productBatchesStmt = $pdo->query("SHOW TABLES LIKE 'product_batches'");
     if ($productBatchesStmt && $productBatchesStmt->fetch()) {
         $hasProductBatchesTable = true;
+    }
+    $pdo->exec(
+        'CREATE TABLE IF NOT EXISTS stock_cards (
+            id INT NOT NULL AUTO_INCREMENT,
+            po_contract_no VARCHAR(255) DEFAULT NULL,
+            supplier VARCHAR(255) DEFAULT NULL,
+            item_description TEXT,
+            dosage_form VARCHAR(255) DEFAULT NULL,
+            dosage_strength VARCHAR(255) DEFAULT NULL,
+            uom VARCHAR(100) DEFAULT NULL,
+            sku_code VARCHAR(150) DEFAULT NULL,
+            entity_name VARCHAR(255) DEFAULT NULL,
+            fund_cluster VARCHAR(255) DEFAULT NULL,
+            unit_cost DECIMAL(12,2) DEFAULT NULL,
+            mode_of_procurement VARCHAR(255) DEFAULT NULL,
+            end_user_program VARCHAR(255) DEFAULT NULL,
+            batch_no VARCHAR(120) DEFAULT NULL,
+            ledger_rows LONGTEXT,
+            item_key VARCHAR(400) DEFAULT NULL,
+            source_type VARCHAR(30) NOT NULL DEFAULT "manual",
+            created_by VARCHAR(150) DEFAULT NULL,
+            created_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP,
+            PRIMARY KEY (id)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci'
+    );
+    $itemKeyColumnStmt = $pdo->query("SHOW COLUMNS FROM stock_cards LIKE 'item_key'");
+    if (!$itemKeyColumnStmt || !$itemKeyColumnStmt->fetch()) {
+        $pdo->exec('ALTER TABLE stock_cards ADD COLUMN item_key VARCHAR(400) DEFAULT NULL AFTER ledger_rows');
+    }
+    $sourceTypeColumnStmt = $pdo->query("SHOW COLUMNS FROM stock_cards LIKE 'source_type'");
+    if (!$sourceTypeColumnStmt || !$sourceTypeColumnStmt->fetch()) {
+        $pdo->exec('ALTER TABLE stock_cards ADD COLUMN source_type VARCHAR(30) NOT NULL DEFAULT "manual" AFTER item_key');
     }
 
     if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -173,6 +342,7 @@ try {
             $formData['expiry_date'] = trim($_POST['expiry_date'] ?? '');
             $formData['program'] = trim($_POST['program'] ?? '');
             $formData['po_no'] = trim($_POST['po_no'] ?? '');
+            $formData['supplier'] = trim($_POST['supplier'] ?? '');
             $formData['place_of_delivery'] = trim($_POST['place_of_delivery'] ?? '');
             $formData['date_of_delivery'] = trim($_POST['date_of_delivery'] ?? '');
             $formData['delivery_term'] = trim($_POST['delivery_term'] ?? '');
@@ -202,71 +372,147 @@ try {
 
             if (empty($errors)) {
                 if ($action === 'create') {
-                    $newProductId = null;
-                    if ($hasProductsExpiryDate) {
-                        $insertStmt = $pdo->prepare(
-                            'INSERT INTO products (
-                                product_description,
-                                uom,
-                                cost_per_unit,
-                                expiry_date,
-                                program,
-                                po_no,
-                                place_of_delivery,
-                                date_of_delivery,
-                                delivery_term,
-                                payment_term
-                            )
-                             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
-                        );
-                        $insertStmt->execute([
-                            $formData['product_description'],
-                            $formData['uom'],
-                            (float) $formData['cost_per_unit'],
-                            $formData['expiry_date'] !== '' ? $formData['expiry_date'] : null,
-                            $formData['program'] !== '' ? $formData['program'] : null,
-                            $formData['po_no'] !== '' ? $formData['po_no'] : null,
-                            $formData['place_of_delivery'] !== '' ? $formData['place_of_delivery'] : null,
-                            $formData['date_of_delivery'] !== '' ? $formData['date_of_delivery'] : null,
-                            $formData['delivery_term'] !== '' ? $formData['delivery_term'] : null,
-                            $formData['payment_term'] !== '' ? $formData['payment_term'] : null,
-                        ]);
-                        $newProductId = (int) $pdo->lastInsertId();
+                    $descriptionLookup = $pdo->prepare('
+                        SELECT id
+                        FROM products
+                        WHERE LOWER(TRIM(product_description)) = LOWER(?)
+                        ORDER BY id ASC
+                        LIMIT 1
+                    ');
+                    $descriptionLookup->execute([trim($formData['product_description'])]);
+                    $existingProduct = $descriptionLookup->fetch();
+
+                    $newProductId = (int) ($existingProduct['id'] ?? 0);
+                    $isExistingItem = $newProductId > 0;
+                    $didIncreaseStock = false;
+
+                    if ($isExistingItem) {
+                        if ($hasProductsExpiryDate) {
+                            $updateExistingStmt = $pdo->prepare(
+                                'UPDATE products
+                                 SET uom = ?,
+                                     cost_per_unit = ?,
+                                     expiry_date = ?,
+                                     program = ?,
+                                     po_no = ?,
+                                     supplier = ?,
+                                     place_of_delivery = ?,
+                                     date_of_delivery = ?,
+                                     delivery_term = ?,
+                                     payment_term = ?
+                                 WHERE id = ?'
+                            );
+                            $updateExistingStmt->execute([
+                                $formData['uom'],
+                                (float) $formData['cost_per_unit'],
+                                $formData['expiry_date'] !== '' ? $formData['expiry_date'] : null,
+                                $formData['program'] !== '' ? $formData['program'] : null,
+                                $formData['po_no'] !== '' ? $formData['po_no'] : null,
+                                $formData['supplier'] !== '' ? $formData['supplier'] : null,
+                                $formData['place_of_delivery'] !== '' ? $formData['place_of_delivery'] : null,
+                                $formData['date_of_delivery'] !== '' ? $formData['date_of_delivery'] : null,
+                                $formData['delivery_term'] !== '' ? $formData['delivery_term'] : null,
+                                $formData['payment_term'] !== '' ? $formData['payment_term'] : null,
+                                $newProductId,
+                            ]);
+                        } else {
+                            $updateExistingStmt = $pdo->prepare(
+                                'UPDATE products
+                                 SET uom = ?,
+                                     cost_per_unit = ?,
+                                     program = ?,
+                                     po_no = ?,
+                                     supplier = ?,
+                                     place_of_delivery = ?,
+                                     date_of_delivery = ?,
+                                     delivery_term = ?,
+                                     payment_term = ?
+                                 WHERE id = ?'
+                            );
+                            $updateExistingStmt->execute([
+                                $formData['uom'],
+                                (float) $formData['cost_per_unit'],
+                                $formData['program'] !== '' ? $formData['program'] : null,
+                                $formData['po_no'] !== '' ? $formData['po_no'] : null,
+                                $formData['supplier'] !== '' ? $formData['supplier'] : null,
+                                $formData['place_of_delivery'] !== '' ? $formData['place_of_delivery'] : null,
+                                $formData['date_of_delivery'] !== '' ? $formData['date_of_delivery'] : null,
+                                $formData['delivery_term'] !== '' ? $formData['delivery_term'] : null,
+                                $formData['payment_term'] !== '' ? $formData['payment_term'] : null,
+                                $newProductId,
+                            ]);
+                        }
                     } else {
-                        $insertStmt = $pdo->prepare(
-                            'INSERT INTO products (
-                                product_description,
-                                uom,
-                                cost_per_unit,
-                                program,
-                                po_no,
-                                place_of_delivery,
-                                date_of_delivery,
-                                delivery_term,
-                                payment_term
-                            )
-                             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)'
-                        );
-                        $insertStmt->execute([
-                            $formData['product_description'],
-                            $formData['uom'],
-                            (float) $formData['cost_per_unit'],
-                            $formData['program'] !== '' ? $formData['program'] : null,
-                            $formData['po_no'] !== '' ? $formData['po_no'] : null,
-                            $formData['place_of_delivery'] !== '' ? $formData['place_of_delivery'] : null,
-                            $formData['date_of_delivery'] !== '' ? $formData['date_of_delivery'] : null,
-                            $formData['delivery_term'] !== '' ? $formData['delivery_term'] : null,
-                            $formData['payment_term'] !== '' ? $formData['payment_term'] : null,
-                        ]);
-                        $newProductId = (int) $pdo->lastInsertId();
+                        if ($hasProductsExpiryDate) {
+                            $insertStmt = $pdo->prepare(
+                                'INSERT INTO products (
+                                    product_description,
+                                    uom,
+                                    cost_per_unit,
+                                    expiry_date,
+                                    program,
+                                    po_no,
+                                    supplier,
+                                    place_of_delivery,
+                                    date_of_delivery,
+                                    delivery_term,
+                                    payment_term
+                                )
+                                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
+                            );
+                            $insertStmt->execute([
+                                $formData['product_description'],
+                                $formData['uom'],
+                                (float) $formData['cost_per_unit'],
+                                $formData['expiry_date'] !== '' ? $formData['expiry_date'] : null,
+                                $formData['program'] !== '' ? $formData['program'] : null,
+                                $formData['po_no'] !== '' ? $formData['po_no'] : null,
+                                $formData['supplier'] !== '' ? $formData['supplier'] : null,
+                                $formData['place_of_delivery'] !== '' ? $formData['place_of_delivery'] : null,
+                                $formData['date_of_delivery'] !== '' ? $formData['date_of_delivery'] : null,
+                                $formData['delivery_term'] !== '' ? $formData['delivery_term'] : null,
+                                $formData['payment_term'] !== '' ? $formData['payment_term'] : null,
+                            ]);
+                            $newProductId = (int) $pdo->lastInsertId();
+                        } else {
+                            $insertStmt = $pdo->prepare(
+                                'INSERT INTO products (
+                                    product_description,
+                                    uom,
+                                    cost_per_unit,
+                                    program,
+                                    po_no,
+                                    supplier,
+                                    place_of_delivery,
+                                    date_of_delivery,
+                                    delivery_term,
+                                    payment_term
+                                )
+                                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
+                            );
+                            $insertStmt->execute([
+                                $formData['product_description'],
+                                $formData['uom'],
+                                (float) $formData['cost_per_unit'],
+                                $formData['program'] !== '' ? $formData['program'] : null,
+                                $formData['po_no'] !== '' ? $formData['po_no'] : null,
+                                $formData['supplier'] !== '' ? $formData['supplier'] : null,
+                                $formData['place_of_delivery'] !== '' ? $formData['place_of_delivery'] : null,
+                                $formData['date_of_delivery'] !== '' ? $formData['date_of_delivery'] : null,
+                                $formData['delivery_term'] !== '' ? $formData['delivery_term'] : null,
+                                $formData['payment_term'] !== '' ? $formData['payment_term'] : null,
+                            ]);
+                            $newProductId = (int) $pdo->lastInsertId();
+                        }
                     }
+
                     if ($hasProductBatchesTable && $newProductId > 0 && $formData['batch_number'] !== '') {
                         $batchInsertStmt = $pdo->prepare(
                             'INSERT INTO product_batches (product_id, batch_number, stock_quantity, expiry_date)
                              VALUES (?, ?, ?, ?)
                              ON DUPLICATE KEY UPDATE
-                                 stock_quantity = VALUES(stock_quantity),
-                                 expiry_date = VALUES(expiry_date)'
+                                 stock_quantity = stock_quantity + VALUES(stock_quantity),
+                                 expiry_date = COALESCE(VALUES(expiry_date), expiry_date)'
                         );
                         $batchInsertStmt->execute([
                             $newProductId,
@@ -274,6 +520,20 @@ try {
                             (int) $formData['stock'],
                             $formData['expiry_date'] !== '' ? $formData['expiry_date'] : null,
                         ]);
+                        appendReceivedStockCardEntry(
+                            $pdo,
+                            $username,
+                            $formData['product_description'],
+                            $formData['uom'],
+                            $formData['batch_number'],
+                            (float) $formData['cost_per_unit'],
+                            $formData['program'],
+                            $formData['po_no'],
+                            $formData['supplier'],
+                            (int) $formData['stock'],
+                            $formData['date_of_delivery']
+                        );
+                        $didIncreaseStock = true;
                     }
 
                     $historyStmt = $pdo->prepare(
@@ -286,13 +546,14 @@ try {
                                 expiry_date,
                                 program,
                                 po_no,
+                                supplier,
                                 place_of_delivery,
                                 date_of_delivery,
                                 delivery_term,
                                 payment_term,
                                 added_by
                             )
-                         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
+                         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
                     );
                     $historyStmt->execute([
                         $newProductId > 0 ? $newProductId : null,
@@ -302,19 +563,40 @@ try {
                         $formData['expiry_date'] !== '' ? $formData['expiry_date'] : null,
                         $formData['program'] !== '' ? $formData['program'] : null,
                         $formData['po_no'] !== '' ? $formData['po_no'] : null,
+                        $formData['supplier'] !== '' ? $formData['supplier'] : null,
                         $formData['place_of_delivery'] !== '' ? $formData['place_of_delivery'] : null,
                         $formData['date_of_delivery'] !== '' ? $formData['date_of_delivery'] : null,
                         $formData['delivery_term'] !== '' ? $formData['delivery_term'] : null,
                         $formData['payment_term'] !== '' ? $formData['payment_term'] : null,
                         $username,
                     ]);
-                    header('Location: ' . buildItemListUrl($returnSearch, $returnSort, 'Item added.'));
+                    if ($isExistingItem && $didIncreaseStock) {
+                        $successMessage = 'Existing item found. Stock quantity was added to current inventory.';
+                    } elseif ($isExistingItem) {
+                        $successMessage = 'Existing item found. Item details were updated.';
+                    } else {
+                        $successMessage = 'Item added.';
+                    }
+                    header('Location: ' . buildItemListUrl($returnSearch, $returnSort, $successMessage));
                     exit;
                 }
 
                 $updateId = isset($_POST['id']) ? (int) $_POST['id'] : 0;
                 if ($updateId > 0) {
                     $originalBatchNumber = trim((string) ($_POST['original_batch_number'] ?? ''));
+                    $previousStockQty = 0;
+                    if ($hasProductBatchesTable && $formData['batch_number'] !== '') {
+                        $lookupBatch = $originalBatchNumber !== '' ? $originalBatchNumber : $formData['batch_number'];
+                        $prevStockStmt = $pdo->prepare('
+                            SELECT stock_quantity
+                            FROM product_batches
+                            WHERE product_id = ? AND batch_number = ?
+                            LIMIT 1
+                        ');
+                        $prevStockStmt->execute([$updateId, $lookupBatch]);
+                        $prevStockRow = $prevStockStmt->fetch();
+                        $previousStockQty = (int) ($prevStockRow['stock_quantity'] ?? 0);
+                    }
                     if ($hasProductsExpiryDate) {
                         $updateStmt = $pdo->prepare(
                             'UPDATE products
@@ -324,6 +606,7 @@ try {
                                  expiry_date = ?,
                                  program = ?,
                                  po_no = ?,
+                                 supplier = ?,
                                  place_of_delivery = ?,
                                  date_of_delivery = ?,
                                  delivery_term = ?,
@@ -337,6 +620,7 @@ try {
                             $formData['expiry_date'] !== '' ? $formData['expiry_date'] : null,
                             $formData['program'] !== '' ? $formData['program'] : null,
                             $formData['po_no'] !== '' ? $formData['po_no'] : null,
+                            $formData['supplier'] !== '' ? $formData['supplier'] : null,
                             $formData['place_of_delivery'] !== '' ? $formData['place_of_delivery'] : null,
                             $formData['date_of_delivery'] !== '' ? $formData['date_of_delivery'] : null,
                             $formData['delivery_term'] !== '' ? $formData['delivery_term'] : null,
@@ -351,6 +635,7 @@ try {
                                  cost_per_unit = ?,
                                  program = ?,
                                  po_no = ?,
+                                 supplier = ?,
                                  place_of_delivery = ?,
                                  date_of_delivery = ?,
                                  delivery_term = ?,
@@ -363,6 +648,7 @@ try {
                             (float) $formData['cost_per_unit'],
                             $formData['program'] !== '' ? $formData['program'] : null,
                             $formData['po_no'] !== '' ? $formData['po_no'] : null,
+                            $formData['supplier'] !== '' ? $formData['supplier'] : null,
                             $formData['place_of_delivery'] !== '' ? $formData['place_of_delivery'] : null,
                             $formData['date_of_delivery'] !== '' ? $formData['date_of_delivery'] : null,
                             $formData['delivery_term'] !== '' ? $formData['delivery_term'] : null,
@@ -399,6 +685,23 @@ try {
                                 $formData['expiry_date'] !== '' ? $formData['expiry_date'] : null,
                             ]);
                         }
+                        $newStockQty = (int) $formData['stock'];
+                        $receivedDelta = $newStockQty - $previousStockQty;
+                        if ($receivedDelta > 0) {
+                            appendReceivedStockCardEntry(
+                                $pdo,
+                                $username,
+                                $formData['product_description'],
+                                $formData['uom'],
+                                $formData['batch_number'],
+                                (float) $formData['cost_per_unit'],
+                                $formData['program'],
+                                $formData['po_no'],
+                                $formData['supplier'],
+                                $receivedDelta,
+                                $formData['date_of_delivery']
+                            );
+                        }
                     }
                     header('Location: ' . buildItemListUrl($returnSearch, $returnSort, 'Item updated.'));
                     exit;
@@ -428,6 +731,7 @@ try {
                            COALESCE(b.expiry_date, p.expiry_date) AS expiry_date,
                            p.program,
                            p.po_no,
+                           p.supplier,
                            p.place_of_delivery,
                            p.date_of_delivery,
                            p.delivery_term,
@@ -447,6 +751,7 @@ try {
                            b.expiry_date AS expiry_date,
                            p.program,
                            p.po_no,
+                           p.supplier,
                            p.place_of_delivery,
                            p.date_of_delivery,
                            p.delivery_term,
@@ -462,8 +767,8 @@ try {
                 $editStmt->execute([$editingId, $editingBatchNumber, $editingBatchNumber]);
             } else {
                 $editSelect = $hasProductsExpiryDate
-                    ? 'SELECT id, product_description, uom, cost_per_unit, expiry_date, program, po_no, place_of_delivery, date_of_delivery, delivery_term, payment_term, NULL AS batch_number, 0 AS stock FROM products WHERE id = ? LIMIT 1'
-                    : 'SELECT id, product_description, uom, cost_per_unit, NULL AS expiry_date, program, po_no, place_of_delivery, date_of_delivery, delivery_term, payment_term, NULL AS batch_number, 0 AS stock FROM products WHERE id = ? LIMIT 1';
+                    ? 'SELECT id, product_description, uom, cost_per_unit, expiry_date, program, po_no, supplier, place_of_delivery, date_of_delivery, delivery_term, payment_term, NULL AS batch_number, 0 AS stock FROM products WHERE id = ? LIMIT 1'
+                    : 'SELECT id, product_description, uom, cost_per_unit, NULL AS expiry_date, program, po_no, supplier, place_of_delivery, date_of_delivery, delivery_term, payment_term, NULL AS batch_number, 0 AS stock FROM products WHERE id = ? LIMIT 1';
                 $editStmt = $pdo->prepare($editSelect);
                 $editStmt->execute([$editingId]);
             }
@@ -480,6 +785,7 @@ try {
                     'expiry_date' => (string) ($editingItem['expiry_date'] ?? ''),
                     'program' => (string) ($editingItem['program'] ?? ''),
                     'po_no' => (string) ($editingItem['po_no'] ?? ''),
+                    'supplier' => (string) ($editingItem['supplier'] ?? ''),
                     'place_of_delivery' => (string) ($editingItem['place_of_delivery'] ?? ''),
                     'date_of_delivery' => (string) ($editingItem['date_of_delivery'] ?? ''),
                     'delivery_term' => (string) ($editingItem['delivery_term'] ?? ''),
@@ -509,6 +815,7 @@ try {
             ' . $expirySelectSql . ' AS expiry_date,
             p.program,
             p.po_no,
+            p.supplier,
             p.place_of_delivery,
             p.date_of_delivery,
             p.delivery_term,
@@ -539,6 +846,14 @@ try {
     }
 
     $items = $stmt->fetchAll();
+
+    $descriptionOptionsStmt = $pdo->query('
+        SELECT DISTINCT TRIM(product_description) AS description_name
+        FROM products
+        WHERE product_description IS NOT NULL AND TRIM(product_description) <> ""
+        ORDER BY description_name ASC
+    ');
+    $productDescriptionOptions = $descriptionOptionsStmt->fetchAll(PDO::FETCH_COLUMN);
 
     $historyStmt = $pdo->query('
         SELECT id, product_id, product_description, uom, cost_per_unit, expiry_date, program, added_by, added_at
@@ -659,6 +974,7 @@ try {
                                                             data-expiry-date="<?= htmlspecialchars((string) ($item['expiry_date'] ?? ''), ENT_QUOTES) ?>"
                                                             data-program="<?= htmlspecialchars((string) ($item['program'] ?? ''), ENT_QUOTES) ?>"
                                                             data-po-no="<?= htmlspecialchars((string) ($item['po_no'] ?? ''), ENT_QUOTES) ?>"
+                                                            data-supplier="<?= htmlspecialchars((string) ($item['supplier'] ?? ''), ENT_QUOTES) ?>"
                                                             data-place-of-delivery="<?= htmlspecialchars((string) ($item['place_of_delivery'] ?? ''), ENT_QUOTES) ?>"
                                                             data-date-of-delivery="<?= htmlspecialchars((string) ($item['date_of_delivery'] ?? ''), ENT_QUOTES) ?>"
                                                             data-delivery-term="<?= htmlspecialchars((string) ($item['delivery_term'] ?? ''), ENT_QUOTES) ?>"
@@ -741,162 +1057,210 @@ try {
     </main>
 
     <div class="modal fade" id="itemFormModal" tabindex="-1" aria-labelledby="itemFormModalLabel" aria-hidden="true">
-        <div class="modal-dialog modal-lg modal-dialog-centered">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h2 class="modal-title h5 mb-0" id="itemFormModalLabel"><?= $isEditMode ? 'Edit Item' : 'Add New Item' ?></h2>
+        <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
+            <div class="modal-content item-form-modal-content">
+                <div class="modal-header border-0 pb-0">
+                    <h2 class="modal-title h5 mb-0 fw-semibold" id="itemFormModalLabel"><?= $isEditMode ? 'Edit Item' : 'Add New Item' ?></h2>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
-                <div class="modal-body">
+                <div class="modal-body pt-2">
                     <?php if (!empty($errors)): ?>
-                        <?php foreach ($errors as $e): ?>
-                            <div class="alert alert-danger py-2 mb-2"><?= htmlspecialchars($e) ?></div>
-                        <?php endforeach; ?>
+                        <div class="alert alert-danger py-2 mb-3">
+                            <?php foreach ($errors as $e): ?>
+                                <div><?= htmlspecialchars($e) ?></div>
+                            <?php endforeach; ?>
+                        </div>
                     <?php endif; ?>
-                    <form method="post" action="item_list.php<?= $search !== '' || $sort === 'desc' ? '?' . http_build_query(['q' => $search, 'sort' => $sort === 'desc' ? 'desc' : null]) : '' ?>">
+                    <form method="post" action="item_list.php<?= $search !== '' || $sort === 'desc' ? '?' . http_build_query(['q' => $search, 'sort' => $sort === 'desc' ? 'desc' : null]) : '' ?>" id="itemFormModalForm">
                         <input type="hidden" name="action" value="<?= $isEditMode ? 'update' : 'create' ?>">
                         <input type="hidden" name="return_q" value="<?= htmlspecialchars($search) ?>">
                         <input type="hidden" name="return_sort" value="<?= htmlspecialchars($sort) ?>">
                         <?php if ($isEditMode): ?>
                             <input type="hidden" name="id" value="<?= (int) $editingId ?>">
                         <?php endif; ?>
-                        <div class="row g-3">
-                            <div class="col-12">
-                                <label for="product_description" class="form-label">Product Description</label>
-                                <textarea
-                                    id="product_description"
-                                    name="product_description"
-                                    class="form-control"
-                                    rows="2"
-                                    required
-                                ><?= htmlspecialchars($formData['product_description']) ?></textarea>
-                            </div>
-                            <div class="col-md-6">
-                                <label for="batch_number" class="form-label">Batch Number</label>
-                                <input
-                                    type="text"
-                                    id="batch_number"
-                                    name="batch_number"
-                                    class="form-control"
-                                    value="<?= htmlspecialchars($formData['batch_number']) ?>"
-                                    <?= $hasProductBatchesTable ? 'required' : '' ?>
-                                >
-                                <?php if ($isEditMode): ?>
-                                    <input type="hidden" name="original_batch_number" value="<?= htmlspecialchars($formData['batch_number']) ?>">
-                                <?php endif; ?>
-                            </div>
-                            <div class="col-md-6">
-                                <label for="uom" class="form-label">UOM</label>
-                                <input
-                                    type="text"
-                                    id="uom"
-                                    name="uom"
-                                    class="form-control"
-                                    value="<?= htmlspecialchars($formData['uom']) ?>"
-                                    required
-                                >
-                            </div>
-                            <div class="col-md-6">
-                                <label for="stock" class="form-label">Stock</label>
-                                <input
-                                    type="number"
-                                    id="stock"
-                                    name="stock"
-                                    class="form-control"
-                                    min="0"
-                                    step="1"
-                                    value="<?= htmlspecialchars($formData['stock']) ?>"
-                                    <?= $hasProductBatchesTable ? 'required' : '' ?>
-                                >
-                            </div>
-                            <div class="col-md-6">
-                                <label for="cost_per_unit" class="form-label">Cost Per Unit</label>
-                                <input
-                                    type="number"
-                                    id="cost_per_unit"
-                                    name="cost_per_unit"
-                                    class="form-control"
-                                    step="0.01"
-                                    min="0"
-                                    value="<?= htmlspecialchars($formData['cost_per_unit']) ?>"
-                                    required
-                                >
-                            </div>
-                            <div class="col-md-6">
-                                <label for="expiry_date" class="form-label">Expiry Date</label>
-                                <input
-                                    type="date"
-                                    id="expiry_date"
-                                    name="expiry_date"
-                                    class="form-control"
-                                    value="<?= htmlspecialchars($formData['expiry_date']) ?>"
-                                >
-                            </div>
-                            <div class="col-md-6">
-                                <label for="po_no" class="form-label">PO Number</label>
-                                <input
-                                    type="text"
-                                    id="po_no"
-                                    name="po_no"
-                                    class="form-control"
-                                    value="<?= htmlspecialchars($formData['po_no']) ?>"
-                                    placeholder="PO Number"
-                                >
-                            </div>
-                            <div class="col-md-6">
-                                <label for="place_of_delivery" class="form-label">Place of Delivery</label>
-                                <input
-                                    type="text"
-                                    id="place_of_delivery"
-                                    name="place_of_delivery"
-                                    class="form-control"
-                                    value="<?= htmlspecialchars($formData['place_of_delivery']) ?>"
-                                    placeholder="Place of Delivery"
-                                >
-                            </div>
-                            <div class="col-md-6">
-                                <label for="date_of_delivery" class="form-label">Date of Delivery</label>
-                                <input
-                                    type="date"
-                                    id="date_of_delivery"
-                                    name="date_of_delivery"
-                                    class="form-control"
-                                    value="<?= htmlspecialchars($formData['date_of_delivery']) ?>"
-                                >
-                            </div>
-                            <div class="col-md-6">
-                                <label for="delivery_term" class="form-label">Delivery Term</label>
-                                <input
-                                    type="text"
-                                    id="delivery_term"
-                                    name="delivery_term"
-                                    class="form-control"
-                                    value="<?= htmlspecialchars($formData['delivery_term']) ?>"
-                                    placeholder="Delivery Term"
-                                >
-                            </div>
-                            <div class="col-md-6">
-                                <label for="payment_term" class="form-label">Payment Term</label>
-                                <input
-                                    type="text"
-                                    id="payment_term"
-                                    name="payment_term"
-                                    class="form-control"
-                                    value="<?= htmlspecialchars($formData['payment_term']) ?>"
-                                    placeholder="Payment Term"
-                                >
-                            </div>
-                        </div>
                         <input type="hidden" name="program" value="<?= htmlspecialchars($formData['program']) ?>">
-                        <div class="d-flex gap-2 mt-3">
-                            <button type="submit" class="btn btn-outline-neutral-black item-list-uniform-btn">
-                                <?= $isEditMode ? 'Update Item' : 'Add New Item' ?>
-                            </button>
-                            <?php if ($isEditMode): ?>
-                                <a href="<?= htmlspecialchars(buildItemListUrl($search, $sort)) ?>" class="btn btn-outline-neutral-black item-list-uniform-btn">Cancel Edit</a>
-                            <?php endif; ?>
-                        </div>
+
+                        <section class="item-form-section mb-4">
+                            <h3 class="item-form-section-title">Item details</h3>
+                            <div class="row g-3">
+                                <div class="col-12">
+                                    <label for="product_description" class="form-label item-form-label">Product description <span class="text-danger">*</span></label>
+                                    <input
+                                        type="text"
+                                        id="product_description"
+                                        name="product_description"
+                                        class="form-control item-form-input"
+                                        list="productDescriptionOptionsList"
+                                        required
+                                        placeholder="Type or select existing item description"
+                                        value="<?= htmlspecialchars($formData['product_description']) ?>"
+                                    >
+                                    <datalist id="productDescriptionOptionsList">
+                                        <?php foreach ($productDescriptionOptions as $descriptionOption): ?>
+                                            <option value="<?= htmlspecialchars((string) $descriptionOption) ?>"></option>
+                                        <?php endforeach; ?>
+                                    </datalist>
+                                    <div class="form-text">If item already exists, stock quantity will be added to current stock.</div>
+                                </div>
+                                <div class="col-sm-6 col-md-4">
+                                    <label for="batch_number" class="form-label item-form-label">Batch number <?= $hasProductBatchesTable ? '<span class="text-danger">*</span>' : '' ?></label>
+                                    <input
+                                        type="text"
+                                        id="batch_number"
+                                        name="batch_number"
+                                        class="form-control item-form-input"
+                                        value="<?= htmlspecialchars($formData['batch_number']) ?>"
+                                        placeholder="Batch no."
+                                        <?= $hasProductBatchesTable ? 'required' : '' ?>
+                                    >
+                                    <?php if ($isEditMode): ?>
+                                        <input type="hidden" name="original_batch_number" value="<?= htmlspecialchars($formData['batch_number']) ?>">
+                                    <?php endif; ?>
+                                </div>
+                                <div class="col-sm-6 col-md-4">
+                                    <label for="uom" class="form-label item-form-label">Unit of measure (UOM) <span class="text-danger">*</span></label>
+                                    <input
+                                        type="text"
+                                        id="uom"
+                                        name="uom"
+                                        class="form-control item-form-input"
+                                        value="<?= htmlspecialchars($formData['uom']) ?>"
+                                        placeholder="e.g. Box, Bottle, Unit"
+                                        required
+                                    >
+                                </div>
+                            </div>
+                        </section>
+
+                        <section class="item-form-section mb-4">
+                            <h3 class="item-form-section-title">Inventory &amp; pricing</h3>
+                            <div class="row g-3">
+                                <div class="col-sm-6 col-md-4">
+                                    <label for="stock" class="form-label item-form-label">Stock quantity <?= $hasProductBatchesTable ? '<span class="text-danger">*</span>' : '' ?></label>
+                                    <input
+                                        type="number"
+                                        id="stock"
+                                        name="stock"
+                                        class="form-control item-form-input"
+                                        min="0"
+                                        step="1"
+                                        value="<?= htmlspecialchars($formData['stock']) ?>"
+                                        placeholder="0"
+                                        <?= $hasProductBatchesTable ? 'required' : '' ?>
+                                    >
+                                </div>
+                                <div class="col-sm-6 col-md-4">
+                                    <label for="cost_per_unit" class="form-label item-form-label">Cost per unit <span class="text-danger">*</span></label>
+                                    <input
+                                        type="number"
+                                        id="cost_per_unit"
+                                        name="cost_per_unit"
+                                        class="form-control item-form-input"
+                                        step="0.01"
+                                        min="0"
+                                        value="<?= htmlspecialchars($formData['cost_per_unit']) ?>"
+                                        placeholder="0.00"
+                                        required
+                                    >
+                                </div>
+                                <div class="col-sm-6 col-md-4">
+                                    <label for="expiry_date" class="form-label item-form-label">Expiry date</label>
+                                    <input
+                                        type="date"
+                                        id="expiry_date"
+                                        name="expiry_date"
+                                        class="form-control item-form-input"
+                                        value="<?= htmlspecialchars($formData['expiry_date']) ?>"
+                                    >
+                                </div>
+                            </div>
+                        </section>
+
+                        <section class="item-form-section mb-4">
+                            <h3 class="item-form-section-title">Procurement</h3>
+                            <div class="row g-3">
+                                <div class="col-sm-6 col-md-4">
+                                    <label for="po_no" class="form-label item-form-label">PO number</label>
+                                    <input
+                                        type="text"
+                                        id="po_no"
+                                        name="po_no"
+                                        class="form-control item-form-input"
+                                        value="<?= htmlspecialchars($formData['po_no']) ?>"
+                                        placeholder="Purchase order number"
+                                    >
+                                </div>
+                                <div class="col-sm-6 col-md-4">
+                                    <label for="supplier" class="form-label item-form-label">Supplier</label>
+                                    <input
+                                        type="text"
+                                        id="supplier"
+                                        name="supplier"
+                                        class="form-control item-form-input"
+                                        value="<?= htmlspecialchars($formData['supplier']) ?>"
+                                        placeholder="Supplier name"
+                                    >
+                                </div>
+                            </div>
+                        </section>
+
+                        <section class="item-form-section mb-4">
+                            <h3 class="item-form-section-title">Delivery</h3>
+                            <div class="row g-3">
+                                <div class="col-sm-6 col-md-6">
+                                    <label for="place_of_delivery" class="form-label item-form-label">Place of delivery</label>
+                                    <input
+                                        type="text"
+                                        id="place_of_delivery"
+                                        name="place_of_delivery"
+                                        class="form-control item-form-input"
+                                        value="<?= htmlspecialchars($formData['place_of_delivery']) ?>"
+                                        placeholder="Place of delivery"
+                                    >
+                                </div>
+                                <div class="col-sm-6 col-md-3">
+                                    <label for="date_of_delivery" class="form-label item-form-label">Date of delivery</label>
+                                    <input
+                                        type="date"
+                                        id="date_of_delivery"
+                                        name="date_of_delivery"
+                                        class="form-control item-form-input"
+                                        value="<?= htmlspecialchars($formData['date_of_delivery']) ?>"
+                                    >
+                                </div>
+                                <div class="col-sm-6 col-md-3">
+                                    <label for="delivery_term" class="form-label item-form-label">Delivery term</label>
+                                    <input
+                                        type="text"
+                                        id="delivery_term"
+                                        name="delivery_term"
+                                        class="form-control item-form-input"
+                                        value="<?= htmlspecialchars($formData['delivery_term']) ?>"
+                                        placeholder="Term"
+                                    >
+                                </div>
+                                <div class="col-sm-6 col-md-6">
+                                    <label for="payment_term" class="form-label item-form-label">Payment term</label>
+                                    <input
+                                        type="text"
+                                        id="payment_term"
+                                        name="payment_term"
+                                        class="form-control item-form-input"
+                                        value="<?= htmlspecialchars($formData['payment_term']) ?>"
+                                        placeholder="Payment term"
+                                    >
+                                </div>
+                            </div>
+                        </section>
                     </form>
+                </div>
+                <div class="modal-footer border-top bg-light px-4 py-3">
+                    <?php if ($isEditMode): ?>
+                        <a href="<?= htmlspecialchars(buildItemListUrl($search, $sort)) ?>" class="btn btn-outline-secondary item-list-uniform-btn">Cancel</a>
+                    <?php endif; ?>
+                    <button type="submit" form="itemFormModalForm" class="btn btn-primary item-list-uniform-btn ms-auto">
+                        <?= $isEditMode ? 'Update item' : 'Add item' ?>
+                    </button>
                 </div>
             </div>
         </div>
@@ -950,6 +1314,10 @@ try {
                                     <td id="detail_po_no">-</td>
                                 </tr>
                                 <tr>
+                                    <th>Supplier</th>
+                                    <td id="detail_supplier">-</td>
+                                </tr>
+                                <tr>
                                     <th>Place of Delivery</th>
                                     <td id="detail_place_of_delivery">-</td>
                                 </tr>
@@ -976,7 +1344,8 @@ try {
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
     <script>
         window.itemListConfig = {
-            showFormModal: <?= $showFormModal ? 'true' : 'false' ?>
+            showFormModal: <?= $showFormModal ? 'true' : 'false' ?>,
+            productDescriptionOptions: <?= json_encode(array_values($productDescriptionOptions), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>
         };
     </script>
     <script src="assets/js/item_list.js"></script>
