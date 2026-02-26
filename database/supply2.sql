@@ -16,48 +16,6 @@
 /*!40111 SET @OLD_SQL_NOTES=@@SQL_NOTES, SQL_NOTES=0 */;
 
 --
--- Table structure for table `incident_reports`
---
-
-DROP TABLE IF EXISTS `incident_reports`;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
-CREATE TABLE `incident_reports` (
-  `id` int NOT NULL AUTO_INCREMENT,
-  `name_of_office` varchar(255) DEFAULT NULL,
-  `address` varchar(255) DEFAULT NULL,
-  `incident_no` varchar(120) DEFAULT NULL,
-  `incident_type` varchar(255) DEFAULT NULL,
-  `incident_datetime` datetime DEFAULT NULL,
-  `location` varchar(255) DEFAULT NULL,
-  `specifics_json` longtext,
-  `persons_involved` text,
-  `chronology` longblob,
-  `followup_actions` longtext,
-  `witnesses` longtext,
-  `contact_details` longtext,
-  `prepared_by_name` varchar(255) DEFAULT NULL,
-  `prepared_by_designation` varchar(255) DEFAULT NULL,
-  `prepared_by_date` date DEFAULT NULL,
-  `submitted_to_name` varchar(255) DEFAULT NULL,
-  `submitted_to_designation` varchar(255) DEFAULT NULL,
-  `submitted_to_date` date DEFAULT NULL,
-  `created_by` varchar(150) DEFAULT NULL,
-  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
-  PRIMARY KEY (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
-/*!40101 SET character_set_client = @saved_cs_client */;
-
---
--- Dumping data for table `incident_reports`
---
-
-LOCK TABLES `incident_reports` WRITE;
-/*!40000 ALTER TABLE `incident_reports` DISABLE KEYS */;
-/*!40000 ALTER TABLE `incident_reports` ENABLE KEYS */;
-UNLOCK TABLES;
-
---
 -- Table structure for table `inventory_records`
 --
 
@@ -256,4 +214,4 @@ UNLOCK TABLES;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2026-02-26  8:40:29
+-- Dump completed on 2026-02-20  9:33:29
