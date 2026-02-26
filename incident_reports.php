@@ -162,21 +162,22 @@ if (empty($selectedSpecifics)) {
             }
             @page {
                 size: A4;
-                margin: 12mm;
+                margin: 8mm;
             }
             .incident-print-wrapper {
                 display: flex;
-                justify-content: center;
-                align-items: center;
-                min-height: 273mm;
+                justify-content: flex-start;
+                align-items: stretch;
+                min-height: 100%;
                 width: 100%;
                 padding: 0;
                 margin: 0;
             }
             .incident-print-sheet-content {
-                width: 190mm;
+                width: 100%;
                 max-width: 100%;
-                padding: 10mm 12mm;
+                min-height: 100%;
+                padding: 6mm 8mm;
                 background: #fff;
                 border: 1px solid #333;
                 box-sizing: border-box;
@@ -347,9 +348,6 @@ if (empty($selectedSpecifics)) {
                         <div class="card-body">
                             <div class="d-flex justify-content-between align-items-center mb-3">
                                 <h2 class="h6 mb-0">Report Details</h2>
-                                <?php if ($selectedReport): ?>
-                                <button type="button" class="btn btn-outline-primary btn-sm no-print" onclick="window.print();">Print Report</button>
-                                <?php endif; ?>
                             </div>
                             <?php if (!$selectedReport): ?>
                                 <div class="alert alert-info py-2 mb-0">Select a saved report to view details.</div>

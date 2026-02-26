@@ -328,7 +328,7 @@ while (count($specRows) < 3) {
         @media print {
             @page {
                 size: A4;
-                margin: 10mm;
+                margin: 8mm;
             }
             body * {
                 visibility: hidden;
@@ -337,16 +337,29 @@ while (count($specRows) < 3) {
             #previewPrintArea * {
                 visibility: visible;
             }
-            #previewPrintArea {
-                position: absolute;
-                left: 0;
-                top: 0;
-                width: 190mm !important;
-                max-height: 277mm !important;
+            .modal,
+            .modal-dialog,
+            .modal-content,
+            .modal-body {
+                display: block !important;
+                position: static !important;
+                width: 100% !important;
                 height: auto !important;
-                min-height: auto !important;
+                max-width: 100% !important;
+                margin: 0 !important;
+                padding: 0 !important;
+                box-shadow: none !important;
+                background: transparent !important;
+            }
+            #previewPrintArea {
+                position: static !important;
+                width: 100% !important;
+                max-width: 100% !important;
+                max-height: none !important;
+                height: auto !important;
+                min-height: 100% !important;
                 border: none !important;
-                padding: 6px 8px !important;
+                padding: 6mm 8mm !important;
                 margin: 0 !important;
                 box-shadow: none !important;
                 page-break-inside: avoid;
