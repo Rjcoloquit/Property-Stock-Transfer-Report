@@ -135,9 +135,128 @@ if (empty($selectedSpecifics)) {
             text-transform: uppercase;
             font-size: 0.75rem;
         }
+        .incident-report-list-page .report-details-screen {
+            display: block;
+        }
+        .incident-report-list-page .incident-print-sheet {
+            display: none;
+        }
         @media print {
-            .incident-report-list-page .no-print {
+            body * {
+                visibility: hidden;
+            }
+            .incident-print-sheet,
+            .incident-print-sheet * {
+                visibility: visible;
+            }
+            .incident-print-sheet {
+                display: block !important;
+                position: absolute;
+                left: 0;
+                top: 0;
+                width: 100%;
+                min-height: 100%;
+            }
+            .no-print {
                 display: none !important;
+            }
+            @page {
+                size: A4;
+                margin: 12mm;
+            }
+            .incident-print-wrapper {
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                min-height: 273mm;
+                width: 100%;
+                padding: 0;
+                margin: 0;
+            }
+            .incident-print-sheet-content {
+                width: 190mm;
+                max-width: 100%;
+                padding: 10mm 12mm;
+                background: #fff;
+                border: 1px solid #333;
+                box-sizing: border-box;
+                font-family: 'Times New Roman', Georgia, serif;
+                font-size: 10pt;
+                line-height: 1.35;
+                page-break-inside: avoid;
+            }
+            .incident-print-sheet-content .print-header {
+                text-align: center;
+                margin-bottom: 6pt;
+                border-bottom: 1px solid #333;
+                padding-bottom: 6pt;
+            }
+            .incident-print-sheet-content .print-office-name {
+                font-weight: 700;
+                font-size: 12pt;
+                letter-spacing: 0.02em;
+            }
+            .incident-print-sheet-content .print-address {
+                font-size: 9pt;
+                margin-top: 2pt;
+            }
+            .incident-print-sheet-content .print-title {
+                text-align: center;
+                font-weight: 700;
+                font-size: 14pt;
+                letter-spacing: 0.05em;
+                margin: 8pt 0 4pt;
+            }
+            .incident-print-sheet-content .print-incident-no {
+                text-align: center;
+                margin-bottom: 6pt;
+                font-size: 10pt;
+            }
+            .incident-print-sheet-content table {
+                width: 100%;
+                border-collapse: collapse;
+                margin-bottom: 6pt;
+                font-size: 9pt;
+            }
+            .incident-print-sheet-content th,
+            .incident-print-sheet-content td {
+                border: 1px solid #333;
+                padding: 3pt 4pt;
+                text-align: left;
+                vertical-align: top;
+            }
+            .incident-print-sheet-content th {
+                background: #f5f5f5;
+                font-weight: 700;
+                font-size: 8.5pt;
+                width: 22%;
+            }
+            .incident-print-sheet-content .print-section-label {
+                font-weight: 700;
+                font-size: 8pt;
+                text-transform: uppercase;
+                letter-spacing: 0.03em;
+                color: #1a472a;
+                margin: 6pt 0 3pt;
+            }
+            .incident-print-sheet-content .specs-table th,
+            .incident-print-sheet-content .specs-table td {
+                padding: 2pt 3pt;
+                font-size: 8pt;
+            }
+            .incident-print-sheet-content .specs-table th {
+                background: #e8e8e8;
+                width: auto;
+            }
+            .incident-print-sheet-content .signature-table td {
+                height: 44pt;
+                text-align: center;
+                vertical-align: bottom;
+                font-size: 9pt;
+            }
+            .incident-print-sheet-content .signature-label {
+                font-size: 7pt;
+                padding: 2pt;
             }
         }
     </style>
@@ -169,7 +288,9 @@ if (empty($selectedSpecifics)) {
         <div class="container">
             <div class="d-flex justify-content-between align-items-center mb-3 no-print">
                 <h1 class="h5 mb-0">Saved Incident Reports</h1>
+                <?php if ($selectedReport): ?>
                 <button type="button" class="btn btn-outline-primary btn-sm" onclick="window.print();">Print</button>
+                <?php endif; ?>
             </div>
 
             <?php if ($message !== ''): ?>
@@ -224,7 +345,12 @@ if (empty($selectedSpecifics)) {
                 <div class="col-lg-7">
                     <div class="card app-card">
                         <div class="card-body">
-                            <h2 class="h6 mb-3">Report Details</h2>
+                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                <h2 class="h6 mb-0">Report Details</h2>
+                                <?php if ($selectedReport): ?>
+                                <button type="button" class="btn btn-outline-primary btn-sm no-print" onclick="window.print();">Print Report</button>
+                                <?php endif; ?>
+                            </div>
                             <?php if (!$selectedReport): ?>
                                 <div class="alert alert-info py-2 mb-0">Select a saved report to view details.</div>
                             <?php else: ?>
@@ -322,5 +448,105 @@ if (empty($selectedSpecifics)) {
             </div>
         </div>
     </main>
+
+    <?php if ($selectedReport): ?>
+    <div class="incident-print-sheet">
+        <div class="incident-print-wrapper">
+            <div class="incident-print-sheet-content">
+                <div class="print-header">
+                    <div class="print-office-name"><?= htmlspecialchars((string) ($selectedReport['name_of_office'] ?: 'Provincial Health Office')) ?></div>
+                    <div class="print-address"><?= htmlspecialchars((string) ($selectedReport['address'] ?: '-')) ?></div>
+                </div>
+
+                <div class="print-title">INCIDENT REPORT</div>
+
+                <div class="print-incident-no">
+                    No: <strong><?= htmlspecialchars((string) ($selectedReport['incident_no'] ?? '-')) ?></strong>
+                </div>
+
+                <table>
+                    <tr>
+                        <th>Incident Type:</th>
+                        <td><?= htmlspecialchars((string) ($selectedReport['incident_type'] ?? '-')) ?></td>
+                        <th>Date/Time:</th>
+                        <td><?= htmlspecialchars((string) ($selectedReport['incident_datetime'] ?? '-')) ?></td>
+                    </tr>
+                    <tr>
+                        <th>Location:</th>
+                        <td colspan="3"><?= htmlspecialchars((string) ($selectedReport['location'] ?? '-')) ?></td>
+                    </tr>
+                </table>
+
+                <div class="print-section-label">Specifics</div>
+                <table class="specs-table">
+                    <thead>
+                        <tr>
+                            <th>Item</th>
+                            <th>UOM</th>
+                            <th>Program</th>
+                            <th>PO #</th>
+                            <th>Batch #</th>
+                            <th>Exp Date</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <?php foreach ($selectedSpecifics as $row): ?>
+                        <tr>
+                            <td><?= htmlspecialchars((string) ($row['item'] ?? '')) ?></td>
+                            <td><?= htmlspecialchars((string) ($row['uom'] ?? '')) ?></td>
+                            <td><?= htmlspecialchars((string) ($row['program'] ?? '')) ?></td>
+                            <td><?= htmlspecialchars((string) ($row['po'] ?? '')) ?></td>
+                            <td><?= htmlspecialchars((string) ($row['batch'] ?? '')) ?></td>
+                            <td><?= htmlspecialchars((string) ($row['exp'] ?? '')) ?></td>
+                        </tr>
+                        <?php endforeach; ?>
+                    </tbody>
+                </table>
+
+                <table>
+                    <tr>
+                        <th>Persons Involved:</th>
+                        <td><?= nl2br(htmlspecialchars((string) ($selectedReport['persons_involved'] ?? '-'))) ?></td>
+                    </tr>
+                    <tr>
+                        <th>Remarks:</th>
+                        <td><?= nl2br(htmlspecialchars((string) ($selectedReport['remarks'] ?? '-'))) ?></td>
+                    </tr>
+                    <tr>
+                        <th>Action Taken:</th>
+                        <td><?= nl2br(htmlspecialchars((string) ($selectedReport['action_taken'] ?? '-'))) ?></td>
+                    </tr>
+                </table>
+
+                <table class="signature-table" style="margin-top: 8pt;">
+                    <thead>
+                        <tr>
+                            <th style="width: 50%; background: #e8e8e8; font-size: 9pt;">Prepared By</th>
+                            <th style="width: 50%; background: #e8e8e8; font-size: 9pt;">Submitted To</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><?= htmlspecialchars((string) ($selectedReport['prepared_by_name'] ?? '')) ?></td>
+                            <td><?= htmlspecialchars((string) ($selectedReport['submitted_to_name'] ?? '')) ?></td>
+                        </tr>
+                        <tr class="signature-label">
+                            <td>Signature</td>
+                            <td>Signature</td>
+                        </tr>
+                        <tr>
+                            <td style="font-size: 8pt;"><?= htmlspecialchars((string) ($selectedReport['prepared_by_designation'] ?? '')) ?></td>
+                            <td style="font-size: 8pt;"><?= htmlspecialchars((string) ($selectedReport['submitted_to_designation'] ?? '')) ?></td>
+                        </tr>
+                        <tr>
+                            <td style="font-size: 8pt;"><?= htmlspecialchars((string) ($selectedReport['prepared_by_date'] ?? '')) ?></td>
+                            <td style="font-size: 8pt;"><?= htmlspecialchars((string) ($selectedReport['submitted_to_date'] ?? '')) ?></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    <?php endif; ?>
 </body>
 </html>

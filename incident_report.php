@@ -68,13 +68,58 @@ if (!$incidentDateTimeColumnStmt || !$incidentDateTimeColumnStmt->fetch()) {
     $pdo->exec('ALTER TABLE incident_reports ADD COLUMN incident_datetime DATETIME DEFAULT NULL AFTER incident_type');
 }
 
-// Fetch products for dropdown in specifics
+// Fetch products for dropdown in specifics (all products)
 $productStmt = $pdo->query('SELECT DISTINCT product_description, uom FROM products ORDER BY product_description ASC');
 $products = $productStmt ? $productStmt->fetchAll(PDO::FETCH_ASSOC) : [];
 $productsByDescription = [];
 foreach ($products as $product) {
     $productsByDescription[$product['product_description']] = $product;
 }
+
+// Fetch expired products and their batch data (products with batches where expiry_date < today)
+$expiredProductsByDescription = [];
+$expiredBatchesByProduct = [];
+$batchTableStmt = $pdo->query("SHOW TABLES LIKE 'product_batches'");
+if ($batchTableStmt && $batchTableStmt->fetch()) {
+    $expiredStmt = $pdo->query(
+        'SELECT DISTINCT p.product_description, p.uom
+         FROM products p
+         INNER JOIN product_batches b ON b.product_id = p.id
+         WHERE b.expiry_date IS NOT NULL AND b.expiry_date < CURDATE()
+         ORDER BY p.product_description ASC'
+    );
+    if ($expiredStmt) {
+        $expiredProducts = $expiredStmt->fetchAll(PDO::FETCH_ASSOC);
+        foreach ($expiredProducts as $product) {
+            $expiredProductsByDescription[$product['product_description']] = $product;
+        }
+    }
+    $batchesStmt = $pdo->query(
+        'SELECT p.product_description, p.po_no, p.program, b.batch_number, b.expiry_date
+         FROM products p
+         INNER JOIN product_batches b ON b.product_id = p.id
+         WHERE b.expiry_date IS NOT NULL AND b.expiry_date < CURDATE()
+         ORDER BY p.product_description ASC, b.expiry_date ASC'
+    );
+    if ($batchesStmt) {
+        while ($row = $batchesStmt->fetch(PDO::FETCH_ASSOC)) {
+            $desc = $row['product_description'];
+            if (!isset($expiredBatchesByProduct[$desc])) {
+                $expiredBatchesByProduct[$desc] = [];
+            }
+            $expiredBatchesByProduct[$desc][] = [
+                'batch_number' => (string) $row['batch_number'],
+                'expiry_date'  => isset($row['expiry_date']) ? (string) $row['expiry_date'] : '',
+                'po_no'        => isset($row['po_no']) ? (string) $row['po_no'] : '',
+                'program'      => isset($row['program']) ? (string) $row['program'] : '',
+            ];
+        }
+    }
+}
+
+// Fetch distinct programs for datalist
+$programStmt = $pdo->query('SELECT DISTINCT program FROM products WHERE program IS NOT NULL AND TRIM(program) != "" ORDER BY program ASC');
+$programList = $programStmt ? array_column($programStmt->fetchAll(PDO::FETCH_ASSOC), 'program') : [];
 
 // Get next incident number
 $maxIncidentStmt = $pdo->query('SELECT MAX(CAST(SUBSTRING(incident_no, 6) AS UNSIGNED)) as max_num FROM incident_reports WHERE incident_no IS NOT NULL AND incident_no LIKE "INC-%"');
@@ -263,15 +308,59 @@ while (count($specRows) < 3) {
         .spec-row {
             background-color: #fff;
         }
+        /* A4 print preview - fit one page */
+        #previewPrintArea {
+            width: 210mm;
+            max-height: 297mm;
+            max-width: 100%;
+            box-sizing: border-box;
+            padding: 8px 12px !important;
+            font-size: 0.75rem !important;
+        }
+        #previewPrintArea > div:first-child { margin-bottom: 6px !important; }
+        #previewPrintArea > div:first-child > div:last-child { font-size: 0.8rem !important; }
+        #previewPrintArea .specs-table th,
+        #previewPrintArea .specs-table td { padding: 2px 4px !important; font-size: 0.7rem !important; }
+        #previewPrintArea table { margin-bottom: 6px !important; }
+        #previewPrintArea table th,
+        #previewPrintArea table td { padding: 3px 4px !important; font-size: 0.75rem !important; }
+        #previewPrintArea .specs-table thead th { font-size: 0.7rem !important; }
         @media print {
+            @page {
+                size: A4;
+                margin: 10mm;
+            }
+            body * {
+                visibility: hidden;
+            }
+            #previewPrintArea,
+            #previewPrintArea * {
+                visibility: visible;
+            }
+            #previewPrintArea {
+                position: absolute;
+                left: 0;
+                top: 0;
+                width: 190mm !important;
+                max-height: 277mm !important;
+                height: auto !important;
+                min-height: auto !important;
+                border: none !important;
+                padding: 6px 8px !important;
+                margin: 0 !important;
+                box-shadow: none !important;
+                page-break-inside: avoid;
+            }
+            #previewPrintArea .specs-table th,
+            #previewPrintArea .specs-table td { padding: 2px 3px !important; font-size: 0.65rem !important; }
+            #previewPrintArea table th,
+            #previewPrintArea table td { padding: 2px 3px !important; font-size: 0.7rem !important; }
             .incident-form-page .card-body,
             .incident-form-page .modal-header,
-            .incident-form-page .modal-footer {
+            .incident-form-page .modal-footer,
+            .modal-header,
+            .modal-footer {
                 display: none !important;
-            }
-            .incident-form-page #previewPrintArea {
-                border: none !important;
-                padding: 0 !important;
             }
         }
     </style>
@@ -333,7 +422,11 @@ while (count($specRows) < 3) {
                             </div>
                             <div class="col-md-4">
                                 <label for="incident_type" class="form-label fw-bold">Incident Type</label>
-                                <input type="text" class="form-control form-control-sm" id="incident_type" name="incident_type" value="<?= htmlspecialchars($formData['incident_type']) ?>">
+                                <select class="form-control form-control-sm" id="incident_type" name="incident_type">
+                                    <option value="">-- Select Type --</option>
+                                    <option value="Expired Commodity" <?= $formData['incident_type'] === 'Expired Commodity' ? 'selected' : '' ?>>Expired Commodity</option>
+                                    <option value="Damage Commodity" <?= $formData['incident_type'] === 'Damage Commodity' ? 'selected' : '' ?>>Damage Commodity</option>
+                                </select>
                             </div>
                             <div class="col-md-4">
                                 <label for="incident_datetime" class="form-label fw-bold">Date/Time</label>
@@ -365,20 +458,28 @@ while (count($specRows) < 3) {
                                         </tr>
                                     </thead>
                                     <tbody id="specificsBody">
-                                        <?php foreach ($specRows as $specRow): ?>
+                                        <?php
+                                        $useExpiredItems = ($formData['incident_type'] === 'Expired Commodity' && !empty($expiredProductsByDescription));
+                                        $itemProductList = $useExpiredItems ? $expiredProductsByDescription : $productsByDescription;
+                                        ?>
+                                        <datalist id="specItemDatalist"></datalist>
+                                        <datalist id="specProgramDatalist">
+                                            <?php foreach ($programList as $prog): ?>
+                                                <option value="<?= htmlspecialchars($prog) ?>">
+                                            <?php endforeach; ?>
+                                        </datalist>
+                                        <?php foreach ($specRows as $rowIdx => $specRow): ?>
                                             <tr class="spec-row">
                                                 <td>
-                                                    <select name="spec_item[]" class="form-control form-control-sm border-0 product-select" style="appearance: auto;">
-                                                        <option value="">-- Select Item --</option>
-                                                        <?php foreach ($productsByDescription as $desc => $prod): ?>
-                                                            <option value="<?= htmlspecialchars($desc) ?>" <?= $specRow['item'] === $desc ? 'selected' : '' ?>><?= htmlspecialchars($desc) ?></option>
-                                                        <?php endforeach; ?>
-                                                    </select>
+                                                    <input type="text" name="spec_item[]" class="form-control form-control-sm border-0 product-input" list="specItemDatalist" value="<?= htmlspecialchars($specRow['item']) ?>" placeholder="Type or select item">
                                                 </td>
                                                 <td><input type="text" name="spec_oum[]" class="form-control form-control-sm border-0" value="<?= htmlspecialchars($specRow['uom']) ?>" placeholder="UOM"></td>
-                                                <td><input type="text" name="spec_program[]" class="form-control form-control-sm border-0" value="<?= htmlspecialchars($specRow['program']) ?>" placeholder="Program"></td>
+                                                <td><input type="text" name="spec_program[]" class="form-control form-control-sm border-0" list="specProgramDatalist" value="<?= htmlspecialchars($specRow['program']) ?>" placeholder="Type or select program"></td>
                                                 <td><input type="text" name="spec_po[]" class="form-control form-control-sm border-0" value="<?= htmlspecialchars($specRow['po']) ?>" placeholder="PO"></td>
-                                                <td><input type="text" name="spec_batch[]" class="form-control form-control-sm border-0" value="<?= htmlspecialchars($specRow['batch']) ?>" placeholder="Batch"></td>
+                                                <td>
+                                                    <datalist id="batchDatalist-<?= $rowIdx ?>"></datalist>
+                                                    <input type="text" name="spec_batch[]" class="form-control form-control-sm border-0 spec-batch-input" list="batchDatalist-<?= $rowIdx ?>" value="<?= htmlspecialchars($specRow['batch']) ?>" placeholder="Batch #">
+                                                </td>
                                                 <td><input type="date" name="spec_exp[]" class="form-control form-control-sm border-0" value="<?= htmlspecialchars($specRow['exp']) ?>"></td>
                                                 <td class="text-center"><button type="button" class="btn btn-sm btn-outline-danger remove-item-btn" style="padding: 2px 8px; font-size: 0.8rem;">Remove</button></td>
                                             </tr>
@@ -467,48 +568,48 @@ while (count($specRows) < 3) {
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body">
-                    <div id="previewPrintArea" class="incident-sheet" style="border: 1px solid #222; padding: 16px; background: #fff; font-size: 0.85rem;">
-                        <div style="text-align: center; margin-bottom: 12px;">
-                            <div id="previewOfficeName" style="font-weight: 700; font-size: 1.1rem; margin-bottom: 4px;">[Name of Office]</div>
-                            <div id="previewAddress" style="font-size: 0.9rem;">[Address]</div>
+                    <div id="previewPrintArea" class="incident-sheet" style="border: 1px solid #222; padding: 8px 12px; background: #fff; font-size: 0.75rem;">
+                        <div style="text-align: center; margin-bottom: 4px;">
+                            <div id="previewOfficeName" style="font-weight: 700; font-size: 0.95rem; margin-bottom: 2px;">[Name of Office]</div>
+                            <div id="previewAddress" style="font-size: 0.8rem;">[Address]</div>
                         </div>
 
-                        <div style="text-align: center; margin: 12px 0; font-weight: 700; font-size: 1.15rem; letter-spacing: 0.02em;">INCIDENT REPORT</div>
+                        <div style="text-align: center; margin: 4px 0; font-weight: 700; font-size: 0.95rem; letter-spacing: 0.02em;">INCIDENT REPORT</div>
 
-                        <div style="text-align: center; margin-bottom: 10px; font-size: 0.95rem;">
-                            No: <span id="previewIncidentNo" style="border-bottom: 1px solid #222; padding: 0 4px; min-width: 120px; display: inline-block;">-</span>
+                        <div style="text-align: center; margin-bottom: 6px; font-size: 0.8rem;">
+                            No: <span id="previewIncidentNo" style="border-bottom: 1px solid #222; padding: 0 4px; min-width: 100px; display: inline-block;">-</span>
                         </div>
 
-                        <table style="width: 100%; border-collapse: collapse; margin-bottom: 10px;">
+                        <table style="width: 100%; border-collapse: collapse; margin-bottom: 6px;">
                             <tr>
-                                <th style="border: 1px solid #222; padding: 6px; width: 20%; text-align: left; background: #f9f9f9; font-weight: 700; font-size: 0.85rem;">Incident Type:</th>
-                                <td style="border: 1px solid #222; padding: 6px; width: 35%; border-bottom: 1px solid #222;">
+                                <th style="border: 1px solid #222; padding: 3px 4px; width: 20%; text-align: left; background: #f9f9f9; font-weight: 700; font-size: 0.75rem;">Incident Type:</th>
+                                <td style="border: 1px solid #222; padding: 3px 4px; width: 35%;">
                                     <span id="previewIncidentType">-</span>
                                 </td>
-                                <th style="border: 1px solid #222; padding: 6px; width: 20%; text-align: left; background: #f9f9f9; font-weight: 700; font-size: 0.85rem;">Date/Time:</th>
-                                <td style="border: 1px solid #222; padding: 6px; width: 25%; border-bottom: 1px solid #222;">
+                                <th style="border: 1px solid #222; padding: 3px 4px; width: 20%; text-align: left; background: #f9f9f9; font-weight: 700; font-size: 0.75rem;">Date/Time:</th>
+                                <td style="border: 1px solid #222; padding: 3px 4px; width: 25%;">
                                     <span id="previewIncidentDateTime">-</span>
                                 </td>
                             </tr>
                             <tr>
-                                <th style="border: 1px solid #222; padding: 6px; text-align: left; background: #f9f9f9; font-weight: 700; font-size: 0.85rem;">Location:</th>
-                                <td colspan="3" style="border: 1px solid #222; padding: 6px; border-bottom: 1px solid #222;">
+                                <th style="border: 1px solid #222; padding: 3px 4px; text-align: left; background: #f9f9f9; font-weight: 700; font-size: 0.75rem;">Location:</th>
+                                <td colspan="3" style="border: 1px solid #222; padding: 3px 4px;">
                                     <span id="previewLocation">-</span>
                                 </td>
                             </tr>
                         </table>
 
-                        <div style="margin-bottom: 8px;">
-                            <div style="font-weight: 700; color: #2b6843; text-transform: uppercase; font-size: 0.75rem; letter-spacing: 0.02em; margin-bottom: 4px;">Specifics:</div>
+                        <div style="margin-bottom: 4px;">
+                            <div style="font-weight: 700; color: #2b6843; text-transform: uppercase; font-size: 0.68rem; letter-spacing: 0.02em; margin-bottom: 2px;">Specifics:</div>
                             <table class="specs-table" style="width: 100%; border-collapse: collapse;">
                                 <thead>
                                     <tr>
-                                        <th style="border: 1px solid #222; padding: 4px; background: #f0f0f0; font-weight: 700; font-size: 0.8rem;">Item</th>
-                                        <th style="border: 1px solid #222; padding: 4px; background: #f0f0f0; font-weight: 700; font-size: 0.8rem;">UOM</th>
-                                        <th style="border: 1px solid #222; padding: 4px; background: #f0f0f0; font-weight: 700; font-size: 0.8rem;">Program</th>
-                                        <th style="border: 1px solid #222; padding: 4px; background: #f0f0f0; font-weight: 700; font-size: 0.8rem;">PO #</th>
-                                        <th style="border: 1px solid #222; padding: 4px; background: #f0f0f0; font-weight: 700; font-size: 0.8rem;">Batch #</th>
-                                        <th style="border: 1px solid #222; padding: 4px; background: #f0f0f0; font-weight: 700; font-size: 0.8rem;">Exp Date</th>
+                                        <th style="border: 1px solid #222; padding: 2px 3px; background: #f0f0f0; font-weight: 700; font-size: 0.7rem;">Item</th>
+                                        <th style="border: 1px solid #222; padding: 2px 3px; background: #f0f0f0; font-weight: 700; font-size: 0.7rem;">UOM</th>
+                                        <th style="border: 1px solid #222; padding: 2px 3px; background: #f0f0f0; font-weight: 700; font-size: 0.7rem;">Program</th>
+                                        <th style="border: 1px solid #222; padding: 2px 3px; background: #f0f0f0; font-weight: 700; font-size: 0.7rem;">PO #</th>
+                                        <th style="border: 1px solid #222; padding: 2px 3px; background: #f0f0f0; font-weight: 700; font-size: 0.7rem;">Batch #</th>
+                                        <th style="border: 1px solid #222; padding: 2px 3px; background: #f0f0f0; font-weight: 700; font-size: 0.7rem;">Exp Date</th>
                                     </tr>
                                 </thead>
                                 <tbody id="previewSpecificsBody">
@@ -516,60 +617,60 @@ while (count($specRows) < 3) {
                             </table>
                         </div>
 
-                        <table style="width: 100%; border-collapse: collapse;">
+                        <table style="width: 100%; border-collapse: collapse; margin-bottom: 4px;">
                             <tr>
-                                <th style="border: 1px solid #222; padding: 6px; text-align: left; background: #f9f9f9; font-weight: 700; font-size: 0.85rem;">Persons Involved:</th>
-                                <td style="border: 1px solid #222; padding: 6px;">
+                                <th style="border: 1px solid #222; padding: 3px 4px; width: 18%; text-align: left; background: #f9f9f9; font-weight: 700; font-size: 0.7rem;">Persons Involved:</th>
+                                <td style="border: 1px solid #222; padding: 3px 4px; font-size: 0.7rem;">
                                     <span id="previewPersonsInvolved" style="white-space: pre-wrap;">-</span>
                                 </td>
                             </tr>
                             <tr>
-                                <th style="border: 1px solid #222; padding: 6px; text-align: left; vertical-align: top; background: #f9f9f9; font-weight: 700; font-size: 0.85rem;">Remarks:</th>
-                                <td style="border: 1px solid #222; padding: 6px; min-height: 40px;">
+                                <th style="border: 1px solid #222; padding: 3px 4px; text-align: left; vertical-align: top; background: #f9f9f9; font-weight: 700; font-size: 0.7rem;">Remarks:</th>
+                                <td style="border: 1px solid #222; padding: 3px 4px; min-height: 24px; font-size: 0.7rem;">
                                     <span id="previewRemarks" style="white-space: pre-wrap;">-</span>
                                 </td>
                             </tr>
                             <tr>
-                                <th style="border: 1px solid #222; padding: 6px; text-align: left; vertical-align: top; background: #f9f9f9; font-weight: 700; font-size: 0.85rem;">Action Taken:</th>
-                                <td style="border: 1px solid #222; padding: 6px; min-height: 40px;">
+                                <th style="border: 1px solid #222; padding: 3px 4px; text-align: left; vertical-align: top; background: #f9f9f9; font-weight: 700; font-size: 0.7rem;">Action Taken:</th>
+                                <td style="border: 1px solid #222; padding: 3px 4px; min-height: 24px; font-size: 0.7rem;">
                                     <span id="previewActionTaken" style="white-space: pre-wrap;">-</span>
                                 </td>
                             </tr>
                         </table>
 
-                        <table style="width: 100%; border-collapse: collapse; margin-top: 16px;">
+                        <table style="width: 100%; border-collapse: collapse; margin-top: 6px;">
                             <thead>
                                 <tr>
-                                    <th style="border: 1px solid #222; padding: 6px; width: 50%; text-align: center; background: #f4f4f4; font-weight: 700; font-size: 0.9rem;">Prepared By</th>
-                                    <th style="border: 1px solid #222; padding: 6px; width: 50%; text-align: center; background: #f4f4f4; font-weight: 700; font-size: 0.9rem;">Submitted To</th>
+                                    <th style="border: 1px solid #222; padding: 3px 4px; width: 50%; text-align: center; background: #f4f4f4; font-weight: 700; font-size: 0.75rem;">Prepared By</th>
+                                    <th style="border: 1px solid #222; padding: 3px 4px; width: 50%; text-align: center; background: #f4f4f4; font-weight: 700; font-size: 0.75rem;">Submitted To</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 <tr>
-                                    <td style="border: 1px solid #222; padding: 6px; height: 60px; text-align: center; vertical-align: bottom; font-size: 0.85rem;">
+                                    <td style="border: 1px solid #222; padding: 3px 4px; height: 52px; text-align: center; vertical-align: bottom; font-size: 0.75rem;">
                                         <span id="previewPreparedByName">-</span>
                                     </td>
-                                    <td style="border: 1px solid #222; padding: 6px; height: 60px; text-align: center; vertical-align: bottom; font-size: 0.85rem;">
+                                    <td style="border: 1px solid #222; padding: 3px 4px; height: 52px; text-align: center; vertical-align: bottom; font-size: 0.75rem;">
                                         <span id="previewSubmittedToName">-</span>
                                     </td>
                                 </tr>
-                                <tr style="font-size: 0.75rem;">
-                                    <td style="border: 1px solid #222; padding: 4px; text-align: center;">Signature</td>
-                                    <td style="border: 1px solid #222; padding: 4px; text-align: center;">Signature</td>
+                                <tr style="font-size: 0.65rem;">
+                                    <td style="border: 1px solid #222; padding: 2px 3px; text-align: center;">Signature</td>
+                                    <td style="border: 1px solid #222; padding: 2px 3px; text-align: center;">Signature</td>
                                 </tr>
                                 <tr>
-                                    <td style="border: 1px solid #222; padding: 4px; text-align: center; font-size: 0.8rem;">
+                                    <td style="border: 1px solid #222; padding: 2px 3px; text-align: center; font-size: 0.7rem;">
                                         <span id="previewPreparedByDesignation">-</span>
                                     </td>
-                                    <td style="border: 1px solid #222; padding: 4px; text-align: center; font-size: 0.8rem;">
+                                    <td style="border: 1px solid #222; padding: 2px 3px; text-align: center; font-size: 0.7rem;">
                                         <span id="previewSubmittedToDesignation">-</span>
                                     </td>
                                 </tr>
                                 <tr>
-                                    <td style="border: 1px solid #222; padding: 4px; text-align: center; font-size: 0.8rem;">
+                                    <td style="border: 1px solid #222; padding: 2px 3px; text-align: center; font-size: 0.7rem;">
                                         <span id="previewPreparedByDate">-</span>
                                     </td>
-                                    <td style="border: 1px solid #222; padding: 4px; text-align: center; font-size: 0.8rem;">
+                                    <td style="border: 1px solid #222; padding: 2px 3px; text-align: center; font-size: 0.7rem;">
                                         <span id="previewSubmittedToDate">-</span>
                                     </td>
                                 </tr>
@@ -619,12 +720,12 @@ while (count($specRows) < 3) {
                 document.getElementById('previewSubmittedToDate').textContent = textOrDash(document.getElementById('submitted_to_date').value);
 
                 // Update specifics table
-                var specItemSelects = document.querySelectorAll('select[name="spec_item[]"]');
+                var specItemInputs = document.querySelectorAll('input[name="spec_item[]"]');
                 var previewSpecificsBody = document.getElementById('previewSpecificsBody');
                 previewSpecificsBody.innerHTML = '';
 
-                specItemSelects.forEach(function(itemSelect, index) {
-                    var item = textOrDash(itemSelect.value);
+                specItemInputs.forEach(function(itemInput, index) {
+                    var item = textOrDash(itemInput.value);
                     var uom = textOrDash(document.querySelectorAll('input[name="spec_oum[]"]')[index]?.value || '');
                     var program = textOrDash(document.querySelectorAll('input[name="spec_program[]"]')[index]?.value || '');
                     var po = textOrDash(document.querySelectorAll('input[name="spec_po[]"]')[index]?.value || '');
@@ -632,12 +733,12 @@ while (count($specRows) < 3) {
                     var exp = textOrDash(document.querySelectorAll('input[name="spec_exp[]"]')[index]?.value || '');
 
                     var row = document.createElement('tr');
-                    row.innerHTML = '<td style="border: 1px solid #222; padding: 4px; font-size: 0.8rem;">' + item + '</td>' +
-                                  '<td style="border: 1px solid #222; padding: 4px; font-size: 0.8rem;">' + uom + '</td>' +
-                                  '<td style="border: 1px solid #222; padding: 4px; font-size: 0.8rem;">' + program + '</td>' +
-                                  '<td style="border: 1px solid #222; padding: 4px; font-size: 0.8rem;">' + po + '</td>' +
-                                  '<td style="border: 1px solid #222; padding: 4px; font-size: 0.8rem;">' + batch + '</td>' +
-                                  '<td style="border: 1px solid #222; padding: 4px; font-size: 0.8rem;">' + exp + '</td>';
+                    row.innerHTML = '<td style="border: 1px solid #222; padding: 2px 3px; font-size: 0.7rem;">' + item + '</td>' +
+                                  '<td style="border: 1px solid #222; padding: 2px 3px; font-size: 0.7rem;">' + uom + '</td>' +
+                                  '<td style="border: 1px solid #222; padding: 2px 3px; font-size: 0.7rem;">' + program + '</td>' +
+                                  '<td style="border: 1px solid #222; padding: 2px 3px; font-size: 0.7rem;">' + po + '</td>' +
+                                  '<td style="border: 1px solid #222; padding: 2px 3px; font-size: 0.7rem;">' + batch + '</td>' +
+                                  '<td style="border: 1px solid #222; padding: 2px 3px; font-size: 0.7rem;">' + exp + '</td>';
                     previewSpecificsBody.appendChild(row);
                 });
             }
@@ -655,31 +756,44 @@ while (count($specRows) < 3) {
             var addItemBtn = document.getElementById('addItemBtn');
             var specificsBody = document.getElementById('specificsBody');
             var productsData = <?= json_encode(array_keys($productsByDescription)) ?>;
+            var expiredProductsData = <?= json_encode(array_keys($expiredProductsByDescription)) ?>;
+            var expiredBatchesByProduct = <?= json_encode($expiredBatchesByProduct) ?>;
+            var batchDatalistIdCounter = 100;
 
-            function createProductSelectOptions() {
-                var html = '<option value=\"\">-- Select Item --</option>';
-                productsData.forEach(function(desc) {
-                    html += '<option value=\"' + desc.replace(/"/g, '&quot;') + '\">' + desc.replace(/</g, '&lt;').replace(/>/g, '&gt;') + '</option>';
+            function createDatalistOptions(useExpired) {
+                var list = (useExpired && expiredProductsData.length > 0) ? expiredProductsData : productsData;
+                var html = '';
+                list.forEach(function(desc) {
+                    html += '<option value="' + String(desc).replace(/"/g, '&quot;') + '">';
                 });
                 return html;
             }
 
+            function refreshItemDatalist() {
+                var useExpired = document.getElementById('incident_type').value === 'Expired Commodity' && expiredProductsData.length > 0;
+                var datalist = document.getElementById('specItemDatalist');
+                if (datalist) datalist.innerHTML = createDatalistOptions(useExpired);
+            }
+
+            document.getElementById('incident_type').addEventListener('change', refreshItemDatalist);
+            refreshItemDatalist();
+
             addItemBtn.addEventListener('click', function() {
-                var rowCount = specificsBody.querySelectorAll('.spec-row').length;
                 var newRow = document.createElement('tr');
                 newRow.className = 'spec-row';
+                var batchListId = 'batchDatalist-' + (++batchDatalistIdCounter);
 
-                newRow.innerHTML = '<td><select name="spec_item[]" class="form-control form-control-sm border-0 product-select" style="appearance: auto;">' +
-                    createProductSelectOptions() +
-                    '</select></td>' +
+                newRow.innerHTML = '<td><input type="text" name="spec_item[]" class="form-control form-control-sm border-0 product-input" list="specItemDatalist" placeholder="Type or select item"></td>' +
                     '<td><input type="text" name="spec_oum[]" class="form-control form-control-sm border-0" placeholder="UOM"></td>' +
-                    '<td><input type="text" name="spec_program[]" class="form-control form-control-sm border-0" placeholder="Program"></td>' +
+                    '<td><input type="text" name="spec_program[]" class="form-control form-control-sm border-0" list="specProgramDatalist" placeholder="Type or select program"></td>' +
                     '<td><input type="text" name="spec_po[]" class="form-control form-control-sm border-0" placeholder="PO #"></td>' +
-                    '<td><input type="text" name="spec_batch[]" class="form-control form-control-sm border-0" placeholder="Batch #"></td>' +
+                    '<td><datalist id="' + batchListId + '"></datalist><input type="text" name="spec_batch[]" class="form-control form-control-sm border-0 spec-batch-input" list="' + batchListId + '" placeholder="Batch #"></td>' +
                     '<td><input type="date" name="spec_exp[]" class="form-control form-control-sm border-0"></td>' +
                     '<td class="text-center"><button type="button" class="btn btn-sm btn-outline-danger remove-item-btn">Remove</button></td>';
 
                 specificsBody.appendChild(newRow);
+                attachProductInputHandler(newRow.querySelector('input[name="spec_item[]"]'));
+                attachBatchInputHandler(newRow.querySelector('input[name="spec_batch[]"]'));
 
                 // Attach remove handler to new button
                 newRow.querySelector('.remove-item-btn').addEventListener('click', function() {
@@ -704,46 +818,88 @@ while (count($specRows) < 3) {
                 });
             });
 
-            // Populate UOM when product is selected
+            // Populate UOM, batch, exp when product is typed/selected
             var productMetaByDescription = <?= json_encode($productsByDescription) ?>;
             
-            function attachProductSelectHandler(selectElement) {
-                selectElement.addEventListener('change', function() {
-                    var selectedProduct = this.value;
-                    if (productMetaByDescription[selectedProduct]) {
-                        var uomInput = this.closest('tr').querySelector('input[name="spec_oum[]"]');
-                        if (uomInput) {
-                            uomInput.value = productMetaByDescription[selectedProduct].uom || '';
-                        }
-                    }
-                });
+            function fillBatchFields(row, batch) {
+                var expInput = row.querySelector('input[name="spec_exp[]"]');
+                var poInput = row.querySelector('input[name="spec_po[]"]');
+                var programInput = row.querySelector('input[name="spec_program[]"]');
+                if (expInput && batch.expiry_date) expInput.value = batch.expiry_date;
+                if (poInput && batch.po_no) poInput.value = batch.po_no;
+                if (programInput && batch.program) programInput.value = batch.program;
             }
 
-            document.querySelectorAll('select[name="spec_item[]"]').forEach(function(select) {
-                attachProductSelectHandler(select);
-            });
+            function applyExpiredBatchesForRow(row, itemVal) {
+                if (!itemVal || !expiredBatchesByProduct[itemVal]) return;
+                var batches = expiredBatchesByProduct[itemVal];
+                var batchInput = row.querySelector('input[name="spec_batch[]"]');
+                var expInput = row.querySelector('input[name="spec_exp[]"]');
+                var listId = batchInput.getAttribute('list');
+                var datalist = listId ? document.getElementById(listId) : null;
+                if (datalist) {
+                    datalist.innerHTML = batches.map(function(b) {
+                        return '<option value="' + String(b.batch_number).replace(/"/g, '&quot;') + '">';
+                    }).join('');
+                }
+                if (batches.length === 1) {
+                    batchInput.value = batches[0].batch_number;
+                    fillBatchFields(row, batches[0]);
+                } else if (batches.length > 1 && !batchInput.value) {
+                    batchInput.value = batches[0].batch_number;
+                    fillBatchFields(row, batches[0]);
+                }
+            }
 
-            // Create observer for newly added rows
-            var observer = new MutationObserver(function(mutations) {
-                mutations.forEach(function(mutation) {
-                    if (mutation.addedNodes.length) {
-                        mutation.addedNodes.forEach(function(node) {
-                            if (node.nodeType === 1 && node.classList && node.classList.contains('spec-row')) {
-                                var selectElement = node.querySelector('select[name="spec_item[]"]');
-                                if (selectElement) {
-                                    attachProductSelectHandler(selectElement);
-                                }
-                            }
-                        });
+            function fillExpFromBatchForRow(row) {
+                var itemInput = row.querySelector('input[name="spec_item[]"]');
+                var batchInput = row.querySelector('input[name="spec_batch[]"]');
+                var itemVal = String(itemInput && itemInput.value || '').trim();
+                var batchVal = String(batchInput && batchInput.value || '').trim();
+                if (!itemVal || !batchVal || !expiredBatchesByProduct[itemVal]) return;
+                var batches = expiredBatchesByProduct[itemVal];
+                var match = batches.find(function(b) { return String(b.batch_number) === batchVal; });
+                if (match) fillBatchFields(row, match);
+            }
+
+            function attachProductInputHandler(inputElement) {
+                if (!inputElement) return;
+                function maybeFillRow() {
+                    var val = String(inputElement.value || '').trim();
+                    var row = inputElement.closest('tr');
+                    if (productMetaByDescription[val]) {
+                        var uomInput = row.querySelector('input[name="spec_oum[]"]');
+                        if (uomInput) uomInput.value = productMetaByDescription[val].uom || '';
                     }
-                });
+                    if (document.getElementById('incident_type').value === 'Expired Commodity' && expiredBatchesByProduct[val]) {
+                        applyExpiredBatchesForRow(row, val);
+                    }
+                }
+                inputElement.addEventListener('change', maybeFillRow);
+                inputElement.addEventListener('blur', maybeFillRow);
+            }
+
+            function attachBatchInputHandler(batchInput) {
+                if (!batchInput) return;
+                function onBatchChange() {
+                    var row = batchInput.closest('tr');
+                    fillExpFromBatchForRow(row);
+                }
+                batchInput.addEventListener('change', onBatchChange);
+                batchInput.addEventListener('blur', onBatchChange);
+            }
+
+            document.querySelectorAll('input[name="spec_item[]"]').forEach(function(input) {
+                attachProductInputHandler(input);
+            });
+            document.querySelectorAll('input[name="spec_batch[]"]').forEach(function(input) {
+                attachBatchInputHandler(input);
             });
 
-            observer.observe(specificsBody, { childList: true });
-
-            // Auto-populate incident_datetime with current date/time on page load
+            // Real-time Date/Time: update incident_datetime with current date/time and keep it live
             var incidentDateTimeInput = document.getElementById('incident_datetime');
-            if (incidentDateTimeInput && !incidentDateTimeInput.value) {
+            function updateIncidentDateTime() {
+                if (!incidentDateTimeInput) return;
                 var now = new Date();
                 var year = now.getFullYear();
                 var month = String(now.getMonth() + 1).padStart(2, '0');
@@ -752,14 +908,10 @@ while (count($specRows) < 3) {
                 var minutes = String(now.getMinutes()).padStart(2, '0');
                 incidentDateTimeInput.value = year + '-' + month + '-' + day + 'T' + hours + ':' + minutes;
             }
+            updateIncidentDateTime();
+            setInterval(updateIncidentDateTime, 10000);
 
-            // Optional: Add print styles
-            var style = document.createElement('style');
-            style.textContent = '@media print { ' +
-                '.modal-header, .modal-footer { display: none !important; } ' +
-                '#previewPrintArea { border: none !important; } ' +
-            '}';
-            document.head.appendChild(style);
+            // Print styles are in page <style> block
         })();
     </script>
 </body>
