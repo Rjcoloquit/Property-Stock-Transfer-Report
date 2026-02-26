@@ -16,6 +16,7 @@ $formData = [
     'address' => '',
     'incident_no' => '',
     'incident_type' => '',
+    'incident_datetime' => '',
     'location' => '',
     'persons_involved' => '',
     'chronology' => '',
@@ -64,6 +65,10 @@ $pdo->exec(
         PRIMARY KEY (id)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci'
 );
+$incidentDateTimeColumnStmt = $pdo->query("SHOW COLUMNS FROM incident_reports LIKE 'incident_datetime'");
+if (!$incidentDateTimeColumnStmt || !$incidentDateTimeColumnStmt->fetch()) {
+    $pdo->exec('ALTER TABLE incident_reports ADD COLUMN incident_datetime DATETIME DEFAULT NULL AFTER incident_type');
+}
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     foreach ($formData as $key => $value) {
@@ -107,12 +112,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 
     if (empty($errors)) {
+        $incidentDateTimeValue = null;
+        if ($formData['incident_datetime'] !== '') {
+            $incidentDateTimeValue = str_replace('T', ' ', $formData['incident_datetime']);
+        }
         $stmt = $pdo->prepare(
             'INSERT INTO incident_reports (
                 name_of_office,
                 address,
                 incident_no,
                 incident_type,
+                incident_datetime,
                 location,
                 specifics_json,
                 persons_involved,
@@ -127,13 +137,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 submitted_to_designation,
                 submitted_to_date,
                 created_by
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
         );
         $stmt->execute([
             $formData['name_of_office'] !== '' ? $formData['name_of_office'] : null,
             $formData['address'] !== '' ? $formData['address'] : null,
             $formData['incident_no'] !== '' ? $formData['incident_no'] : null,
             $formData['incident_type'] !== '' ? $formData['incident_type'] : null,
+            $incidentDateTimeValue,
             $formData['location'] !== '' ? $formData['location'] : null,
             json_encode($specRows, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
             $formData['persons_involved'] !== '' ? $formData['persons_involved'] : null,
@@ -174,125 +185,186 @@ while (count($specRows) < 3) {
     <link rel="stylesheet" href="style.css?v=20260219">
     <style>
         .incident-report-page .incident-sheet {
-            border: 1px solid #d7f0e1;
+            max-width: 880px;
+            margin: 0 auto;
+            border: 1px solid #222;
+            background: #fff;
+            padding: 18px 18px 14px;
+        }
+        .incident-report-page .ir-top {
+            text-align: center;
+            margin-bottom: 8px;
+        }
+        .incident-report-page .ir-line-field {
+            width: 320px;
+            max-width: 100%;
+            margin: 0 auto 4px;
+        }
+        .incident-report-page .ir-line-field input {
+            border: 0;
+            border-bottom: 1px solid #222;
+            border-radius: 0;
+            width: 100%;
+            padding: 0 2px;
+            font-size: 0.85rem;
+            text-align: center;
+            background: transparent;
+        }
+        .incident-report-page .ir-line-field .caption {
+            font-size: 0.62rem;
+            text-transform: uppercase;
+            margin-top: 1px;
+            color: #222;
+            letter-spacing: 0.02em;
         }
         .incident-report-page .ir-title {
-            font-size: 1.3rem;
-            font-weight: 700;
-            letter-spacing: 0.04em;
-            text-transform: uppercase;
             text-align: center;
-            margin: 0;
-            color: #1f3b2d;
-        }
-        .incident-report-page .ir-subtitle {
-            text-align: center;
-            color: #5f7a6c;
-            font-size: 0.88rem;
-            margin-top: 0.25rem;
-            margin-bottom: 1rem;
-        }
-        .incident-report-page .ir-section {
-            border: 1px solid #e4efe9;
-            border-radius: 0.5rem;
-            padding: 0.9rem;
-            margin-bottom: 1rem;
-            background: #fcfffd;
-        }
-        .incident-report-page .ir-section-title {
-            font-size: 0.74rem;
+            font-size: 1.08rem;
             font-weight: 700;
+            margin: 10px 0 2px;
+            letter-spacing: 0.02em;
             text-transform: uppercase;
-            letter-spacing: 0.06em;
-            color: #28804b;
-            margin: 0 0 0.7rem 0;
-            padding-bottom: 0.35rem;
-            border-bottom: 1px solid #d7f0e1;
         }
-        .incident-report-page .ir-label {
+        .incident-report-page .ir-no-row {
+            text-align: center;
             font-size: 0.82rem;
-            font-weight: 600;
-            color: #1f3b2d;
-            margin-bottom: 0.25rem;
+            margin-bottom: 8px;
         }
-        .incident-report-page .ir-input,
-        .incident-report-page .ir-textarea {
-            width: 100%;
-            border: 1px solid #cfe4d8;
-            border-radius: 0.4rem;
-            padding: 0.45rem 0.55rem;
-            font-size: 0.9rem;
-            background: #fff;
+        .incident-report-page .ir-no-row input {
+            border: 0;
+            border-bottom: 1px solid #222;
+            border-radius: 0;
+            width: 120px;
+            padding: 0 2px;
+            background: transparent;
         }
-        .incident-report-page .ir-textarea {
-            min-height: 84px;
-            resize: vertical;
-        }
+        .incident-report-page .ir-main-table,
+        .incident-report-page .ir-sign-table,
         .incident-report-page .ir-specs-table {
             width: 100%;
             border-collapse: collapse;
-            margin-top: 0.2rem;
+        }
+        .incident-report-page .ir-main-table th,
+        .incident-report-page .ir-main-table td,
+        .incident-report-page .ir-sign-table th,
+        .incident-report-page .ir-sign-table td,
+        .incident-report-page .ir-specs-table th,
+        .incident-report-page .ir-specs-table td {
+            border: 1px solid #222;
+            padding: 4px 6px;
+            vertical-align: top;
+            font-size: 0.8rem;
+            color: #111;
+        }
+        .incident-report-page .ir-main-table th,
+        .incident-report-page .ir-sign-table th {
+            width: 19%;
+            font-weight: 700;
+            background: #f9f9f9;
+        }
+        .incident-report-page .ir-main-table .narrow-label {
+            width: 12%;
+        }
+        .incident-report-page .ir-main-table .wide-input {
+            width: 38%;
+        }
+        .incident-report-page .ir-cell-input,
+        .incident-report-page .ir-cell-textarea,
+        .incident-report-page .ir-specs-table input {
+            width: 100%;
+            border: 0;
+            background: transparent;
+            padding: 0;
+            margin: 0;
+            font-size: 0.8rem;
+        }
+        .incident-report-page .ir-cell-textarea {
+            min-height: 72px;
+            resize: none;
+            line-height: 1.2;
+        }
+        .incident-report-page .ir-cell-textarea.short {
+            min-height: 40px;
+        }
+        .incident-report-page .ir-help-text {
+            display: block;
+            margin-top: 4px;
+            font-size: 0.72rem;
+            font-style: italic;
+            color: #333;
+            line-height: 1.2;
         }
         .incident-report-page .ir-specs-table th {
-            text-align: left;
-            padding: 0.45rem 0.55rem;
-            border: 1px solid #d7f0e1;
-            font-size: 0.78rem;
             text-transform: uppercase;
-            letter-spacing: 0.03em;
-            background: #eff8f3;
-            color: #245f3d;
+            font-size: 0.72rem;
+            text-align: center;
+            background: #f9f9f9;
         }
         .incident-report-page .ir-specs-table td {
-            padding: 0.15rem;
-            border: 1px solid #e1ece6;
+            min-height: 24px;
         }
-        .incident-report-page .ir-specs-table input {
-            border: 0;
+        .incident-report-page .ir-sign-table {
+            margin-top: 10px;
+        }
+        .incident-report-page .ir-sign-table thead th {
+            text-align: center;
+            font-size: 0.85rem;
+            background: #f4f4f4;
+            width: 40%;
+        }
+        .incident-report-page .ir-sign-table .label-col {
+            width: 20%;
+            font-weight: 700;
+            background: #f9f9f9;
+        }
+        .incident-report-page .ir-sign-table .sig-row input,
+        .incident-report-page .ir-sign-table td input {
             width: 100%;
+            border: 0;
             background: transparent;
-            padding: 0.35rem 0.4rem;
-            font-size: 0.88rem;
+            padding: 0;
+            font-size: 0.8rem;
         }
-        .incident-report-page .ir-sign-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 1rem;
-        }
-        .incident-report-page .ir-sig-block {
-            border: 1px solid #e4efe9;
-            border-radius: 0.5rem;
-            padding: 0.8rem;
-            background: #fcfffd;
-        }
-        .incident-report-page .ir-sig-line {
-            border-bottom: 1px solid #2d2d2d;
-            min-height: 38px;
-            margin-bottom: 0.55rem;
-        }
-        @media (max-width: 767px) {
-            .incident-report-page .ir-sign-grid {
-                grid-template-columns: 1fr;
-            }
+        .incident-report-page .ir-sign-table .sig-row td {
+            min-height: 28px;
         }
         @media print {
             @page {
                 size: A4 portrait;
-                margin: 10mm;
+                margin: 8mm;
             }
             .incident-report-page .no-print {
                 display: none !important;
             }
-            .incident-report-page .app-card,
-            .incident-report-page .incident-sheet,
-            .incident-report-page .ir-section,
-            .incident-report-page .ir-sig-block {
-                border-color: #666 !important;
-                box-shadow: none !important;
-                background: #fff !important;
+            .incident-report-page main.py-4 {
+                padding: 0 !important;
             }
             .incident-report-page .container {
                 max-width: 100% !important;
+                width: 100% !important;
+                padding: 0 !important;
+                margin: 0 !important;
+            }
+            .incident-report-page .incident-sheet {
+                border: 1px solid #222 !important;
+                box-shadow: none !important;
+                margin: 0 !important;
+                padding: 10px 12px 8px !important;
+            }
+            .incident-report-page .ir-main-table th,
+            .incident-report-page .ir-main-table td,
+            .incident-report-page .ir-sign-table th,
+            .incident-report-page .ir-sign-table td,
+            .incident-report-page .ir-specs-table th,
+            .incident-report-page .ir-specs-table td {
+                padding: 3px 4px;
+                font-size: 0.72rem;
+            }
+            .incident-report-page .ir-cell-textarea {
+                min-height: 58px;
+            }
+            .incident-report-page .ir-cell-textarea.short {
+                min-height: 34px;
             }
         }
     </style>
@@ -343,114 +415,120 @@ while (count($specRows) < 3) {
                             <?php endforeach; ?>
                         </div>
                     <?php endif; ?>
-                    <h2 class="ir-title">Incident Report</h2>
-                    <p class="ir-subtitle">Complete all applicable fields and keep this report for records.</p>
-
                     <form id="incidentForm" method="post" action="incident_report.php">
-                        <div class="ir-section">
-                            <h3 class="ir-section-title">General Information</h3>
-                            <div class="row g-3">
-                                <div class="col-md-6">
-                                    <label class="ir-label" for="name_of_office">Name of Office</label>
-                                    <input type="text" class="ir-input" id="name_of_office" name="name_of_office" value="<?= htmlspecialchars($formData['name_of_office']) ?>">
-                                </div>
-                                <div class="col-md-6">
-                                    <label class="ir-label" for="address">Address</label>
-                                    <input type="text" class="ir-input" id="address" name="address" value="<?= htmlspecialchars($formData['address']) ?>">
-                                </div>
-                                <div class="col-md-4">
-                                    <label class="ir-label" for="incident_no">Incident No.</label>
-                                    <input type="text" class="ir-input" id="incident_no" name="incident_no" value="<?= htmlspecialchars($formData['incident_no']) ?>">
-                                </div>
-                                <div class="col-md-4">
-                                    <label class="ir-label" for="incident_type">Incident Type</label>
-                                    <input type="text" class="ir-input" id="incident_type" name="incident_type" value="<?= htmlspecialchars($formData['incident_type']) ?>">
-                                </div>
-                                <div class="col-md-4">
-                                    <label class="ir-label" for="location">Location</label>
-                                    <input type="text" class="ir-input" id="location" name="location" value="<?= htmlspecialchars($formData['location']) ?>">
-                                </div>
+                        <div class="ir-top">
+                            <div class="ir-line-field">
+                                <input type="text" name="name_of_office" value="<?= htmlspecialchars($formData['name_of_office']) ?>">
+                                <div class="caption">Name of Office</div>
+                            </div>
+                            <div class="ir-line-field">
+                                <input type="text" name="address" value="<?= htmlspecialchars($formData['address']) ?>">
+                                <div class="caption">Address</div>
                             </div>
                         </div>
 
-                        <div class="ir-section">
-                            <h3 class="ir-section-title">Item Specifics</h3>
-                            <div class="table-responsive">
-                                <table class="ir-specs-table">
-                                    <thead>
-                                        <tr>
-                                            <th>Item</th>
-                                            <th>UOM</th>
-                                            <th>Program</th>
-                                            <th>PO #</th>
-                                            <th>Batch #</th>
-                                            <th>Exp. Date</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        <?php foreach ($specRows as $specRow): ?>
+                        <h2 class="ir-title">Incident Report</h2>
+                        <div class="ir-no-row">
+                            No:
+                            <input type="text" name="incident_no" value="<?= htmlspecialchars($formData['incident_no']) ?>">
+                        </div>
+
+                        <table class="ir-main-table">
+                            <tr>
+                                <th class="narrow-label">Incident Type:</th>
+                                <td class="wide-input"><input type="text" class="ir-cell-input" name="incident_type" value="<?= htmlspecialchars($formData['incident_type']) ?>"></td>
+                                <th class="narrow-label">Date/Time of Incident:</th>
+                                <td class="wide-input"><input type="datetime-local" class="ir-cell-input" name="incident_datetime" value="<?= htmlspecialchars($formData['incident_datetime']) ?>"></td>
+                            </tr>
+                            <tr>
+                                <th>Location:</th>
+                                <td colspan="3"><input type="text" class="ir-cell-input" name="location" value="<?= htmlspecialchars($formData['location']) ?>"></td>
+                            </tr>
+                            <tr>
+                                <th>Specifics:</th>
+                                <td colspan="3" style="padding:0;">
+                                    <table class="ir-specs-table">
+                                        <thead>
                                             <tr>
-                                                <td><input type="text" name="spec_item[]" value="<?= htmlspecialchars((string) ($specRow['item'] ?? '')) ?>"></td>
-                                                <td><input type="text" name="spec_oum[]" value="<?= htmlspecialchars((string) ($specRow['uom'] ?? '')) ?>"></td>
-                                                <td><input type="text" name="spec_program[]" value="<?= htmlspecialchars((string) ($specRow['program'] ?? '')) ?>"></td>
-                                                <td><input type="text" name="spec_po[]" value="<?= htmlspecialchars((string) ($specRow['po'] ?? '')) ?>"></td>
-                                                <td><input type="text" name="spec_batch[]" value="<?= htmlspecialchars((string) ($specRow['batch'] ?? '')) ?>"></td>
-                                                <td><input type="text" name="spec_exp[]" value="<?= htmlspecialchars((string) ($specRow['exp'] ?? '')) ?>"></td>
+                                                <th>Item</th>
+                                                <th>UOM</th>
+                                                <th>Program</th>
+                                                <th>PO #</th>
+                                                <th>Batch #</th>
+                                                <th>Exp Date</th>
                                             </tr>
-                                        <?php endforeach; ?>
-                                    </tbody>
-                                </table>
-                            </div>
-                        </div>
+                                        </thead>
+                                        <tbody>
+                                            <?php foreach ($specRows as $specRow): ?>
+                                                <tr>
+                                                    <td><input type="text" name="spec_item[]" value="<?= htmlspecialchars((string) ($specRow['item'] ?? '')) ?>"></td>
+                                                    <td><input type="text" name="spec_oum[]" value="<?= htmlspecialchars((string) ($specRow['uom'] ?? '')) ?>"></td>
+                                                    <td><input type="text" name="spec_program[]" value="<?= htmlspecialchars((string) ($specRow['program'] ?? '')) ?>"></td>
+                                                    <td><input type="text" name="spec_po[]" value="<?= htmlspecialchars((string) ($specRow['po'] ?? '')) ?>"></td>
+                                                    <td><input type="text" name="spec_batch[]" value="<?= htmlspecialchars((string) ($specRow['batch'] ?? '')) ?>"></td>
+                                                    <td><input type="text" name="spec_exp[]" value="<?= htmlspecialchars((string) ($specRow['exp'] ?? '')) ?>"></td>
+                                                </tr>
+                                            <?php endforeach; ?>
+                                        </tbody>
+                                    </table>
+                                </td>
+                            </tr>
+                            <tr>
+                                <th>Persons Involved:</th>
+                                <td colspan="3"><input type="text" class="ir-cell-input" name="persons_involved" value="<?= htmlspecialchars($formData['persons_involved']) ?>"></td>
+                            </tr>
+                            <tr>
+                                <th>Chronology of Events:</th>
+                                <td colspan="3">
+                                    <textarea class="ir-cell-textarea" name="chronology"><?= htmlspecialchars($formData['chronology']) ?></textarea>
+                                    <span class="ir-help-text">Please attach evidences (pictures, documents, etc.)</span>
+                                </td>
+                            </tr>
+                            <tr>
+                                <th>Follow-up Action(s):</th>
+                                <td colspan="3"><textarea class="ir-cell-textarea short" name="followup_actions"><?= htmlspecialchars($formData['followup_actions']) ?></textarea></td>
+                            </tr>
+                            <tr>
+                                <th>Witness(es) &amp; Designation (if any):</th>
+                                <td colspan="3"><textarea class="ir-cell-textarea short" name="witnesses"><?= htmlspecialchars($formData['witnesses']) ?></textarea></td>
+                            </tr>
+                            <tr>
+                                <th>Contact Details:</th>
+                                <td colspan="3"><textarea class="ir-cell-textarea short" name="contact_details"><?= htmlspecialchars($formData['contact_details']) ?></textarea></td>
+                            </tr>
+                        </table>
 
-                        <div class="ir-section">
-                            <h3 class="ir-section-title">Narrative Details</h3>
-                            <div class="row g-3">
-                                <div class="col-12">
-                                    <label class="ir-label" for="persons_involved">Persons Involved</label>
-                                    <input type="text" class="ir-input" id="persons_involved" name="persons_involved" value="<?= htmlspecialchars($formData['persons_involved']) ?>">
-                                </div>
-                                <div class="col-12">
-                                    <label class="ir-label" for="chronology">Chronology of Events</label>
-                                    <textarea class="ir-textarea" id="chronology" name="chronology" rows="4"><?= htmlspecialchars($formData['chronology']) ?></textarea>
-                                </div>
-                                <div class="col-12">
-                                    <label class="ir-label" for="followup_actions">Follow-up Actions</label>
-                                    <textarea class="ir-textarea" id="followup_actions" name="followup_actions" rows="3"><?= htmlspecialchars($formData['followup_actions']) ?></textarea>
-                                </div>
-                                <div class="col-md-6">
-                                    <label class="ir-label" for="witnesses">Witness(es) and Designation</label>
-                                    <textarea class="ir-textarea" id="witnesses" name="witnesses" rows="3"><?= htmlspecialchars($formData['witnesses']) ?></textarea>
-                                </div>
-                                <div class="col-md-6">
-                                    <label class="ir-label" for="contact_details">Contact Details</label>
-                                    <textarea class="ir-textarea" id="contact_details" name="contact_details" rows="3"><?= htmlspecialchars($formData['contact_details']) ?></textarea>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="ir-sign-grid">
-                            <div class="ir-sig-block">
-                                <div class="ir-label">Prepared by</div>
-                                <div class="ir-sig-line"></div>
-                                <label class="ir-label" for="prepared_by_name">Name</label>
-                                <input type="text" class="ir-input mb-2" id="prepared_by_name" name="prepared_by_name" value="<?= htmlspecialchars($formData['prepared_by_name']) ?>">
-                                <label class="ir-label" for="prepared_by_designation">Designation</label>
-                                <input type="text" class="ir-input mb-2" id="prepared_by_designation" name="prepared_by_designation" value="<?= htmlspecialchars($formData['prepared_by_designation']) ?>">
-                                <label class="ir-label" for="prepared_by_date">Date</label>
-                                <input type="date" class="ir-input" id="prepared_by_date" name="prepared_by_date" value="<?= htmlspecialchars($formData['prepared_by_date']) ?>">
-                            </div>
-                            <div class="ir-sig-block">
-                                <div class="ir-label">Submitted to</div>
-                                <div class="ir-sig-line"></div>
-                                <label class="ir-label" for="submitted_to_name">Name</label>
-                                <input type="text" class="ir-input mb-2" id="submitted_to_name" name="submitted_to_name" value="<?= htmlspecialchars($formData['submitted_to_name']) ?>">
-                                <label class="ir-label" for="submitted_to_designation">Designation</label>
-                                <input type="text" class="ir-input mb-2" id="submitted_to_designation" name="submitted_to_designation" value="<?= htmlspecialchars($formData['submitted_to_designation']) ?>">
-                                <label class="ir-label" for="submitted_to_date">Date</label>
-                                <input type="date" class="ir-input" id="submitted_to_date" name="submitted_to_date" value="<?= htmlspecialchars($formData['submitted_to_date']) ?>">
-                            </div>
-                        </div>
+                        <table class="ir-sign-table">
+                            <thead>
+                                <tr>
+                                    <th class="label-col"></th>
+                                    <th>Prepared By</th>
+                                    <th>Submitted To</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr class="sig-row">
+                                    <td class="label-col">Signature:</td>
+                                    <td><input type="text" name="prepared_by_signature"></td>
+                                    <td><input type="text" name="submitted_to_signature"></td>
+                                </tr>
+                                <tr>
+                                    <td class="label-col">Name:</td>
+                                    <td><input type="text" name="prepared_by_name" value="<?= htmlspecialchars($formData['prepared_by_name']) ?>"></td>
+                                    <td><input type="text" name="submitted_to_name" value="<?= htmlspecialchars($formData['submitted_to_name']) ?>"></td>
+                                </tr>
+                                <tr>
+                                    <td class="label-col">Designation:</td>
+                                    <td><input type="text" name="prepared_by_designation" value="<?= htmlspecialchars($formData['prepared_by_designation']) ?>"></td>
+                                    <td><input type="text" name="submitted_to_designation" value="<?= htmlspecialchars($formData['submitted_to_designation']) ?>"></td>
+                                </tr>
+                                <tr>
+                                    <td class="label-col">Date:</td>
+                                    <td><input type="date" name="prepared_by_date" value="<?= htmlspecialchars($formData['prepared_by_date']) ?>"></td>
+                                    <td><input type="date" name="submitted_to_date" value="<?= htmlspecialchars($formData['submitted_to_date']) ?>"></td>
+                                </tr>
+                            </tbody>
+                        </table>
                     </form>
                 </div>
             </div>

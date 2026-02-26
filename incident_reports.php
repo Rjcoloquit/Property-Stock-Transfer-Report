@@ -43,9 +43,13 @@ try {
             PRIMARY KEY (id)
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci'
     );
+    $incidentDateTimeColumnStmt = $pdo->query("SHOW COLUMNS FROM incident_reports LIKE 'incident_datetime'");
+    if (!$incidentDateTimeColumnStmt || !$incidentDateTimeColumnStmt->fetch()) {
+        $pdo->exec('ALTER TABLE incident_reports ADD COLUMN incident_datetime DATETIME DEFAULT NULL AFTER incident_type');
+    }
 
     $listStmt = $pdo->query(
-        'SELECT id, incident_no, incident_type, location, name_of_office, created_by, created_at
+        'SELECT id, incident_no, incident_type, incident_datetime, location, name_of_office, created_by, created_at
          FROM incident_reports
          ORDER BY id DESC'
     );
@@ -192,6 +196,7 @@ if (empty($selectedSpecifics)) {
                                                 <th>ID</th>
                                                 <th>Incident No.</th>
                                                 <th>Type</th>
+                                                <th>Incident Date/Time</th>
                                                 <th>Date</th>
                                                 <th class="text-center">Action</th>
                                             </tr>
@@ -203,6 +208,7 @@ if (empty($selectedSpecifics)) {
                                                     <td><?= $reportId ?></td>
                                                     <td><?= htmlspecialchars((string) ($report['incident_no'] ?? '-')) ?></td>
                                                     <td><?= htmlspecialchars((string) ($report['incident_type'] ?? '-')) ?></td>
+                                                    <td><?= htmlspecialchars((string) ($report['incident_datetime'] ?? '-')) ?></td>
                                                     <td><?= htmlspecialchars((string) ($report['created_at'] ?? '-')) ?></td>
                                                     <td class="text-center">
                                                         <a href="incident_reports.php?id=<?= $reportId ?>" class="btn btn-outline-secondary btn-sm <?= $selectedId === $reportId ? 'active' : '' ?>">Open</a>
@@ -244,6 +250,10 @@ if (empty($selectedSpecifics)) {
                                     <div class="col-md-4">
                                         <div class="incident-detail-label">Location</div>
                                         <div class="incident-detail-value"><?= htmlspecialchars((string) ($selectedReport['location'] ?? '-')) ?></div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="incident-detail-label">Date/Time of Incident</div>
+                                        <div class="incident-detail-value"><?= htmlspecialchars((string) ($selectedReport['incident_datetime'] ?? '-')) ?></div>
                                     </div>
                                 </div>
 
