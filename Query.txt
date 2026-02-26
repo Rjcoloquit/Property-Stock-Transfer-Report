@@ -90,10 +90,8 @@ CREATE TABLE incident_reports (
     location VARCHAR(255) DEFAULT NULL,
     specifics_json LONGTEXT,
     persons_involved TEXT,
-    chronology LONGBLOB, -- stores actual image binary data
-    followup_actions LONGTEXT,
-    witnesses LONGTEXT,
-    contact_details LONGTEXT,
+    remarks LONGTEXT,
+    action_taken LONGTEXT,
     prepared_by_name VARCHAR(255) DEFAULT NULL,
     prepared_by_designation VARCHAR(255) DEFAULT NULL,
     prepared_by_date DATE DEFAULT NULL,
