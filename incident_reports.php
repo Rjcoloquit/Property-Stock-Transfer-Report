@@ -28,10 +28,8 @@ try {
             location VARCHAR(255) DEFAULT NULL,
             specifics_json LONGTEXT,
             persons_involved TEXT,
-            chronology LONGTEXT,
-            followup_actions LONGTEXT,
-            witnesses LONGTEXT,
-            contact_details LONGTEXT,
+            remarks LONGTEXT,
+            action_taken LONGTEXT,
             prepared_by_name VARCHAR(255) DEFAULT NULL,
             prepared_by_designation VARCHAR(255) DEFAULT NULL,
             prepared_by_date DATE DEFAULT NULL,
@@ -290,20 +288,12 @@ if (empty($selectedSpecifics)) {
                                         <div class="incident-detail-value"><?= nl2br(htmlspecialchars((string) ($selectedReport['persons_involved'] ?? '-'))) ?></div>
                                     </div>
                                     <div class="col-12">
-                                        <div class="incident-detail-label">Chronology of Events</div>
-                                        <div class="incident-detail-value"><?= nl2br(htmlspecialchars((string) ($selectedReport['chronology'] ?? '-'))) ?></div>
+                                        <div class="incident-detail-label">Remarks</div>
+                                        <div class="incident-detail-value"><?= nl2br(htmlspecialchars((string) ($selectedReport['remarks'] ?? '-'))) ?></div>
                                     </div>
                                     <div class="col-12">
-                                        <div class="incident-detail-label">Follow-up Actions</div>
-                                        <div class="incident-detail-value"><?= nl2br(htmlspecialchars((string) ($selectedReport['followup_actions'] ?? '-'))) ?></div>
-                                    </div>
-                                    <div class="col-md-6">
-                                        <div class="incident-detail-label">Witness(es) and Designation</div>
-                                        <div class="incident-detail-value"><?= nl2br(htmlspecialchars((string) ($selectedReport['witnesses'] ?? '-'))) ?></div>
-                                    </div>
-                                    <div class="col-md-6">
-                                        <div class="incident-detail-label">Contact Details</div>
-                                        <div class="incident-detail-value"><?= nl2br(htmlspecialchars((string) ($selectedReport['contact_details'] ?? '-'))) ?></div>
+                                        <div class="incident-detail-label">Action Taken</div>
+                                        <div class="incident-detail-value"><?= nl2br(htmlspecialchars((string) ($selectedReport['action_taken'] ?? '-'))) ?></div>
                                     </div>
                                 </div>
 

@@ -19,10 +19,8 @@ $formData = [
     'incident_datetime' => '',
     'location' => '',
     'persons_involved' => '',
-    'chronology' => '',
-    'followup_actions' => '',
-    'witnesses' => '',
-    'contact_details' => '',
+    'remarks' => '',
+    'action_taken' => '',
     'prepared_by_name' => '',
     'prepared_by_designation' => '',
     'prepared_by_date' => '',
@@ -50,10 +48,8 @@ $pdo->exec(
         location VARCHAR(255) DEFAULT NULL,
         specifics_json LONGTEXT,
         persons_involved TEXT,
-        chronology LONGTEXT,
-        followup_actions LONGTEXT,
-        witnesses LONGTEXT,
-        contact_details LONGTEXT,
+        remarks LONGTEXT,
+        action_taken LONGTEXT,
         prepared_by_name VARCHAR(255) DEFAULT NULL,
         prepared_by_designation VARCHAR(255) DEFAULT NULL,
         prepared_by_date DATE DEFAULT NULL,
@@ -126,10 +122,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 location,
                 specifics_json,
                 persons_involved,
-                chronology,
-                followup_actions,
-                witnesses,
-                contact_details,
+                remarks,
+                action_taken,
                 prepared_by_name,
                 prepared_by_designation,
                 prepared_by_date,
@@ -137,7 +131,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 submitted_to_designation,
                 submitted_to_date,
                 created_by
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
         );
         $stmt->execute([
             $formData['name_of_office'] !== '' ? $formData['name_of_office'] : null,
@@ -148,10 +142,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $formData['location'] !== '' ? $formData['location'] : null,
             json_encode($specRows, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
             $formData['persons_involved'] !== '' ? $formData['persons_involved'] : null,
-            $formData['chronology'] !== '' ? $formData['chronology'] : null,
-            $formData['followup_actions'] !== '' ? $formData['followup_actions'] : null,
-            $formData['witnesses'] !== '' ? $formData['witnesses'] : null,
-            $formData['contact_details'] !== '' ? $formData['contact_details'] : null,
+            $formData['remarks'] !== '' ? $formData['remarks'] : null,
+            $formData['action_taken'] !== '' ? $formData['action_taken'] : null,
             $formData['prepared_by_name'] !== '' ? $formData['prepared_by_name'] : null,
             $formData['prepared_by_designation'] !== '' ? $formData['prepared_by_designation'] : null,
             $formData['prepared_by_date'] !== '' ? $formData['prepared_by_date'] : null,
@@ -478,23 +470,14 @@ while (count($specRows) < 3) {
                                 <td colspan="3"><input type="text" class="ir-cell-input" name="persons_involved" value="<?= htmlspecialchars($formData['persons_involved']) ?>"></td>
                             </tr>
                             <tr>
-                                <th>Chronology of Events:</th>
+                                <th>Remarks:</th>
                                 <td colspan="3">
-                                    <textarea class="ir-cell-textarea" name="chronology"><?= htmlspecialchars($formData['chronology']) ?></textarea>
-                                    <span class="ir-help-text">Please attach evidences (pictures, documents, etc.)</span>
+                                    <textarea class="ir-cell-textarea" name="remarks"><?= htmlspecialchars($formData['remarks']) ?></textarea>
                                 </td>
                             </tr>
                             <tr>
-                                <th>Follow-up Action(s):</th>
-                                <td colspan="3"><textarea class="ir-cell-textarea short" name="followup_actions"><?= htmlspecialchars($formData['followup_actions']) ?></textarea></td>
-                            </tr>
-                            <tr>
-                                <th>Witness(es) &amp; Designation (if any):</th>
-                                <td colspan="3"><textarea class="ir-cell-textarea short" name="witnesses"><?= htmlspecialchars($formData['witnesses']) ?></textarea></td>
-                            </tr>
-                            <tr>
-                                <th>Contact Details:</th>
-                                <td colspan="3"><textarea class="ir-cell-textarea short" name="contact_details"><?= htmlspecialchars($formData['contact_details']) ?></textarea></td>
+                                <th>Action Taken:</th>
+                                <td colspan="3"><textarea class="ir-cell-textarea short" name="action_taken"><?= htmlspecialchars($formData['action_taken']) ?></textarea></td>
                             </tr>
                         </table>
 
