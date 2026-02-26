@@ -80,6 +80,35 @@ CREATE TABLE inventory_records (
     record_date DATE
 );
 
+CREATE TABLE incident_reports (
+    id INT NOT NULL AUTO_INCREMENT,
+    name_of_office VARCHAR(255) DEFAULT NULL,
+    address VARCHAR(255) DEFAULT NULL,
+    incident_no VARCHAR(120) DEFAULT NULL,
+    incident_type VARCHAR(255) DEFAULT NULL,
+    incident_datetime DATETIME DEFAULT NULL,
+    location VARCHAR(255) DEFAULT NULL,
+    specifics_json LONGTEXT,
+    persons_involved TEXT,
+    chronology LONGBLOB, -- stores actual image binary data
+    followup_actions LONGTEXT,
+    witnesses LONGTEXT,
+    contact_details LONGTEXT,
+    prepared_by_name VARCHAR(255) DEFAULT NULL,
+    prepared_by_designation VARCHAR(255) DEFAULT NULL,
+    prepared_by_date DATE DEFAULT NULL,
+    submitted_to_name VARCHAR(255) DEFAULT NULL,
+    submitted_to_designation VARCHAR(255) DEFAULT NULL,
+    submitted_to_date DATE DEFAULT NULL,
+    created_by VARCHAR(150) DEFAULT NULL,
+    created_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (id)
+) ENGINE=InnoDB
+DEFAULT CHARSET=utf8mb4
+COLLATE=utf8mb4_0900_ai_ci;
+
+
+
 INSERT INTO products (product_description, uom, cost_per_unit, program) VALUES
 ('[Co-Amoxiclav] Amoxicillin 400mg + Clavulanic Acid 57mg per 5mL Powder for Oral Suspension 70mL', 'Bottles', 0, 'General Consumption'),
 ('[COC Pill] Levonorgestrel 150mcg + Ethinylestradiol 30mcg + Ferrous Fumarate 75mg Film-Coated Tablet', 'Cycle', 21.05, 'National Family Planning'),
