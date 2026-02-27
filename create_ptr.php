@@ -868,7 +868,7 @@ $previewLineRows = 10;
                                         <span class="preview-label signatory-label">Prepared by:</span>
                                         Mark Anthony Borres<br>
                                         John Paul Joseph Opiala<br>
-                                        Richard Ray
+                                        Richard Roy
                                     </div>
                                 </td>
                                 <td style="width:50%">
