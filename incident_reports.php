@@ -250,7 +250,6 @@ if (empty($selectedSpecifics)) {
                 width: auto;
             }
             .incident-print-sheet-content .signature-table td {
-                height: 44pt;
                 text-align: center;
                 vertical-align: bottom;
                 font-size: 9pt;
@@ -504,41 +503,54 @@ if (empty($selectedSpecifics)) {
                 <table>
                     <tr>
                         <th>Persons Involved:</th>
-                        <td><?= nl2br(htmlspecialchars((string) ($selectedReport['persons_involved'] ?? '-'))) ?></td>
+                        <td style="min-height: 30pt;"><?= nl2br(htmlspecialchars((string) ($selectedReport['persons_involved'] ?? '-'))) ?></td>
                     </tr>
                     <tr>
-                        <th>Remarks:</th>
-                        <td><?= nl2br(htmlspecialchars((string) ($selectedReport['remarks'] ?? '-'))) ?></td>
+                        <th style="vertical-align: top;">Remarks:</th>
+                        <td style="padding: 8pt 10pt; min-height: 120pt; font-size: 9.5pt;"><?= nl2br(htmlspecialchars((string) ($selectedReport['remarks'] ?? '-'))) ?></td>
                     </tr>
                     <tr>
-                        <th>Action Taken:</th>
-                        <td><?= nl2br(htmlspecialchars((string) ($selectedReport['action_taken'] ?? '-'))) ?></td>
+                        <th style="vertical-align: top;">Action Taken:</th>
+                        <td style="padding: 8pt 10pt; min-height: 120pt; font-size: 9.5pt;"><?= nl2br(htmlspecialchars((string) ($selectedReport['action_taken'] ?? '-'))) ?></td>
                     </tr>
                 </table>
 
                 <table class="signature-table" style="margin-top: 8pt;">
                     <thead>
                         <tr>
-                            <th style="width: 50%; background: #e8e8e8; font-size: 9pt;">Prepared By</th>
-                            <th style="width: 50%; background: #e8e8e8; font-size: 9pt;">Submitted To</th>
+                            <th style="width: 18%; background: #e8e8e8; font-size: 9pt;"></th>
+                            <th style="width: 41%; background: #e8e8e8; font-size: 9pt;">Prepared By</th>
+                            <th style="width: 41%; background: #e8e8e8; font-size: 9pt;">Submitted To</th>
                         </tr>
                     </thead>
                     <tbody>
                         <tr>
-                            <td><?= htmlspecialchars((string) ($selectedReport['prepared_by_name'] ?? '')) ?></td>
-                            <td><?= htmlspecialchars((string) ($selectedReport['submitted_to_name'] ?? '')) ?></td>
-                        </tr>
-                        <tr class="signature-label">
-                            <td>Signature</td>
-                            <td>Signature</td>
+                            <th style="font-size: 8.5pt; background: #f5f5f5;">Signature:</th>
+                            <td style="padding: 6pt 10pt; height: 70pt;">
+                                <div style="height: 100%; display: flex; align-items: flex-end;">
+                                    <div style="width: 100%; border-bottom: 1px solid #333;"></div>
+                                </div>
+                            </td>
+                            <td style="padding: 6pt 10pt; height: 70pt;">
+                                <div style="height: 100%; display: flex; align-items: flex-end;">
+                                    <div style="width: 100%; border-bottom: 1px solid #333;"></div>
+                                </div>
+                            </td>
                         </tr>
                         <tr>
-                            <td style="font-size: 8pt;"><?= htmlspecialchars((string) ($selectedReport['prepared_by_designation'] ?? '')) ?></td>
-                            <td style="font-size: 8pt;"><?= htmlspecialchars((string) ($selectedReport['submitted_to_designation'] ?? '')) ?></td>
+                            <th style="font-size: 8.5pt; background: #f5f5f5;">Name:</th>
+                            <td style="height: 24pt; text-align: center; vertical-align: middle;"><?= htmlspecialchars((string) ($selectedReport['prepared_by_name'] ?? '')) ?></td>
+                            <td style="height: 24pt; text-align: center; vertical-align: middle;"><?= htmlspecialchars((string) ($selectedReport['submitted_to_name'] ?? '')) ?></td>
                         </tr>
                         <tr>
-                            <td style="font-size: 8pt;"><?= htmlspecialchars((string) ($selectedReport['prepared_by_date'] ?? '')) ?></td>
-                            <td style="font-size: 8pt;"><?= htmlspecialchars((string) ($selectedReport['submitted_to_date'] ?? '')) ?></td>
+                            <th style="font-size: 8.5pt; background: #f5f5f5;">Designation:</th>
+                            <td style="font-size: 8pt; text-align: center;"><?= htmlspecialchars((string) ($selectedReport['prepared_by_designation'] ?? '')) ?></td>
+                            <td style="font-size: 8pt; text-align: center;"><?= htmlspecialchars((string) ($selectedReport['submitted_to_designation'] ?? '')) ?></td>
+                        </tr>
+                        <tr>
+                            <th style="font-size: 8.5pt; background: #f5f5f5;">Date:</th>
+                            <td style="font-size: 8pt; text-align: center;"><?= htmlspecialchars((string) ($selectedReport['prepared_by_date'] ?? '')) ?></td>
+                            <td style="font-size: 8pt; text-align: center;"><?= htmlspecialchars((string) ($selectedReport['submitted_to_date'] ?? '')) ?></td>
                         </tr>
                     </tbody>
                 </table>
