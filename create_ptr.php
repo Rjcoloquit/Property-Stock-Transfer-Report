@@ -694,11 +694,11 @@ $previewLineRows = 10;
                                             </td>
                                             <td>
                                                 <input
-                                                    type="text"
+                                                    type="number"
                                                     name="quantity[]"
                                                     class="form-control item-quantity"
-                                                    inputmode="numeric"
-                                                    pattern="[0-9]*"
+                                                    min="1"
+                                                    step="1"
                                                     autocomplete="off"
                                                     value="<?= htmlspecialchars((string) ($item['quantity'] ?? '')) ?>"
                                                 >

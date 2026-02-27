@@ -360,8 +360,8 @@ try {
             if ($hasProductBatchesTable && $formData['batch_number'] === '') {
                 $errors[] = 'Batch number is required.';
             }
-            if ($hasProductBatchesTable && ($formData['stock'] === '' || !ctype_digit($formData['stock']))) {
-                $errors[] = 'Stock must be a valid non-negative whole number.';
+            if ($hasProductBatchesTable && ($formData['stock'] === '' || !ctype_digit($formData['stock']) || (int) $formData['stock'] <= 0)) {
+                $errors[] = 'Stock must be a valid positive whole number (greater than 0).';
             }
             if ($hasProductsExpiryDate && $formData['expiry_date'] !== '' && !preg_match('/^\d{4}-\d{2}-\d{2}$/', $formData['expiry_date'])) {
                 $errors[] = 'Expiry date must be a valid date.';
@@ -1078,7 +1078,6 @@ try {
                         <?php if ($isEditMode): ?>
                             <input type="hidden" name="id" value="<?= (int) $editingId ?>">
                         <?php endif; ?>
-                        <input type="hidden" name="program" value="<?= htmlspecialchars($formData['program']) ?>">
 
                         <section class="item-form-section mb-4">
                             <h3 class="item-form-section-title">Item details</h3>
@@ -1129,6 +1128,17 @@ try {
                                         required
                                     >
                                 </div>
+                                <div class="col-sm-6 col-md-4">
+                                    <label for="program" class="form-label item-form-label">Program</label>
+                                    <input
+                                        type="text"
+                                        id="program"
+                                        name="program"
+                                        class="form-control item-form-input"
+                                        value="<?= htmlspecialchars($formData['program']) ?>"
+                                        placeholder="e.g. EPI, MCH, TB"
+                                    >
+                                </div>
                             </div>
                         </section>
 
@@ -1142,10 +1152,10 @@ try {
                                         id="stock"
                                         name="stock"
                                         class="form-control item-form-input"
-                                        min="0"
+                                        min="1"
                                         step="1"
                                         value="<?= htmlspecialchars($formData['stock']) ?>"
-                                        placeholder="0"
+                                        placeholder="1"
                                         <?= $hasProductBatchesTable ? 'required' : '' ?>
                                     >
                                 </div>
@@ -1226,6 +1236,7 @@ try {
                                         name="date_of_delivery"
                                         class="form-control item-form-input"
                                         value="<?= htmlspecialchars($formData['date_of_delivery']) ?>"
+                                        max="<?= date('Y-m-d') ?>"
                                     >
                                 </div>
                                 <div class="col-sm-6 col-md-3">

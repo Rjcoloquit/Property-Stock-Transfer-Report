@@ -112,42 +112,42 @@ function formatMoney($value): string
                         <div class="alert alert-danger py-2 mb-3"><?= htmlspecialchars($error) ?></div>
                     <?php endif; ?>
 
-                    <div class="table-responsive">
-                        <table class="table table-sm table-striped align-middle mb-0">
+                    <div class="table-responsive" style="font-size: 0.85rem;">
+                        <table class="table table-sm table-striped align-middle mb-0" style="font-size: 0.8rem;">
                             <thead class="table-light">
-                                <tr>
-                                    <th>End-user</th>
-                                    <th>PO #</th>
-                                    <th>Date Released</th>
-                                    <th>Item Description</th>
-                                    <th>Exp Date</th>
-                                    <th class="text-end">Quantity</th>
-                                    <th>Unit of Measure</th>
-                                    <th class="text-end">Unit Cost</th>
-                                    <th class="text-end">Total Cost</th>
-                                    <th>Recipient</th>
-                                    <th>PTR #</th>
+                                <tr style="font-size: 0.75rem;">
+                                    <th style="padding: 0.35rem 0.5rem;">End-user</th>
+                                    <th style="padding: 0.35rem 0.5rem;">PO #</th>
+                                    <th style="padding: 0.35rem 0.5rem;">Date Released</th>
+                                    <th style="padding: 0.35rem 0.5rem;">Item Description</th>
+                                    <th style="padding: 0.35rem 0.5rem;">Exp Date</th>
+                                    <th class="text-end" style="padding: 0.35rem 0.5rem;">Qty</th>
+                                    <th style="padding: 0.35rem 0.5rem;">UOM</th>
+                                    <th class="text-end" style="padding: 0.35rem 0.5rem;">Unit Cost</th>
+                                    <th class="text-end" style="padding: 0.35rem 0.5rem;">Total Cost</th>
+                                    <th style="padding: 0.35rem 0.5rem;">Recipient</th>
+                                    <th style="padding: 0.35rem 0.5rem;">PTR #</th>
                                 </tr>
                             </thead>
-                            <tbody>
+                            <tbody style="font-size: 0.75rem;">
                                 <?php if (empty($rows)): ?>
                                     <tr>
-                                        <td colspan="11" class="text-center text-muted">No outbound records found.</td>
+                                        <td colspan="11" class="text-center text-muted" style="padding: 0.35rem 0.5rem;">No outbound records found.</td>
                                     </tr>
                                 <?php else: ?>
                                     <?php foreach ($rows as $row): ?>
-                                        <tr>
-                                            <td><?= htmlspecialchars((string) ($row['program'] ?? '-')) ?></td>
-                                            <td><?= htmlspecialchars((string) ($row['po_no'] ?? '-')) ?></td>
-                                            <td><?= htmlspecialchars((string) ($row['date_released'] ?? '-')) ?></td>
-                                            <td><?= htmlspecialchars((string) ($row['description'] ?? '-')) ?></td>
-                                            <td><?= htmlspecialchars((string) ($row['expiration_date'] ?? '-')) ?></td>
-                                            <td class="text-end"><?= htmlspecialchars((string) ($row['quantity'] ?? '0')) ?></td>
-                                            <td><?= htmlspecialchars((string) ($row['unit'] ?? '-')) ?></td>
-                                            <td class="text-end"><?= formatMoney($row['unit_cost'] ?? 0) ?></td>
-                                            <td class="text-end"><?= formatMoney($row['total_cost'] ?? 0) ?></td>
-                                            <td><?= htmlspecialchars((string) ($row['recipient'] ?? '-')) ?></td>
-                                            <td><?= htmlspecialchars((string) ($row['ptr_no'] ?? '-')) ?></td>
+                                        <tr style="border-bottom: 0.5px solid #dee2e6;">
+                                            <td style="padding: 0.35rem 0.5rem;"><?= htmlspecialchars((string) ($row['program'] ?? '-')) ?></td>
+                                            <td style="padding: 0.35rem 0.5rem;"><?= htmlspecialchars((string) ($row['po_no'] ?? '-')) ?></td>
+                                            <td style="padding: 0.35rem 0.5rem;"><?= htmlspecialchars((string) ($row['date_released'] ?? '-')) ?></td>
+                                            <td style="padding: 0.35rem 0.5rem;"><?= htmlspecialchars((string) ($row['description'] ?? '-')) ?></td>
+                                            <td style="padding: 0.35rem 0.5rem;"><?= htmlspecialchars((string) ($row['expiration_date'] ?? '-')) ?></td>
+                                            <td class="text-end" style="padding: 0.35rem 0.5rem;"><?= htmlspecialchars((string) ($row['quantity'] ?? '0')) ?></td>
+                                            <td style="padding: 0.35rem 0.5rem;"><?= htmlspecialchars((string) ($row['unit'] ?? '-')) ?></td>
+                                            <td class="text-end" style="padding: 0.35rem 0.5rem;"><?= formatMoney($row['unit_cost'] ?? 0) ?></td>
+                                            <td class="text-end" style="padding: 0.35rem 0.5rem;"><?= formatMoney($row['total_cost'] ?? 0) ?></td>
+                                            <td style="padding: 0.35rem 0.5rem;"><?= htmlspecialchars((string) ($row['recipient'] ?? '-')) ?></td>
+                                            <td style="padding: 0.35rem 0.5rem;"><?= htmlspecialchars((string) ($row['ptr_no'] ?? '-')) ?></td>
                                         </tr>
                                     <?php endforeach; ?>
                                 <?php endif; ?>
