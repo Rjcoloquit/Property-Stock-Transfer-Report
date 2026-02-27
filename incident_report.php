@@ -29,7 +29,7 @@ $formData = [
     'submitted_to_date' => '',
 ];
 
-$specRows = array_fill(0, 3, [
+$specRows = array_fill(0, 1, [
     'item' => '',
     'uom' => '',
     'program' => '',
@@ -148,7 +148,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $specPo = isset($_POST['spec_po']) && is_array($_POST['spec_po']) ? $_POST['spec_po'] : [];
     $specBatch = isset($_POST['spec_batch']) && is_array($_POST['spec_batch']) ? $_POST['spec_batch'] : [];
     $specExp = isset($_POST['spec_exp']) && is_array($_POST['spec_exp']) ? $_POST['spec_exp'] : [];
-    $specCount = max(count($specItems), count($specUom), count($specProgram), count($specPo), count($specBatch), count($specExp), 3);
+    $specCount = max(count($specItems), count($specUom), count($specProgram), count($specPo), count($specBatch), count($specExp), 1);
 
     $specRows = [];
     $hasAnySpecifics = false;
@@ -228,7 +228,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
-while (count($specRows) < 3) {
+while (count($specRows) < 1) {
     $specRows[] = [
         'item' => '',
         'uom' => '',
@@ -272,6 +272,11 @@ while (count($specRows) < 3) {
         /* Specifics Table Styling */
         #specificsTable {
             border: 1px solid #dee2e6;
+            table-layout: fixed;
+        }
+        #specificsTable th, #specificsTable td {
+            overflow-wrap: break-word;
+            word-wrap: break-word;
         }
         #specificsTable thead th {
             background: linear-gradient(to bottom, #f8f9fa, #e9ecef);
@@ -280,6 +285,7 @@ while (count($specRows) < 3) {
             color: #495057;
             font-size: 0.8rem;
             padding: 8px 10px;
+            text-align: center;
         }
         #specificsTable tbody tr {
             border-bottom: 1px solid #dee2e6;
@@ -292,6 +298,8 @@ while (count($specRows) < 3) {
             padding: 6px 8px;
             border: none;
             border-right: 1px solid #dee2e6;
+            text-align: center;
+            vertical-align: middle;
         }
         #specificsTable tbody td:last-child {
             border-right: none;
@@ -300,6 +308,9 @@ while (count($specRows) < 3) {
             height: 30px;
             padding: 4px 6px;
             font-size: 0.8rem;
+            min-width: 0;
+            max-width: 100%;
+            text-align: center;
         }
         #specificsTable .form-control-sm:focus {
             border-color: #80bdff;
@@ -319,8 +330,9 @@ while (count($specRows) < 3) {
         }
         #previewPrintArea > div:first-child { margin-bottom: 6px !important; }
         #previewPrintArea > div:first-child > div:last-child { font-size: 0.8rem !important; }
+        #previewPrintArea .specs-table { table-layout: fixed; }
         #previewPrintArea .specs-table th,
-        #previewPrintArea .specs-table td { padding: 2px 4px !important; font-size: 0.7rem !important; }
+        #previewPrintArea .specs-table td { padding: 2px 4px !important; font-size: 0.7rem !important; overflow-wrap: break-word; word-wrap: break-word; text-align: center !important; vertical-align: middle !important; }
         #previewPrintArea table { margin-bottom: 6px !important; }
         #previewPrintArea table th,
         #previewPrintArea table td { padding: 3px 4px !important; font-size: 0.75rem !important; }
@@ -365,7 +377,7 @@ while (count($specRows) < 3) {
                 page-break-inside: avoid;
             }
             #previewPrintArea .specs-table th,
-            #previewPrintArea .specs-table td { padding: 2px 3px !important; font-size: 0.65rem !important; }
+            #previewPrintArea .specs-table td { padding: 2px 3px !important; font-size: 0.65rem !important; text-align: center !important; vertical-align: middle !important; }
             #previewPrintArea table th,
             #previewPrintArea table td { padding: 2px 3px !important; font-size: 0.7rem !important; }
             .incident-form-page .card-body,
@@ -461,13 +473,13 @@ while (count($specRows) < 3) {
                                 <table class="table table-sm table-hover mb-0" id="specificsTable">
                                     <thead class="table-light">
                                         <tr>
-                                            <th style="width: 22%">Item</th>
-                                            <th style="width: 10%">UOM</th>
+                                            <th style="width: 28%">Item</th>
+                                            <th style="width: 8%">UOM</th>
                                             <th style="width: 18%">Program</th>
                                             <th style="width: 12%">PO #</th>
                                             <th style="width: 12%">Batch #</th>
-                                            <th style="width: 14%">Exp Date</th>
-                                            <th style="width: 12%" class="text-center">Action</th>
+                                            <th style="width: 12%">Exp Date</th>
+                                            <th style="width: 10%" class="text-center">Action</th>
                                         </tr>
                                     </thead>
                                     <tbody id="specificsBody">
@@ -614,15 +626,15 @@ while (count($specRows) < 3) {
 
                         <div style="margin-bottom: 4px;">
                             <div style="font-weight: 700; color: #2b6843; text-transform: uppercase; font-size: 0.68rem; letter-spacing: 0.02em; margin-bottom: 2px;">Specifics:</div>
-                            <table class="specs-table" style="width: 100%; border-collapse: collapse;">
+                            <table class="specs-table" style="width: 100%; border-collapse: collapse; table-layout: fixed;">
                                 <thead>
                                     <tr>
-                                        <th style="border: 1px solid #222; padding: 2px 3px; background: #f0f0f0; font-weight: 700; font-size: 0.7rem;">Item</th>
-                                        <th style="border: 1px solid #222; padding: 2px 3px; background: #f0f0f0; font-weight: 700; font-size: 0.7rem;">UOM</th>
-                                        <th style="border: 1px solid #222; padding: 2px 3px; background: #f0f0f0; font-weight: 700; font-size: 0.7rem;">Program</th>
-                                        <th style="border: 1px solid #222; padding: 2px 3px; background: #f0f0f0; font-weight: 700; font-size: 0.7rem;">PO #</th>
-                                        <th style="border: 1px solid #222; padding: 2px 3px; background: #f0f0f0; font-weight: 700; font-size: 0.7rem;">Batch #</th>
-                                        <th style="border: 1px solid #222; padding: 2px 3px; background: #f0f0f0; font-weight: 700; font-size: 0.7rem;">Exp Date</th>
+                                        <th style="width: 28%; border: 1px solid #222; padding: 2px 3px; background: #f0f0f0; font-weight: 700; font-size: 0.7rem;">Item</th>
+                                        <th style="width: 8%; border: 1px solid #222; padding: 2px 3px; background: #f0f0f0; font-weight: 700; font-size: 0.7rem;">UOM</th>
+                                        <th style="width: 18%; border: 1px solid #222; padding: 2px 3px; background: #f0f0f0; font-weight: 700; font-size: 0.7rem;">Program</th>
+                                        <th style="width: 12%; border: 1px solid #222; padding: 2px 3px; background: #f0f0f0; font-weight: 700; font-size: 0.7rem;">PO #</th>
+                                        <th style="width: 12%; border: 1px solid #222; padding: 2px 3px; background: #f0f0f0; font-weight: 700; font-size: 0.7rem;">Batch #</th>
+                                        <th style="width: 12%; border: 1px solid #222; padding: 2px 3px; background: #f0f0f0; font-weight: 700; font-size: 0.7rem;">Exp Date</th>
                                     </tr>
                                 </thead>
                                 <tbody id="previewSpecificsBody">

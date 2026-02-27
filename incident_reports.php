@@ -122,18 +122,23 @@ if (empty($selectedSpecifics)) {
         .incident-report-list-page .incident-spec-table {
             width: 100%;
             border-collapse: collapse;
+            table-layout: fixed;
         }
         .incident-report-list-page .incident-spec-table th,
         .incident-report-list-page .incident-spec-table td {
             border: 1px solid #dbece2;
             padding: 0.4rem 0.45rem;
             font-size: 0.86rem;
+            overflow-wrap: break-word;
+            word-wrap: break-word;
+            text-align: center;
         }
         .incident-report-list-page .incident-spec-table th {
             background: #eff8f3;
             color: #245f3d;
             text-transform: uppercase;
             font-size: 0.75rem;
+            text-align: center;
         }
         .incident-report-list-page .report-details-screen {
             display: block;
@@ -240,14 +245,25 @@ if (empty($selectedSpecifics)) {
                 color: #1a472a;
                 margin: 6pt 0 3pt;
             }
+            .incident-print-sheet-content .specs-table {
+                table-layout: fixed;
+            }
             .incident-print-sheet-content .specs-table th,
             .incident-print-sheet-content .specs-table td {
                 padding: 2pt 3pt;
                 font-size: 8pt;
+                overflow-wrap: break-word;
+                word-wrap: break-word;
+                text-align: center;
             }
+            .incident-print-sheet-content .specs-table th:nth-child(1) { width: 28%; }
+            .incident-print-sheet-content .specs-table th:nth-child(2) { width: 8%; }
+            .incident-print-sheet-content .specs-table th:nth-child(3) { width: 18%; }
+            .incident-print-sheet-content .specs-table th:nth-child(4) { width: 12%; }
+            .incident-print-sheet-content .specs-table th:nth-child(5) { width: 12%; }
+            .incident-print-sheet-content .specs-table th:nth-child(6) { width: 12%; }
             .incident-print-sheet-content .specs-table th {
                 background: #e8e8e8;
-                width: auto;
             }
             .incident-print-sheet-content .signature-table td {
                 text-align: center;
@@ -382,12 +398,12 @@ if (empty($selectedSpecifics)) {
                                     <table class="incident-spec-table">
                                         <thead>
                                             <tr>
-                                                <th>Item</th>
-                                                <th>UOM</th>
-                                                <th>Program</th>
-                                                <th>PO #</th>
-                                                <th>Batch #</th>
-                                                <th>Exp. Date</th>
+                                                <th style="width: 28%;">Item</th>
+                                                <th style="width: 8%;">UOM</th>
+                                                <th style="width: 18%;">Program</th>
+                                                <th style="width: 12%;">PO #</th>
+                                                <th style="width: 12%;">Batch #</th>
+                                                <th style="width: 12%;">Exp. Date</th>
                                             </tr>
                                         </thead>
                                         <tbody>
@@ -475,15 +491,15 @@ if (empty($selectedSpecifics)) {
                 </table>
 
                 <div class="print-section-label">Specifics</div>
-                <table class="specs-table">
+                <table class="specs-table" style="table-layout: fixed;">
                     <thead>
                         <tr>
-                            <th>Item</th>
-                            <th>UOM</th>
-                            <th>Program</th>
-                            <th>PO #</th>
-                            <th>Batch #</th>
-                            <th>Exp Date</th>
+                            <th style="width: 28%;">Item</th>
+                            <th style="width: 8%;">UOM</th>
+                            <th style="width: 18%;">Program</th>
+                            <th style="width: 12%;">PO #</th>
+                            <th style="width: 12%;">Batch #</th>
+                            <th style="width: 12%;">Exp Date</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -526,16 +542,8 @@ if (empty($selectedSpecifics)) {
                     <tbody>
                         <tr>
                             <th style="font-size: 8.5pt; background: #f5f5f5;">Signature:</th>
-                            <td style="padding: 6pt 10pt; height: 70pt;">
-                                <div style="height: 100%; display: flex; align-items: flex-end;">
-                                    <div style="width: 100%; border-bottom: 1px solid #333;"></div>
-                                </div>
-                            </td>
-                            <td style="padding: 6pt 10pt; height: 70pt;">
-                                <div style="height: 100%; display: flex; align-items: flex-end;">
-                                    <div style="width: 100%; border-bottom: 1px solid #333;"></div>
-                                </div>
-                            </td>
+                            <td style="padding: 6pt 10pt; height: 70pt;"></td>
+                            <td style="padding: 6pt 10pt; height: 70pt;"></td>
                         </tr>
                         <tr>
                             <th style="font-size: 8.5pt; background: #f5f5f5;">Name:</th>
