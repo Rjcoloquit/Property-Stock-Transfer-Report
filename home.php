@@ -173,6 +173,10 @@ try {
                                     <span class="dashboard-nav-title">Transaction History</span>
                                     <span class="dashboard-nav-meta">Review and filter saved transactions</span>
                                 </a>
+                                <a href="outbound_summary_report.php" class="dashboard-nav-link">
+                                    <span class="dashboard-nav-title">Outbound Summary Report</span>
+                                    <span class="dashboard-nav-meta">Summary of released items and recipients</span>
+                                </a>
                                 <a href="pending_transactions.php" class="dashboard-nav-link">
                                     <span class="dashboard-nav-title">Pending Transactions</span>
                                     <span class="dashboard-nav-meta">Release PTR before stock deduction and printing</span>

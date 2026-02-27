@@ -645,19 +645,19 @@ while (count($specRows) < 1) {
                         <table style="width: 100%; border-collapse: collapse; margin-bottom: 4px;">
                             <tr>
                                 <th style="border: 1px solid #222; padding: 3px 4px; width: 18%; text-align: left; background: #f9f9f9; font-weight: 700; font-size: 0.7rem;">Persons Involved:</th>
-                                <td style="border: 1px solid #222; padding: 3px 4px; font-size: 0.7rem; min-height: 30px;">
+                                <td style="border: 1px solid #222; padding: 3px 4px; font-size: 0.7rem;">
                                     <span id="previewPersonsInvolved" style="white-space: pre-wrap;">-</span>
                                 </td>
                             </tr>
                             <tr>
                                 <th style="border: 1px solid #222; padding: 3px 4px; text-align: left; vertical-align: top; background: #f9f9f9; font-weight: 700; font-size: 0.7rem;">Remarks:</th>
-                                <td style="border: 1px solid #222; padding: 8px 10px; min-height: 120px; font-size: 0.75rem; vertical-align: top;">
+                                <td style="border: 1px solid #222; padding: 3px 4px; min-height: 24px; font-size: 0.7rem;">
                                     <span id="previewRemarks" style="white-space: pre-wrap;">-</span>
                                 </td>
                             </tr>
                             <tr>
                                 <th style="border: 1px solid #222; padding: 3px 4px; text-align: left; vertical-align: top; background: #f9f9f9; font-weight: 700; font-size: 0.7rem;">Action Taken:</th>
-                                <td style="border: 1px solid #222; padding: 8px 10px; min-height: 120px; font-size: 0.75rem; vertical-align: top;">
+                                <td style="border: 1px solid #222; padding: 3px 4px; min-height: 24px; font-size: 0.7rem;">
                                     <span id="previewActionTaken" style="white-space: pre-wrap;">-</span>
                                 </td>
                             </tr>
@@ -666,36 +666,24 @@ while (count($specRows) < 1) {
                         <table style="width: 100%; border-collapse: collapse; margin-top: 6px;">
                             <thead>
                                 <tr>
-                                    <th style="border: 1px solid #222; padding: 3px 4px; width: 18%; background: #f4f4f4; font-weight: 700; font-size: 0.75rem;"></th>
-                                    <th style="border: 1px solid #222; padding: 3px 4px; width: 41%; text-align: center; background: #f4f4f4; font-weight: 700; font-size: 0.75rem;">Prepared By</th>
-                                    <th style="border: 1px solid #222; padding: 3px 4px; width: 41%; text-align: center; background: #f4f4f4; font-weight: 700; font-size: 0.75rem;">Submitted To</th>
+                                    <th style="border: 1px solid #222; padding: 3px 4px; width: 50%; text-align: center; background: #f4f4f4; font-weight: 700; font-size: 0.75rem;">Prepared By</th>
+                                    <th style="border: 1px solid #222; padding: 3px 4px; width: 50%; text-align: center; background: #f4f4f4; font-weight: 700; font-size: 0.75rem;">Submitted To</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 <tr>
-                                    <th style="border: 1px solid #222; padding: 3px 4px; text-align: left; background: #f9f9f9; font-weight: 700; font-size: 0.7rem;">Signature:</th>
-                                    <td style="border: 1px solid #222; padding: 6px 10px; height: 70px;">
-                                        <div style="height: 100%; display: flex; align-items: flex-end;">
-                                            <div style="width: 100%; border-bottom: 1px solid #222;"></div>
-                                        </div>
-                                    </td>
-                                    <td style="border: 1px solid #222; padding: 6px 10px; height: 70px;">
-                                        <div style="height: 100%; display: flex; align-items: flex-end;">
-                                            <div style="width: 100%; border-bottom: 1px solid #222;"></div>
-                                        </div>
-                                    </td>
-                                </tr>
-                                <tr>
-                                    <th style="border: 1px solid #222; padding: 3px 4px; text-align: left; background: #f9f9f9; font-weight: 700; font-size: 0.7rem;">Name:</th>
-                                    <td style="border: 1px solid #222; padding: 3px 4px; height: 24px; text-align: center; font-size: 0.75rem;">
+                                    <td style="border: 1px solid #222; padding: 3px 4px; height: 52px; text-align: center; vertical-align: bottom; font-size: 0.75rem;">
                                         <span id="previewPreparedByName">-</span>
                                     </td>
-                                    <td style="border: 1px solid #222; padding: 3px 4px; height: 24px; text-align: center; font-size: 0.75rem;">
+                                    <td style="border: 1px solid #222; padding: 3px 4px; height: 52px; text-align: center; vertical-align: bottom; font-size: 0.75rem;">
                                         <span id="previewSubmittedToName">-</span>
                                     </td>
                                 </tr>
+                                <tr style="font-size: 0.65rem;">
+                                    <td style="border: 1px solid #222; padding: 2px 3px; text-align: center;">Signature</td>
+                                    <td style="border: 1px solid #222; padding: 2px 3px; text-align: center;">Signature</td>
+                                </tr>
                                 <tr>
-                                    <th style="border: 1px solid #222; padding: 3px 4px; text-align: left; background: #f9f9f9; font-weight: 700; font-size: 0.7rem;">Designation:</th>
                                     <td style="border: 1px solid #222; padding: 2px 3px; text-align: center; font-size: 0.7rem;">
                                         <span id="previewPreparedByDesignation">-</span>
                                     </td>
@@ -704,7 +692,6 @@ while (count($specRows) < 1) {
                                     </td>
                                 </tr>
                                 <tr>
-                                    <th style="border: 1px solid #222; padding: 3px 4px; text-align: left; background: #f9f9f9; font-weight: 700; font-size: 0.7rem;">Date:</th>
                                     <td style="border: 1px solid #222; padding: 2px 3px; text-align: center; font-size: 0.7rem;">
                                         <span id="previewPreparedByDate">-</span>
                                     </td>

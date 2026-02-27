@@ -544,21 +544,7 @@ if (empty($selectedSpecifics)) {
                             <th style="font-size: 8.5pt; background: #f5f5f5;">Signature:</th>
                             <td style="padding: 6pt 10pt; height: 70pt;"></td>
                             <td style="padding: 6pt 10pt; height: 70pt;"></td>
-                        </tr>
-                        <tr>
-                            <th style="font-size: 8.5pt; background: #f5f5f5;">Name:</th>
-                            <td style="height: 24pt; text-align: center; vertical-align: middle;"><?= htmlspecialchars((string) ($selectedReport['prepared_by_name'] ?? '')) ?></td>
-                            <td style="height: 24pt; text-align: center; vertical-align: middle;"><?= htmlspecialchars((string) ($selectedReport['submitted_to_name'] ?? '')) ?></td>
-                        </tr>
-                        <tr>
-                            <th style="font-size: 8.5pt; background: #f5f5f5;">Designation:</th>
-                            <td style="font-size: 8pt; text-align: center;"><?= htmlspecialchars((string) ($selectedReport['prepared_by_designation'] ?? '')) ?></td>
-                            <td style="font-size: 8pt; text-align: center;"><?= htmlspecialchars((string) ($selectedReport['submitted_to_designation'] ?? '')) ?></td>
-                        </tr>
-                        <tr>
-                            <th style="font-size: 8.5pt; background: #f5f5f5;">Date:</th>
-                            <td style="font-size: 8pt; text-align: center;"><?= htmlspecialchars((string) ($selectedReport['prepared_by_date'] ?? '')) ?></td>
-                            <td style="font-size: 8pt; text-align: center;"><?= htmlspecialchars((string) ($selectedReport['submitted_to_date'] ?? '')) ?></td>
+['submitted_to_date'] ?? '')) ?></td>
                         </tr>
                     </tbody>
                 </table>
