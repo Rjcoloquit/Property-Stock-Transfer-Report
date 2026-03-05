@@ -352,10 +352,10 @@ while (count($ledgerRows) < 18) {
                             <table class="table table-bordered table-sm mb-0 stock-card-ledger-table">
                                 <thead>
                                     <tr>
-                                        <th rowspan="2" class="stock-col-date">Date</th>
+                                        <th rowspan="2" class="stock-col-date text-center">Date</th>
                                         <th colspan="4" class="text-center">Quantity</th>
-                                        <th rowspan="2" class="stock-col-ref">DR/SI/RIS/PTR/BL No.</th>
-                                        <th rowspan="2" class="stock-col-remarks">Recipient / Remarks</th>
+                                        <th rowspan="2" class="stock-col-ref text-center">DR/SI/RIS/PTR/BL No.</th>
+                                        <th rowspan="2" class="stock-col-remarks text-center">Recipient / Remarks</th>
                                     </tr>
                                     <tr>
                                         <th class="stock-col-qty text-center">Received</th>
@@ -367,12 +367,12 @@ while (count($ledgerRows) < 18) {
                                 <tbody>
                                     <?php foreach ($ledgerRows as $row): ?>
                                         <tr>
-                                            <td><input type="text" class="stock-card-line-input" value="<?= htmlspecialchars((string) ($row['entry_date'] ?? '')) ?>" readonly></td>
-                                            <td><input type="text" class="stock-card-line-input text-end" value="<?= htmlspecialchars((string) ($row['received'] ?? '')) ?>" readonly></td>
-                                            <td><input type="text" class="stock-card-line-input text-end" value="<?= htmlspecialchars((string) ($row['issued'] ?? '')) ?>" readonly></td>
-                                            <td><input type="text" class="stock-card-line-input text-end" value="<?= htmlspecialchars((string) ($row['balance'] ?? '')) ?>" readonly></td>
-                                            <td><input type="text" class="stock-card-line-input text-end" value="<?= htmlspecialchars((string) ($row['total_cost'] ?? '')) ?>" readonly></td>
-                                            <td><input type="text" class="stock-card-line-input" value="<?= htmlspecialchars((string) ($row['ref_no'] ?? '')) ?>" readonly></td>
+                                            <td class="text-center"><input type="text" class="stock-card-line-input text-center" value="<?= htmlspecialchars((string) ($row['entry_date'] ?? '')) ?>" readonly></td>
+                                            <td class="text-center"><input type="text" class="stock-card-line-input text-center" value="<?= htmlspecialchars((string) ($row['received'] ?? '')) ?>" readonly></td>
+                                            <td class="text-center"><input type="text" class="stock-card-line-input text-center" value="<?= htmlspecialchars((string) ($row['issued'] ?? '')) ?>" readonly></td>
+                                            <td class="text-center"><input type="text" class="stock-card-line-input text-center" value="<?= htmlspecialchars((string) ($row['balance'] ?? '')) ?>" readonly></td>
+                                            <td class="text-end"><input type="text" class="stock-card-line-input text-end" value="<?= htmlspecialchars((string) ($row['total_cost'] ?? '')) ?>" readonly></td>
+                                            <td class="text-center"><input type="text" class="stock-card-line-input text-center" value="<?= htmlspecialchars((string) ($row['ref_no'] ?? '')) ?>" readonly></td>
                                             <td><input type="text" class="stock-card-line-input" value="<?= htmlspecialchars((string) ($row['remarks'] ?? '')) ?>" readonly></td>
                                         </tr>
                                     <?php endforeach; ?>

@@ -694,7 +694,7 @@ body {
 .stock-card-ledger-table th,
 .stock-card-ledger-table td {
     border-color: #111 !important;
-    padding: 0.22rem 0.32rem;
+    padding: 0.25rem 0.35rem;
     vertical-align: middle;
 }
 
@@ -703,6 +703,7 @@ body {
     font-weight: 700;
     font-size: 0.95rem;
     letter-spacing: 0.3px;
+    vertical-align: middle;
 }
 
 .stock-card-label-cell {
@@ -711,6 +712,8 @@ body {
     font-weight: 600;
     font-size: 0.76rem;
     background: #fff;
+    vertical-align: middle;
+    text-align: left;
 }
 
 .stock-card-line-input {
@@ -718,10 +721,11 @@ body {
     border-bottom: 1px solid transparent;
     border-radius: 0;
     width: 100%;
-    min-height: 20px;
+    min-height: 22px;
     font-size: 0.76rem;
-    padding: 0 2px;
+    padding: 2px 4px;
     background: transparent;
+    vertical-align: middle;
 }
 
 .stock-card-line-input:focus {
@@ -734,8 +738,14 @@ body {
     text-transform: none;
     font-size: 0.78rem;
     text-align: center;
+    vertical-align: middle;
     font-weight: 700;
     background: #fff;
+}
+
+.stock-card-ledger-table tbody td {
+    vertical-align: middle;
+    padding: 0.25rem 0.32rem;
 }
 
 .stock-col-date { width: 15%; }
