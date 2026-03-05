@@ -465,7 +465,7 @@ $previewLineRows = 10;
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Create Property Stock Transfer Report</title>
-    <link rel="stylesheet" href="style.css?v=20260212">
+    <link rel="stylesheet" href="style.css?v=20260305">
     <style>
         .preview-sheet {
             border: 1px solid #222;

@@ -75,10 +75,82 @@ function formatMoney($value): string
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Outbound Summary Report</title>
-    <link rel="stylesheet" href="style.css?v=20260227">
+    <link rel="stylesheet" href="style.css?v=20260305">
+    <style>
+        @media print {
+            @page {
+                size: A4 landscape;
+                margin: 10mm;
+            }
+            body {
+                margin: 0;
+                padding: 0;
+                font-size: 8pt;
+            }
+            .no-print {
+                display: none !important;
+            }
+            .app-header {
+                position: static !important;
+                margin-bottom: 5mm;
+                border-bottom: 1px solid #333;
+                padding-bottom: 5mm !important;
+            }
+            .app-header-title span {
+                font-size: 10pt !important;
+            }
+            .app-header-title small {
+                font-size: 8pt !important;
+            }
+            .container {
+                max-width: 100%;
+                margin: 0;
+                padding: 0;
+            }
+            .card {
+                box-shadow: none !important;
+                border: none !important;
+                margin: 0 !important;
+            }
+            .card-body {
+                padding: 0 !important;
+            }
+            .table-responsive {
+                overflow: visible !important;
+            }
+            .table {
+                font-size: 7.5pt !important;
+                margin-bottom: 0 !important;
+                width: 100%;
+                border-collapse: collapse;
+            }
+            .table thead,
+            .table tbody {
+                display: table-row-group;
+            }
+            .table th,
+            .table td {
+                border: 1px solid #333 !important;
+                padding: 2pt 3pt !important;
+            }
+            .table thead th {
+                background-color: #f5f5f5 !important;
+                font-weight: 700;
+                text-align: center;
+                vertical-align: middle;
+            }
+            .table tbody tr {
+                page-break-inside: avoid;
+            }
+            h1, h5 {
+                margin: 0 0 5mm 0 !important;
+                font-size: 12pt !important;
+            }
+        }
+    </style>
 </head>
 <body>
-    <header class="navbar navbar-expand-lg navbar-light bg-white app-header px-3 px-md-4">
+    <header class="navbar navbar-expand-lg navbar-light bg-white app-header px-3 px-md-4 no-print">
         <div class="container-fluid">
             <span class="navbar-brand mb-0 h6 app-header-title d-flex align-items-center gap-2">
                 <?php if (file_exists(__DIR__ . '/PHO.png')): ?>
@@ -93,6 +165,7 @@ function formatMoney($value): string
             </span>
             <div class="app-header-actions">
                 <span class="app-user-chip"><?= htmlspecialchars($username) ?></span>
+                <button type="button" class="btn btn-outline-primary btn-sm app-header-action-link" onclick="window.print();">Print</button>
                 <a href="home.php" class="btn btn-outline-secondary btn-sm app-header-action-link">Home</a>
                 <a href="report.php" class="btn btn-outline-secondary btn-sm app-header-action-link">Report</a>
                 <a href="logout.php" class="btn btn-outline-secondary btn-sm app-header-action-link">Log out</a>
@@ -104,12 +177,12 @@ function formatMoney($value): string
         <div class="container">
             <div class="card app-card">
                 <div class="card-body">
-                    <div class="d-flex justify-content-between align-items-center mb-3">
+                    <div class="d-flex justify-content-between align-items-center mb-3 no-print">
                         <h1 class="h5 mb-0">Outbound Summary Report</h1>
                     </div>
 
                     <?php if ($error !== ''): ?>
-                        <div class="alert alert-danger py-2 mb-3"><?= htmlspecialchars($error) ?></div>
+                        <div class="alert alert-danger py-2 mb-3 no-print"><?= htmlspecialchars($error) ?></div>
                     <?php endif; ?>
 
                     <div class="table-responsive" style="font-size: 0.85rem;">

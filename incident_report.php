@@ -245,7 +245,7 @@ while (count($specRows) < 1) {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Incident Report - Supply</title>
-    <link rel="stylesheet" href="style.css?v=20260219">
+    <link rel="stylesheet" href="style.css?v=20260305">
     <style>
         .incident-form-page .incident-sheet {
             border: 1px solid #222;
@@ -514,12 +514,8 @@ while (count($specRows) < 1) {
                             </div>
                         </div>
 
-                        <!-- Persons and Remarks Section -->
+                        <!-- Remarks and Action Taken Section -->
                         <div class="row g-3 mb-4 pb-3 border-bottom">
-                            <div class="col-12">
-                                <label for="persons_involved" class="form-label fw-bold">Persons Involved</label>
-                                <input type="text" class="form-control form-control-sm" id="persons_involved" name="persons_involved" value="<?= htmlspecialchars($formData['persons_involved']) ?>">
-                            </div>
                             <div class="col-12">
                                 <label for="remarks" class="form-label fw-bold">Remarks</label>
                                 <textarea class="form-control form-control-sm" id="remarks" name="remarks" rows="3" style="font-size: 0.9rem;"><?= htmlspecialchars($formData['remarks']) ?></textarea>
@@ -644,12 +640,6 @@ while (count($specRows) < 1) {
 
                         <table style="width: 100%; border-collapse: collapse; margin-bottom: 4px;">
                             <tr>
-                                <th style="border: 1px solid #222; padding: 3px 4px; width: 18%; text-align: left; background: #f9f9f9; font-weight: 700; font-size: 0.7rem;">Persons Involved:</th>
-                                <td style="border: 1px solid #222; padding: 3px 4px; font-size: 0.7rem;">
-                                    <span id="previewPersonsInvolved" style="white-space: pre-wrap;">-</span>
-                                </td>
-                            </tr>
-                            <tr>
                                 <th style="border: 1px solid #222; padding: 3px 4px; text-align: left; vertical-align: top; background: #f9f9f9; font-weight: 700; font-size: 0.7rem;">Remarks:</th>
                                 <td style="border: 1px solid #222; padding: 3px 4px; min-height: 24px; font-size: 0.7rem;">
                                     <span id="previewRemarks" style="white-space: pre-wrap;">-</span>
@@ -734,7 +724,6 @@ while (count($specRows) < 1) {
                 document.getElementById('previewIncidentType').textContent = textOrDash(document.getElementById('incident_type').value);
                 document.getElementById('previewIncidentDateTime').textContent = textOrDash(document.getElementById('incident_datetime').value);
                 document.getElementById('previewLocation').textContent = textOrDash(document.getElementById('location').value);
-                document.getElementById('previewPersonsInvolved').textContent = textOrDash(document.getElementById('persons_involved').value);
                 document.getElementById('previewRemarks').textContent = textOrDash(document.getElementById('remarks').value);
                 document.getElementById('previewActionTaken').textContent = textOrDash(document.getElementById('action_taken').value);
                 document.getElementById('previewPreparedByName').textContent = textOrDash(document.getElementById('prepared_by_name').value);

@@ -102,7 +102,7 @@ if (empty($selectedSpecifics)) {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Saved Incident Reports</title>
-    <link rel="stylesheet" href="style.css?v=20260219">
+    <link rel="stylesheet" href="style.css?v=20260305">
     <style>
         .incident-report-list-page .incident-detail-label {
             font-size: 0.78rem;
@@ -423,10 +423,6 @@ if (empty($selectedSpecifics)) {
 
                                 <div class="row g-3 mt-1">
                                     <div class="col-12">
-                                        <div class="incident-detail-label">Persons Involved</div>
-                                        <div class="incident-detail-value"><?= nl2br(htmlspecialchars((string) ($selectedReport['persons_involved'] ?? '-'))) ?></div>
-                                    </div>
-                                    <div class="col-12">
                                         <div class="incident-detail-label">Remarks</div>
                                         <div class="incident-detail-value"><?= nl2br(htmlspecialchars((string) ($selectedReport['remarks'] ?? '-'))) ?></div>
                                     </div>
@@ -517,10 +513,6 @@ if (empty($selectedSpecifics)) {
                 </table>
 
                 <table>
-                    <tr>
-                        <th>Persons Involved:</th>
-                        <td style="min-height: 30pt;"><?= nl2br(htmlspecialchars((string) ($selectedReport['persons_involved'] ?? '-'))) ?></td>
-                    </tr>
                     <tr>
                         <th style="vertical-align: top;">Remarks:</th>
                         <td style="padding: 8pt 10pt; min-height: 120pt; font-size: 9.5pt;"><?= nl2br(htmlspecialchars((string) ($selectedReport['remarks'] ?? '-'))) ?></td>

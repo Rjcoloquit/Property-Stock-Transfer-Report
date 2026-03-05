@@ -198,7 +198,7 @@ while (count($ledgerRows) < 18) {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Stock Card - Supply</title>
-    <link rel="stylesheet" href="style.css?v=20260219">
+    <link rel="stylesheet" href="style.css?v=20260305">
 </head>
 <body class="stock-card-page">
     <header class="navbar navbar-expand-lg navbar-light bg-white app-header px-3 px-md-4">
