@@ -165,7 +165,6 @@ function formatMoney($value): string
             </span>
             <div class="app-header-actions">
                 <span class="app-user-chip"><?= htmlspecialchars($username) ?></span>
-                <button type="button" class="btn btn-outline-primary btn-sm app-header-action-link" onclick="window.print();">Print</button>
                 <a href="home.php" class="btn btn-outline-secondary btn-sm app-header-action-link">Home</a>
                 <a href="report.php" class="btn btn-outline-secondary btn-sm app-header-action-link">Report</a>
                 <a href="logout.php" class="btn btn-outline-secondary btn-sm app-header-action-link">Log out</a>
@@ -179,14 +178,43 @@ function formatMoney($value): string
                 <div class="card-body">
                     <div class="d-flex justify-content-between align-items-center mb-3 no-print">
                         <h1 class="h5 mb-0">Outbound Summary Report</h1>
+                        <button type="button" class="btn btn-primary btn-sm" onclick="window.print();">Print</button>
                     </div>
 
                     <?php if ($error !== ''): ?>
                         <div class="alert alert-danger py-2 mb-3 no-print"><?= htmlspecialchars($error) ?></div>
                     <?php endif; ?>
 
+                    <!-- Filter Section -->
+                    <div class="card mb-4 no-print" style="background-color: #f8f9fa; border: 1px solid #dee2e6;">
+                        <div class="card-body p-3">
+                            <h6 class="mb-3 fw-bold">Filter</h6>
+                            <div class="row g-2">
+                                <div class="col-md-3">
+                                    <label for="filterProgram" class="form-label form-label-sm">End-user / Program</label>
+                                    <input type="text" class="form-control form-control-sm" id="filterProgram" placeholder="Search program...">
+                                </div>
+                                <div class="col-md-3">
+                                    <label for="filterDescription" class="form-label form-label-sm">Item Description</label>
+                                    <input type="text" class="form-control form-control-sm" id="filterDescription" placeholder="Search item...">
+                                </div>
+                                <div class="col-md-2">
+                                    <label for="filterDateFrom" class="form-label form-label-sm">Date From</label>
+                                    <input type="date" class="form-control form-control-sm" id="filterDateFrom">
+                                </div>
+                                <div class="col-md-2">
+                                    <label for="filterDateTo" class="form-label form-label-sm">Date To</label>
+                                    <input type="date" class="form-control form-control-sm" id="filterDateTo">
+                                </div>
+                                <div class="col-md-2 d-flex align-items-end">
+                                    <button type="button" class="btn btn-sm btn-outline-secondary w-100" id="clearFilterBtn">Clear Filters</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
                     <div class="table-responsive" style="font-size: 0.85rem;">
-                        <table class="table table-sm table-striped align-middle mb-0" style="font-size: 0.8rem;">
+                        <table class="table table-sm table-striped align-middle mb-0" id="outboundTable" style="font-size: 0.8rem;">
                             <thead class="table-light">
                                 <tr style="font-size: 0.75rem;">
                                     <th style="padding: 0.35rem 0.5rem;">End-user</th>
@@ -209,7 +237,7 @@ function formatMoney($value): string
                                     </tr>
                                 <?php else: ?>
                                     <?php foreach ($rows as $row): ?>
-                                        <tr style="border-bottom: 0.5px solid #dee2e6;">
+                                        <tr style="border-bottom: 0.5px solid #dee2e6;" data-program="<?= htmlspecialchars((string) ($row['program'] ?? '')) ?>" data-description="<?= htmlspecialchars((string) ($row['description'] ?? '')) ?>" data-date="<?= htmlspecialchars((string) ($row['date_released'] ?? '')) ?>">
                                             <td style="padding: 0.35rem 0.5rem;"><?= htmlspecialchars((string) ($row['program'] ?? '-')) ?></td>
                                             <td style="padding: 0.35rem 0.5rem;"><?= htmlspecialchars((string) ($row['po_no'] ?? '-')) ?></td>
                                             <td style="padding: 0.35rem 0.5rem;"><?= htmlspecialchars((string) ($row['date_released'] ?? '-')) ?></td>
@@ -231,5 +259,68 @@ function formatMoney($value): string
             </div>
         </div>
     </main>
+
+    <script>
+        (function() {
+            'use strict';
+
+            const filterProgramInput = document.getElementById('filterProgram');
+            const filterDescriptionInput = document.getElementById('filterDescription');
+            const filterDateFromInput = document.getElementById('filterDateFrom');
+            const filterDateToInput = document.getElementById('filterDateTo');
+            const clearFilterBtn = document.getElementById('clearFilterBtn');
+            const table = document.getElementById('outboundTable');
+            const rows = table.querySelectorAll('tbody tr');
+
+            function applyFilters() {
+                const programFilter = filterProgramInput.value.toLowerCase();
+                const descriptionFilter = filterDescriptionInput.value.toLowerCase();
+                const dateFromFilter = filterDateFromInput.value;
+                const dateToFilter = filterDateToInput.value;
+
+                rows.forEach(row => {
+                    const programText = (row.getAttribute('data-program') || '').toLowerCase();
+                    const descriptionText = (row.getAttribute('data-description') || '').toLowerCase();
+                    const dateText = row.getAttribute('data-date') || '';
+
+                    let showRow = true;
+
+                    // Filter by program/end-user
+                    if (programFilter && !programText.includes(programFilter)) {
+                        showRow = false;
+                    }
+
+                    // Filter by description
+                    if (descriptionFilter && !descriptionText.includes(descriptionFilter)) {
+                        showRow = false;
+                    }
+
+                    // Filter by date range
+                    if (dateFromFilter && dateText < dateFromFilter) {
+                        showRow = false;
+                    }
+                    if (dateToFilter && dateText > dateToFilter) {
+                        showRow = false;
+                    }
+
+                    row.style.display = showRow ? '' : 'none';
+                });
+            }
+
+            function clearFilters() {
+                filterProgramInput.value = '';
+                filterDescriptionInput.value = '';
+                filterDateFromInput.value = '';
+                filterDateToInput.value = '';
+                applyFilters();
+            }
+
+            filterProgramInput.addEventListener('keyup', applyFilters);
+            filterDescriptionInput.addEventListener('keyup', applyFilters);
+            filterDateFromInput.addEventListener('change', applyFilters);
+            filterDateToInput.addEventListener('change', applyFilters);
+            clearFilterBtn.addEventListener('click', clearFilters);
+        })();
+    </script>
 </body>
 </html>
