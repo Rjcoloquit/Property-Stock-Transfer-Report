@@ -11,6 +11,8 @@ require_once __DIR__ . '/config/database.php';
 $username = $_SESSION['username'] ?? $_SESSION['full_name'] ?? 'User';
 $error = '';
 $rows = [];
+$totalReleasedQty = 0;
+$totalReleasedAmount = 0.0;
 
 try {
     $pdo = getConnection();
@@ -60,6 +62,11 @@ try {
         ORDER BY COALESCE(released_at, record_date) DESC, id DESC'
     );
     $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+    foreach ($rows as $reportRow) {
+        $totalReleasedQty += (int) ($reportRow['quantity'] ?? 0);
+        $totalReleasedAmount += (float) ($reportRow['total_cost'] ?? 0);
+    }
 } catch (PDOException $e) {
     $error = 'Unable to load outbound summary report right now.';
 }
@@ -149,7 +156,7 @@ function formatMoney($value): string
         }
     </style>
 </head>
-<body>
+<body class="outbound-page">
     <header class="navbar navbar-expand-lg navbar-light bg-white app-header px-3 px-md-4 no-print">
         <div class="container-fluid">
             <span class="navbar-brand mb-0 h6 app-header-title d-flex align-items-center gap-2">
@@ -160,7 +167,7 @@ function formatMoney($value): string
                 <?php endif; ?>
                 <span class="d-inline-flex flex-column lh-sm">
                     <span>Provincial Health Office</span>
-                    <small class="fw-normal" style="font-size: 0.72rem;">Outbound Summary Report</small>
+                    <small class="fw-normal">Outbound Summary Report</small>
                 </span>
             </span>
             <div class="app-header-actions">
@@ -176,9 +183,14 @@ function formatMoney($value): string
         <div class="container">
             <div class="card app-card">
                 <div class="card-body">
-                    <div class="d-flex justify-content-between align-items-center mb-3 no-print">
+                    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3 no-print">
                         <h1 class="h5 mb-0">Outbound Summary Report</h1>
-                        <button type="button" class="btn btn-primary btn-sm" onclick="window.print();">Print</button>
+                        <div class="d-flex align-items-center flex-wrap gap-2">
+                            <span class="outbound-kpi-chip">Rows: <strong id="visibleRowsCount"><?= number_format(count($rows)) ?></strong></span>
+                            <span class="outbound-kpi-chip">Qty: <strong><?= number_format($totalReleasedQty) ?></strong></span>
+                            <span class="outbound-kpi-chip">Amount: <strong><?= formatMoney($totalReleasedAmount) ?></strong></span>
+                            <button type="button" class="btn btn-primary btn-sm" onclick="window.print();">Print</button>
+                        </div>
                     </div>
 
                     <?php if ($error !== ''): ?>
@@ -186,25 +198,25 @@ function formatMoney($value): string
                     <?php endif; ?>
 
                     <!-- Filter Section -->
-                    <div class="card mb-4 no-print" style="background-color: #f8f9fa; border: 1px solid #dee2e6;">
-                        <div class="card-body p-3">
-                            <h6 class="mb-3 fw-bold">Filter</h6>
+                    <div class="card mb-4 no-print outbound-filter-card">
+                        <div class="card-body">
+                            <h6 class="mb-3 fw-bold">Filter Records</h6>
                             <div class="row g-2">
                                 <div class="col-md-3">
                                     <label for="filterProgram" class="form-label form-label-sm">End-user / Program</label>
-                                    <input type="text" class="form-control form-control-sm" id="filterProgram" placeholder="Search program...">
+                                    <input type="text" class="form-control" id="filterProgram" placeholder="Search program...">
                                 </div>
                                 <div class="col-md-3">
                                     <label for="filterDescription" class="form-label form-label-sm">Item Description</label>
-                                    <input type="text" class="form-control form-control-sm" id="filterDescription" placeholder="Search item...">
+                                    <input type="text" class="form-control" id="filterDescription" placeholder="Search item...">
                                 </div>
                                 <div class="col-md-2">
                                     <label for="filterDateFrom" class="form-label form-label-sm">Date From</label>
-                                    <input type="date" class="form-control form-control-sm" id="filterDateFrom">
+                                    <input type="date" class="form-control" id="filterDateFrom">
                                 </div>
                                 <div class="col-md-2">
                                     <label for="filterDateTo" class="form-label form-label-sm">Date To</label>
-                                    <input type="date" class="form-control form-control-sm" id="filterDateTo">
+                                    <input type="date" class="form-control" id="filterDateTo">
                                 </div>
                                 <div class="col-md-2 d-flex align-items-end">
                                     <button type="button" class="btn btn-sm btn-outline-secondary w-100" id="clearFilterBtn">Clear Filters</button>
@@ -213,48 +225,58 @@ function formatMoney($value): string
                         </div>
                     </div>
 
-                    <div class="table-responsive" style="font-size: 0.85rem;">
-                        <table class="table table-sm table-striped align-middle mb-0" id="outboundTable" style="font-size: 0.8rem;">
-                            <thead class="table-light">
-                                <tr style="font-size: 0.75rem;">
-                                    <th style="padding: 0.35rem 0.5rem;">End-user</th>
-                                    <th style="padding: 0.35rem 0.5rem;">PO #</th>
-                                    <th style="padding: 0.35rem 0.5rem;">Date Released</th>
-                                    <th style="padding: 0.35rem 0.5rem;">Item Description</th>
-                                    <th style="padding: 0.35rem 0.5rem;">Exp Date</th>
-                                    <th class="text-end" style="padding: 0.35rem 0.5rem;">Qty</th>
-                                    <th style="padding: 0.35rem 0.5rem;">UOM</th>
-                                    <th class="text-end" style="padding: 0.35rem 0.5rem;">Unit Cost</th>
-                                    <th class="text-end" style="padding: 0.35rem 0.5rem;">Total Cost</th>
-                                    <th style="padding: 0.35rem 0.5rem;">Recipient</th>
-                                    <th style="padding: 0.35rem 0.5rem;">PTR #</th>
+                    <div class="inventory-table-container">
+                        <div class="inventory-stats no-print">
+                            Total Records: <span class="inventory-stats-value" id="visibleRowsCount2"><?= count($rows) ?></span>
+                        </div>
+                        <div class="inventory-table-wrapper">
+                            <table class="table inventory-table" id="outboundTable">
+                            <thead>
+                                <tr>
+                                    <th>End-user</th>
+                                    <th>PO #</th>
+                                    <th>Date Released</th>
+                                    <th>Item Description</th>
+                                    <th class="text-nowrap text-center">Exp Date</th>
+                                    <th class="text-end">Qty</th>
+                                    <th>UOM</th>
+                                    <th class="text-end">Unit Cost</th>
+                                    <th class="text-end">Total Cost</th>
+                                    <th>Recipient</th>
+                                    <th>PTR #</th>
                                 </tr>
                             </thead>
-                            <tbody style="font-size: 0.75rem;">
+                            <tbody>
                                 <?php if (empty($rows)): ?>
-                                    <tr>
-                                        <td colspan="11" class="text-center text-muted" style="padding: 0.35rem 0.5rem;">No outbound records found.</td>
+                                    <tr class="outbound-empty-row">
+                                        <td colspan="11" class="text-center py-5">
+                                            <div class="inventory-empty-state">
+                                                <div class="inventory-empty-state-icon">📦</div>
+                                                <div><strong>No outbound records found.</strong></div>
+                                            </div>
+                                        </td>
                                     </tr>
                                 <?php else: ?>
                                     <?php foreach ($rows as $row): ?>
-                                        <tr style="border-bottom: 0.5px solid #dee2e6;" data-program="<?= htmlspecialchars((string) ($row['program'] ?? '')) ?>" data-description="<?= htmlspecialchars((string) ($row['description'] ?? '')) ?>" data-date="<?= htmlspecialchars((string) ($row['date_released'] ?? '')) ?>">
-                                            <td style="padding: 0.35rem 0.5rem;"><?= htmlspecialchars((string) ($row['program'] ?? '-')) ?></td>
-                                            <td style="padding: 0.35rem 0.5rem;"><?= htmlspecialchars((string) ($row['po_no'] ?? '-')) ?></td>
-                                            <td style="padding: 0.35rem 0.5rem;"><?= htmlspecialchars((string) ($row['date_released'] ?? '-')) ?></td>
-                                            <td style="padding: 0.35rem 0.5rem;"><?= htmlspecialchars((string) ($row['description'] ?? '-')) ?></td>
-                                            <td style="padding: 0.35rem 0.5rem;"><?= htmlspecialchars((string) ($row['expiration_date'] ?? '-')) ?></td>
-                                            <td class="text-end" style="padding: 0.35rem 0.5rem;"><?= htmlspecialchars((string) ($row['quantity'] ?? '0')) ?></td>
-                                            <td style="padding: 0.35rem 0.5rem;"><?= htmlspecialchars((string) ($row['unit'] ?? '-')) ?></td>
-                                            <td class="text-end" style="padding: 0.35rem 0.5rem;"><?= formatMoney($row['unit_cost'] ?? 0) ?></td>
-                                            <td class="text-end" style="padding: 0.35rem 0.5rem;"><?= formatMoney($row['total_cost'] ?? 0) ?></td>
-                                            <td style="padding: 0.35rem 0.5rem;"><?= htmlspecialchars((string) ($row['recipient'] ?? '-')) ?></td>
-                                            <td style="padding: 0.35rem 0.5rem;"><?= htmlspecialchars((string) ($row['ptr_no'] ?? '-')) ?></td>
+                                        <tr data-record-row="true" data-program="<?= htmlspecialchars((string) ($row['program'] ?? '')) ?>" data-description="<?= htmlspecialchars((string) ($row['description'] ?? '')) ?>" data-date="<?= htmlspecialchars((string) ($row['date_released'] ?? '')) ?>">
+                                            <td><?= htmlspecialchars((string) ($row['program'] ?? '-')) ?></td>
+                                            <td><?= htmlspecialchars((string) ($row['po_no'] ?? '-')) ?></td>
+                                            <td><?= htmlspecialchars((string) ($row['date_released'] ?? '-')) ?></td>
+                                            <td><?= htmlspecialchars((string) ($row['description'] ?? '-')) ?></td>
+                                        <td class="text-center text-nowrap"><?= htmlspecialchars((string) ($row['expiration_date'] ?? '-')) ?></td>
+                                        <td class="text-end"><?= htmlspecialchars((string) ($row['quantity'] ?? '0')) ?></td>
+                                        <td class="text-center"><?= htmlspecialchars((string) ($row['unit'] ?? '-')) ?></td>
+                                        <td class="text-end"><span class="inventory-currency"><?= number_format((float)($row['unit_cost'] ?? 0), 2) ?></span></td>
+                                        <td class="text-end"><span class="inventory-currency"><?= number_format((float)($row['total_cost'] ?? 0), 2) ?></span></td>
+                                            <td><?= htmlspecialchars((string) ($row['recipient'] ?? '-')) ?></td>
+                                            <td><?= htmlspecialchars((string) ($row['ptr_no'] ?? '-')) ?></td>
                                         </tr>
                                     <?php endforeach; ?>
                                 <?php endif; ?>
                             </tbody>
                         </table>
                     </div>
+                </div>
                 </div>
             </div>
         </div>
@@ -269,14 +291,17 @@ function formatMoney($value): string
             const filterDateFromInput = document.getElementById('filterDateFrom');
             const filterDateToInput = document.getElementById('filterDateTo');
             const clearFilterBtn = document.getElementById('clearFilterBtn');
+            const visibleRowsCount = document.getElementById('visibleRowsCount');
+            const visibleRowsCount2 = document.getElementById('visibleRowsCount2');
             const table = document.getElementById('outboundTable');
-            const rows = table.querySelectorAll('tbody tr');
+            const rows = table.querySelectorAll('tbody tr[data-record-row="true"]');
 
             function applyFilters() {
                 const programFilter = filterProgramInput.value.toLowerCase();
                 const descriptionFilter = filterDescriptionInput.value.toLowerCase();
                 const dateFromFilter = filterDateFromInput.value;
                 const dateToFilter = filterDateToInput.value;
+                let visibleCount = 0;
 
                 rows.forEach(row => {
                     const programText = (row.getAttribute('data-program') || '').toLowerCase();
@@ -304,7 +329,17 @@ function formatMoney($value): string
                     }
 
                     row.style.display = showRow ? '' : 'none';
+                    if (showRow) {
+                        visibleCount++;
+                    }
                 });
+
+                if (visibleRowsCount) {
+                    visibleRowsCount.textContent = visibleCount.toLocaleString();
+                }
+                if (visibleRowsCount2) {
+                    visibleRowsCount2.textContent = visibleCount.toLocaleString();
+                }
             }
 
             function clearFilters() {
@@ -315,11 +350,13 @@ function formatMoney($value): string
                 applyFilters();
             }
 
-            filterProgramInput.addEventListener('keyup', applyFilters);
-            filterDescriptionInput.addEventListener('keyup', applyFilters);
+            filterProgramInput.addEventListener('input', applyFilters);
+            filterDescriptionInput.addEventListener('input', applyFilters);
             filterDateFromInput.addEventListener('change', applyFilters);
             filterDateToInput.addEventListener('change', applyFilters);
             clearFilterBtn.addEventListener('click', clearFilters);
+
+            applyFilters();
         })();
     </script>
 </body>

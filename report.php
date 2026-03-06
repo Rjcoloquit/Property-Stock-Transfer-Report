@@ -916,12 +916,12 @@ try {
             <span class="navbar-brand mb-0 h6 app-header-title d-flex align-items-center gap-2">
                 <?php if (file_exists(__DIR__ . '/PHO.png')): ?>
                     <a href="home.php" class="app-header-logo-link" aria-label="Go to homepage">
-                        <img src="PHO.png" alt="Palawan Health Office Logo" class="app-logo-circle" style="height: 40px; width: 40px;">
+                        <img src="PHO.png" alt="Palawan Health Office Logo" class="app-logo-circle app-logo-md">
                     </a>
                 <?php endif; ?>
                 <span class="d-inline-flex flex-column lh-sm">
                     <span>Provincial Health Office</span>
-                    <small class="fw-normal" style="font-size: 0.72rem;">Transaction History</small>
+                    <small class="fw-normal">Transaction History</small>
                 </span>
             </span>
             <div class="app-header-actions">
@@ -1003,8 +1003,9 @@ try {
                             </div>
                         </div>
                         <?php if (empty($records)): ?>
-                            <div class="alert alert-info py-2 mb-0">
-                                No transaction history found.
+                            <div class="inventory-empty-state">
+                                <div class="inventory-empty-state-icon">📄</div>
+                                <div><strong>No transaction history found.</strong></div>
                             </div>
                         <?php else: ?>
                             <?php $groupIndex = 0; ?>
@@ -1050,8 +1051,9 @@ try {
                                             <?php endif; ?>
                                         </div>
                                     </div>
-                                    <div class="table-responsive report-group-table-wrap">
-                                        <table class="table align-middle mb-0 report-group-table">
+                                    <div class="inventory-table-container">
+                                        <div class="inventory-table-wrapper">
+                                            <table class="table inventory-table">
                                             <colgroup>
                                                 <col class="report-col-description">
                                                 <col class="report-col-batch">
@@ -1065,13 +1067,13 @@ try {
                                             <thead>
                                                 <tr>
                                                     <th class="report-col-description">Description</th>
-                                                    <th class="report-col-batch">Batch No.</th>
+                                                    <th class="report-col-batch text-center">Batch No.</th>
                                                     <th class="report-col-program">Program</th>
-                                                    <th class="report-col-po">PO No.</th>
-                                                    <th class="report-col-unit">Unit</th>
-                                                    <th class="report-col-expiry">Exp. Date</th>
-                                                    <th class="report-col-qty">Qty</th>
-                                                    <th class="report-col-action">Action</th>
+                                                    <th class="report-col-po text-center">PO No.</th>
+                                                    <th class="report-col-unit text-center">Unit</th>
+                                                    <th class="report-col-expiry text-center">Exp. Date</th>
+                                                    <th class="report-col-qty text-end">Qty</th>
+                                                    <th class="report-col-action text-center">Action</th>
                                                 </tr>
                                             </thead>
                                             <tbody>
@@ -1080,13 +1082,13 @@ try {
                                                         <td class="report-col-description" title="<?= htmlspecialchars((string) ($record['description'] ?? '-')) ?>">
                                                             <?= htmlspecialchars($record['description'] ?? '-') ?>
                                                         </td>
-                                                        <td class="report-col-batch"><?= htmlspecialchars($record['batch_number'] ?? '-') ?></td>
+                                                        <td class="report-col-batch text-center"><?= htmlspecialchars($record['batch_number'] ?? '-') ?></td>
                                                         <td class="report-col-program"><?= htmlspecialchars($record['program'] ?? '-') ?></td>
-                                                        <td class="report-col-po"><?= htmlspecialchars($record['po_no'] ?? '-') ?></td>
-                                                        <td class="report-col-unit"><?= htmlspecialchars($record['unit'] ?? '-') ?></td>
-                                                        <td class="report-col-expiry"><?= htmlspecialchars($record['expiration_date'] ?? '-') ?></td>
-                                                        <td class="report-col-qty"><?= (int) ($record['quantity'] ?? 0) ?></td>
-                                                        <td class="report-col-action">
+                                                        <td class="report-col-po text-center"><?= htmlspecialchars($record['po_no'] ?? '-') ?></td>
+                                                        <td class="report-col-unit text-center"><?= htmlspecialchars($record['unit'] ?? '-') ?></td>
+                                                        <td class="report-col-expiry text-center"><?= htmlspecialchars($record['expiration_date'] ?? '-') ?></td>
+                                                        <td class="report-col-qty text-end"><?= (int) ($record['quantity'] ?? 0) ?></td>
+                                                        <td class="report-col-action text-center">
                                                             <form method="post" action="report.php" onsubmit="return confirm('Delete this transaction?');" class="d-inline">
                                                                 <input type="hidden" name="action" value="delete">
                                                                 <input type="hidden" name="id" value="<?= (int) ($record['id'] ?? 0) ?>">
@@ -1094,7 +1096,7 @@ try {
                                                                 <input type="hidden" name="return_date_from" value="<?= htmlspecialchars($dateFrom) ?>">
                                                                 <input type="hidden" name="return_date_to" value="<?= htmlspecialchars($dateTo) ?>">
                                                                 <input type="hidden" name="return_sort" value="<?= htmlspecialchars($sort) ?>">
-                                                                <button type="submit" class="btn btn-outline-danger btn-sm">Delete</button>
+                                                                <button type="submit" class="inventory-action-btn inventory-btn-delete">Delete</button>
                                                             </form>
                                                         </td>
                                                     </tr>
@@ -1102,6 +1104,7 @@ try {
                                             </tbody>
                                         </table>
                                     </div>
+                                </div>
                                     <div id="<?= htmlspecialchars($groupPreviewId) ?>" class="preview-sheet d-none">
                                         <div class="preview-header">
                                             <div class="preview-logo-wrap">
@@ -1198,7 +1201,7 @@ try {
                                         </table>
                                         <table class="signatory-table">
                                             <tr>
-                                                <td style="width:50%">
+                                                <td class="preview-signatory-half">
                                                     <div class="signatory-content">
                                                         <span class="preview-label signatory-label">Prepared by:</span>
                                                         Mark Anthony Borres<br>
@@ -1206,7 +1209,7 @@ try {
                                                         Richard Roy
                                                     </div>
                                                 </td>
-                                                <td style="width:50%">
+                                                <td class="preview-signatory-half">
                                                     <div class="signatory-content">
                                                         <span class="preview-label signatory-label">Approved by:</span>
                                                         Elizabeth C. Calaor, RPh<br>
@@ -1216,14 +1219,14 @@ try {
                                                 </td>
                                             </tr>
                                             <tr>
-                                                <td style="width:50%">
+                                                <td class="preview-signatory-half">
                                                     <div class="signatory-content">
                                                         <span class="preview-label signatory-label">Issued by:</span>
                                                         Jannete Ventura<br>
                                                         Earnest John Tolentino, RPh
                                                     </div>
                                                 </td>
-                                                <td style="width:50%">
+                                                <td class="preview-signatory-half">
                                                     <div class="received-box">
                                                         <div class="received-top">
                                                             <span class="preview-label">Received by:</span>

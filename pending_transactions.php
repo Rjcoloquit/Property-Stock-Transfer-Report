@@ -496,12 +496,12 @@ try {
             <span class="navbar-brand mb-0 h6 app-header-title d-flex align-items-center gap-2">
                 <?php if (file_exists(__DIR__ . '/PHO.png')): ?>
                     <a href="home.php" class="app-header-logo-link" aria-label="Go to homepage">
-                        <img src="PHO.png" alt="Palawan Health Office Logo" class="app-logo-circle" style="height: 40px; width: 40px;">
+                        <img src="PHO.png" alt="Palawan Health Office Logo" class="app-logo-circle app-logo-md">
                     </a>
                 <?php endif; ?>
                 <span class="d-inline-flex flex-column lh-sm">
                     <span>Provincial Health Office</span>
-                    <small class="fw-normal" style="font-size: 0.72rem;">Pending Transactions</small>
+                    <small class="fw-normal">Pending Transactions</small>
                 </span>
             </span>
             <div class="app-header-actions">
@@ -522,8 +522,8 @@ try {
                     <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
                         <h1 class="h5 mb-0">Pending PTR Transactions</h1>
                         <form method="get" action="pending_transactions.php" class="d-flex gap-2">
-                            <input type="text" name="q" class="form-control form-control-sm" value="<?= htmlspecialchars($search) ?>" placeholder="Search PTR, recipient, item">
-                            <button type="submit" class="btn btn-primary btn-sm">Search</button>
+                            <input type="text" name="q" class="form-control" value="<?= htmlspecialchars($search) ?>" placeholder="Search PTR, recipient, item" style="min-width: 280px;">
+                            <button type="submit" class="btn btn-primary">Search</button>
                         </form>
                     </div>
 
@@ -533,7 +533,10 @@ try {
                     <?php if ($error !== ''): ?>
                         <div class="alert alert-danger py-2 mb-0"><?= htmlspecialchars($error) ?></div>
                     <?php elseif (empty($pendingGroups)): ?>
-                        <div class="alert alert-info py-2 mb-0">No pending PTR transactions found.</div>
+                        <div class="inventory-empty-state">
+                            <div class="inventory-empty-state-icon">📎</div>
+                            <div><strong>No pending PTR transactions found.</strong></div>
+                        </div>
                     <?php else: ?>
                         <?php foreach ($pendingGroups as $group): ?>
                             <section class="report-group-block">
@@ -553,34 +556,36 @@ try {
                                         </form>
                                     </div>
                                 </div>
-                                <div class="table-responsive report-group-table-wrap">
-                                    <table class="table align-middle mb-0 report-group-table">
+                                <div class="inventory-table-container mb-4">
+                                    <div class="inventory-table-wrapper">
+                                        <table class="table inventory-table">
                                         <thead>
                                             <tr>
                                                 <th>Description</th>
                                                 <th>Batch</th>
                                                 <th>Program</th>
                                                 <th>PO No.</th>
-                                                <th>Unit</th>
-                                                <th>Exp. Date</th>
-                                                <th class="text-center">Qty</th>
+                                                <th class="text-center">Unit</th>
+                                                <th class="text-center">Exp. Date</th>
+                                                <th class="text-end">Qty</th>
                                             </tr>
                                         </thead>
                                         <tbody>
                                             <?php foreach ($group['items'] as $item): ?>
                                                 <tr>
                                                     <td><?= htmlspecialchars((string) ($item['description'] ?? '-')) ?></td>
-                                                    <td><?= htmlspecialchars((string) ($item['batch_number'] ?? '-')) ?></td>
+                                                    <td class="text-center"><?= htmlspecialchars((string) ($item['batch_number'] ?? '-')) ?></td>
                                                     <td><?= htmlspecialchars((string) ($item['program'] ?? '-')) ?></td>
-                                                    <td><?= htmlspecialchars((string) ($item['po_no'] ?? '-')) ?></td>
-                                                    <td><?= htmlspecialchars((string) ($item['unit'] ?? '-')) ?></td>
-                                                    <td><?= htmlspecialchars((string) ($item['expiration_date'] ?? '-')) ?></td>
-                                                    <td class="text-center"><?= (int) ($item['quantity'] ?? 0) ?></td>
+                                                    <td class="text-center"><?= htmlspecialchars((string) ($item['po_no'] ?? '-')) ?></td>
+                                                    <td class="text-center"><?= htmlspecialchars((string) ($item['unit'] ?? '-')) ?></td>
+                                                    <td class="text-center"><?= htmlspecialchars((string) ($item['expiration_date'] ?? '-')) ?></td>
+                                                    <td class="text-end"><?= (int) ($item['quantity'] ?? 0) ?></td>
                                                 </tr>
                                             <?php endforeach; ?>
                                         </tbody>
                                     </table>
                                 </div>
+                            </div>
                             </section>
                         <?php endforeach; ?>
                     <?php endif; ?>

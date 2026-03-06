@@ -206,12 +206,12 @@ while (count($ledgerRows) < 18) {
             <span class="navbar-brand mb-0 h6 app-header-title d-flex align-items-center gap-2">
                 <?php if (file_exists(__DIR__ . '/PHO.png')): ?>
                     <a href="home.php" class="app-header-logo-link" aria-label="Go to homepage">
-                        <img src="PHO.png" alt="Palawan Health Office Logo" class="app-logo-circle" style="height: 40px; width: 40px;">
+                        <img src="PHO.png" alt="Palawan Health Office Logo" class="app-logo-circle app-logo-md">
                     </a>
                 <?php endif; ?>
                 <span class="d-inline-flex flex-column lh-sm">
                     <span>Provincial Health Office</span>
-                    <small class="fw-normal" style="font-size: 0.72rem;">Stock Card (Released PTR)</small>
+                    <small class="fw-normal">Stock Card (Released PTR)</small>
                 </span>
             </span>
             <div class="app-header-actions">
@@ -302,6 +302,12 @@ while (count($ledgerRows) < 18) {
                     <div class="stock-card-sheet">
                         <div class="table-responsive">
                             <table class="table table-bordered table-sm mb-0 stock-card-master-table">
+                                <colgroup>
+                                    <col class="stock-master-col-label">
+                                    <col class="stock-master-col-value">
+                                    <col class="stock-master-col-label">
+                                    <col class="stock-master-col-value">
+                                </colgroup>
                                 <tbody>
                                     <tr>
                                         <td colspan="2" class="stock-card-title-cell">STOCK CARD</td>
@@ -350,6 +356,15 @@ while (count($ledgerRows) < 18) {
 
                         <div class="table-responsive mt-2">
                             <table class="table table-bordered table-sm mb-0 stock-card-ledger-table">
+                                <colgroup>
+                                    <col class="stock-col-date">
+                                    <col class="stock-col-qty">
+                                    <col class="stock-col-qty">
+                                    <col class="stock-col-qty">
+                                    <col class="stock-col-cost">
+                                    <col class="stock-col-ref">
+                                    <col class="stock-col-remarks">
+                                </colgroup>
                                 <thead>
                                     <tr>
                                         <th rowspan="2" class="stock-col-date text-center">Date</th>

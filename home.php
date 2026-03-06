@@ -133,12 +133,12 @@ try {
             <span class="navbar-brand mb-0 h6 app-header-title d-flex align-items-center gap-2">
                 <?php if (file_exists(__DIR__ . '/PHO.png')): ?>
                     <a href="home.php" class="app-header-logo-link" aria-label="Go to homepage">
-                        <img src="PHO.png" alt="Palawan Health Office Logo" class="app-logo-circle" style="height: 40px; width: 40px;">
+                        <img src="PHO.png" alt="Palawan Health Office Logo" class="app-logo-circle app-logo-md">
                     </a>
                 <?php endif; ?>
                 <span class="d-inline-flex flex-column lh-sm">
                     <span>Provincial Health Office</span>
-                    <small class="fw-normal" style="font-size: 0.72rem;">Home</small>
+                    <small class="fw-normal">Home</small>
                 </span>
             </span>
             <div class="app-header-actions">
@@ -290,7 +290,7 @@ try {
                             <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
                                 <h2 class="h6 mb-0">Recent Transactions</h2>
                                 <div class="d-flex align-items-center gap-2 flex-wrap justify-content-end">
-                                    <input type="text" id="txFilterInput" class="form-control form-control-sm" style="max-width: 280px;" placeholder="Filter recent transactions">
+                                    <input type="text" id="txFilterInput" class="form-control form-control-sm recent-tx-filter-input" placeholder="Filter recent transactions">
                                     <a href="create_ptr.php" class="btn btn-primary btn-sm">+ Add Transaction</a>
                                 </div>
                             </div>

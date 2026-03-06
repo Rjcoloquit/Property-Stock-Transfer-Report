@@ -3,19 +3,34 @@
 
     var config = window.homeConfig || {};
     var trendData = config.trendData || {};
+    var prefersReducedMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+    function easeOutCubic(t) {
+        return 1 - Math.pow(1 - t, 3);
+    }
 
     function animateCounters() {
+        if (prefersReducedMotion) {
+            document.querySelectorAll('[data-animate]').forEach(function (el) {
+                var targetValue = Number(el.getAttribute('data-animate'));
+                if (Number.isFinite(targetValue)) {
+                    el.textContent = Math.round(targetValue).toLocaleString();
+                }
+            });
+            return;
+        }
+
         document.querySelectorAll('[data-animate]').forEach(function (el) {
             var target = Number(el.getAttribute('data-animate'));
             if (!Number.isFinite(target)) {
                 return;
             }
-            var duration = 700;
+            var duration = 760;
             var start = performance.now();
 
             function frame(now) {
                 var progress = Math.min((now - start) / duration, 1);
-                var current = Math.round(target * progress);
+                var current = Math.round(target * easeOutCubic(progress));
                 el.textContent = current.toLocaleString();
                 if (progress < 1) {
                     requestAnimationFrame(frame);
@@ -64,6 +79,10 @@
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
+                animation: prefersReducedMotion ? false : {
+                    duration: 340,
+                    easing: 'easeOutQuart'
+                },
                 plugins: {
                     legend: { display: false },
                     tooltip: {
@@ -117,11 +136,22 @@
     var txFilterInput = document.getElementById('txFilterInput');
     var recentTxBody = document.getElementById('recentTxBody');
     if (txFilterInput && recentTxBody) {
-        txFilterInput.addEventListener('input', function () {
+        var filterFrame = null;
+        function applyTxFilter() {
             var query = txFilterInput.value.trim().toLowerCase();
             recentTxBody.querySelectorAll('tr').forEach(function (row) {
                 var text = row.textContent.toLowerCase();
                 row.style.display = text.includes(query) ? '' : 'none';
+            });
+        }
+
+        txFilterInput.addEventListener('input', function () {
+            if (filterFrame !== null) {
+                cancelAnimationFrame(filterFrame);
+            }
+            filterFrame = requestAnimationFrame(function () {
+                applyTxFilter();
+                filterFrame = null;
             });
         });
     }

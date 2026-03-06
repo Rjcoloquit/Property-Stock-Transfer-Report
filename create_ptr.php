@@ -550,18 +550,18 @@ $previewLineRows = 10;
         }
     </style>
 </head>
-<body>
+<body class="create-ptr-page">
     <header class="navbar navbar-expand-lg navbar-light bg-white app-header px-3 px-md-4">
         <div class="container-fluid">
             <span class="navbar-brand mb-0 h6 app-header-title d-flex align-items-center gap-2">
                 <?php if (file_exists(__DIR__ . '/PHO.png')): ?>
                     <a href="home.php" class="app-header-logo-link" aria-label="Go to homepage">
-                        <img src="PHO.png" alt="Palawan Health Office Logo" class="app-logo-circle" style="height: 40px; width: 40px;">
+                        <img src="PHO.png" alt="Palawan Health Office Logo" class="app-logo-circle app-logo-md">
                     </a>
                 <?php endif; ?>
                 <span class="d-inline-flex flex-column lh-sm">
                     <span>Provincial Health Office</span>
-                    <small class="fw-normal" style="font-size: 0.72rem;">Create Property Stock Transfer Report</small>
+                    <small class="fw-normal">Create Property Stock Transfer Report</small>
                 </span>
             </span>
             <div class="app-header-actions">
@@ -645,19 +645,19 @@ $previewLineRows = 10;
                             <button type="button" id="addItemBtn" class="btn btn-outline-primary btn-sm">Add Item</button>
                         </div>
                         <div class="table-responsive mt-2">
-                            <table class="table table-bordered align-middle mb-0" id="itemRowsTable">
+                            <table class="table table-bordered align-middle mb-0 ptr-items-table" id="itemRowsTable">
                                 <thead class="table-light">
                                     <tr>
-                                        <th>Description</th>
-                                        <th style="width: 12%">Batch Number</th>
-                                        <th style="width: 9%">Qty</th>
-                                        <th style="width: 9%">Unit</th>
-                                        <th style="width: 11%">Unit Cost</th>
-                                        <th style="width: 11%">Amount</th>
-                                        <th style="width: 14%">Program</th>
-                                        <th style="width: 10%">PO Number</th>
-                                        <th style="width: 11%">Expiration</th>
-                                        <th style="width: 8%" class="text-center">Action</th>
+                                        <th class="ptr-col-desc">Description</th>
+                                        <th class="ptr-col-batch">Batch Number</th>
+                                        <th class="ptr-col-qty">Qty</th>
+                                        <th class="ptr-col-unit">Unit</th>
+                                        <th class="ptr-col-unit-cost">Unit Cost</th>
+                                        <th class="ptr-col-amount">Amount</th>
+                                        <th class="ptr-col-program">Program</th>
+                                        <th class="ptr-col-po">PO Number</th>
+                                        <th class="ptr-col-exp">Expiration</th>
+                                        <th class="ptr-col-action text-center">Action</th>
                                     </tr>
                                 </thead>
                                 <tbody id="itemRowsBody">
@@ -863,7 +863,7 @@ $previewLineRows = 10;
                         </table>
                         <table class="signatory-table">
                             <tr>
-                                <td style="width:50%">
+                                <td class="preview-signatory-half">
                                     <div class="signatory-content">
                                         <span class="preview-label signatory-label">Prepared by:</span>
                                         Mark Anthony Borres<br>
@@ -871,7 +871,7 @@ $previewLineRows = 10;
                                         Richard Roy
                                     </div>
                                 </td>
-                                <td style="width:50%">
+                                <td class="preview-signatory-half">
                                     <div class="signatory-content">
                                         <span class="preview-label signatory-label">Approved by:</span>
                                         Elizabeth C. Calaor, RPh<br>
@@ -881,14 +881,14 @@ $previewLineRows = 10;
                                 </td>
                             </tr>
                             <tr>
-                                <td style="width:50%">
+                                <td class="preview-signatory-half">
                                     <div class="signatory-content">
                                         <span class="preview-label signatory-label">Issued by:</span>
                                         Jannete Ventura<br>
                                         Earnest John Tolentino, RPh
                                     </div>
                                 </td>
-                                <td style="width:50%">
+                                <td class="preview-signatory-half">
                                     <div class="received-box">
                                         <div class="received-top">
                                             <span class="preview-label">Received by:</span>

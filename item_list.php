@@ -880,12 +880,12 @@ try {
             <span class="navbar-brand mb-0 h6 app-header-title d-flex align-items-center gap-2">
                 <?php if (file_exists(__DIR__ . '/PHO.png')): ?>
                     <a href="home.php" class="app-header-logo-link" aria-label="Go to homepage">
-                        <img src="PHO.png" alt="Palawan Health Office Logo" class="app-logo-circle" style="height: 40px; width: 40px;">
+                        <img src="PHO.png" alt="Palawan Health Office Logo" class="app-logo-circle app-logo-md">
                     </a>
                 <?php endif; ?>
                 <span class="d-inline-flex flex-column lh-sm">
                     <span>Provincial Health Office</span>
-                    <small class="fw-normal" style="font-size: 0.72rem;">Manage Items</small>
+                    <small class="fw-normal">Manage Items</small>
                 </span>
             </span>
             <div class="app-header-actions">
@@ -902,22 +902,22 @@ try {
                 <div class="card-body">
                     <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
                         <h1 class="h5 mb-0">Item List</h1>
-                        <button type="button" class="btn btn-outline-neutral-black item-list-uniform-btn" data-bs-toggle="modal" data-bs-target="#itemFormModal">
-                            Add Item
+                        <button type="button" class="inventory-add-btn" data-bs-toggle="modal" data-bs-target="#itemFormModal">
+                            + Add Item
                         </button>
                     </div>
 
                     <form method="get" action="item_list.php" class="row g-2 mb-3">
-                        <div class="col-md-9">
+                        <div class="col-md-9 inventory-search-bar">
                             <input
                                 type="text"
                                 name="q"
                                 class="form-control"
                                 value="<?= htmlspecialchars($search) ?>"
-                                placeholder="Search description, batch number, or unit"
+                                placeholder="Search product description, batch number, or unit of measure"
                             >
                         </div>
-                        <div class="col-md-3">
+                        <div class="col-md-3 inventory-sort-select">
                             <select name="sort" class="form-select" aria-label="Sort order" onchange="this.form.submit()">
                                 <option value="asc" <?= $sort === 'asc' ? 'selected' : '' ?>>Arrange: Ascending</option>
                                 <option value="desc" <?= $sort === 'desc' ? 'selected' : '' ?>>Arrange: Descending</option>
@@ -930,41 +930,47 @@ try {
                         <?php if ($message !== ''): ?>
                             <div class="alert alert-success py-2"><?= htmlspecialchars($message) ?></div>
                         <?php endif; ?>
-                        <div class="mb-2 small text-muted">Total items: <?= count($items) ?></div>
                         <?php if (empty($items)): ?>
-                            <div class="alert alert-info py-2 mb-0">
-                                No items found<?= $search !== '' ? ' for "' . htmlspecialchars($search) . '"' : '' ?>.
+                            <div class="inventory-empty-state">
+                                <div class="inventory-empty-state-icon">📦</div>
+                                <div>
+                                    <strong>No items found</strong><?= $search !== '' ? ' for "' . htmlspecialchars($search) . '"' : '' ?>.
+                                </div>
                             </div>
                         <?php else: ?>
-                            <div class="table-responsive">
-                                <table class="table table-striped table-hover align-middle">
-                                    <thead class="table-light">
-                                        <tr>
-                                            <th scope="col" class="text-nowrap">No.</th>
-                                            <th scope="col" class="text-nowrap">Product Description</th>
-                                            <th scope="col" class="text-nowrap text-center">Batch Number</th>
-                                            <th scope="col" class="text-nowrap text-center">UOM</th>
-                                            <th scope="col" class="text-nowrap">Stock</th>
-                                            <th scope="col" class="text-nowrap text-center">Cost Per Unit</th>
-                                            <th scope="col" class="text-nowrap">Expiry Date</th>
-                                            <th scope="col" class="text-end text-nowrap">Actions</th>
-                                        </tr>
-                                    </thead>
+                            <div class="inventory-table-container">
+                                <div class="inventory-stats">
+                                    Total Items: <span class="inventory-stats-value"><?= count($items) ?></span>
+                                </div>
+                                <div class="inventory-table-wrapper">
+                                    <table class="table inventory-table">
+                                        <thead>
+                                            <tr>
+                                                <th scope="col" class="col-no">No.</th>
+                                                <th scope="col" class="col-description">Product Description</th>
+                                                <th scope="col" class="col-batch">Batch Number</th>
+                                                <th scope="col" class="col-uom">UOM</th>
+                                                <th scope="col" class="col-stock">Stock</th>
+                                                <th scope="col" class="col-cost">Cost Per Unit</th>
+                                                <th scope="col" class="col-expiry">Expiry Date</th>
+                                                <th scope="col" class="col-actions">Actions</th>
+                                            </tr>
+                                        </thead>
                                     <tbody>
                                         <?php foreach ($items as $index => $item): ?>
                                             <tr>
-                                                <td><?= $index + 1 ?></td>
-                                                <td><?= htmlspecialchars($item['product_description'] ?? '') ?></td>
-                                                <td class="text-center"><?= htmlspecialchars((string) ($item['batch_number'] ?? '-')) ?></td>
-                                                <td class="text-center"><?= htmlspecialchars($item['uom'] ?? '-') ?></td>
-                                                <td><?= (int) ($item['stock'] ?? 0) ?></td>
-                                                <td class="text-center"><?= number_format((float) $item['cost_per_unit'], 2) ?></td>
-                                                <td><?= htmlspecialchars($item['expiry_date'] ?? '-') ?></td>
-                                                <td class="text-end">
+                                                <td class="col-no"><?= $index + 1 ?></td>
+                                                <td class="col-description"><?= htmlspecialchars($item['product_description'] ?? '') ?></td>
+                                                <td class="col-batch"><?= htmlspecialchars((string) ($item['batch_number'] ?? '-')) ?></td>
+                                                <td class="col-uom"><?= htmlspecialchars($item['uom'] ?? '-') ?></td>
+                                                <td class="col-stock"><?= number_format((int) ($item['stock'] ?? 0)) ?></td>
+                                                <td class="col-cost"><span class="inventory-currency"><?= number_format((float) $item['cost_per_unit'], 2) ?></span></td>
+                                                <td class="col-expiry"><?= htmlspecialchars($item['expiry_date'] ?? '-') ?></td>
+                                                <td class="col-actions">
                                                     <div class="d-inline-flex gap-1">
                                                         <button
                                                             type="button"
-                                                            class="btn btn-outline-neutral-black item-list-action-btn item-details-btn"
+                                                            class="inventory-action-btn inventory-btn-details item-details-btn"
                                                             data-item-no="<?= (int) ($index + 1) ?>"
                                                             data-product-description="<?= htmlspecialchars((string) ($item['product_description'] ?? ''), ENT_QUOTES) ?>"
                                                             data-batch-number="<?= htmlspecialchars((string) ($item['batch_number'] ?? ''), ENT_QUOTES) ?>"
@@ -980,11 +986,11 @@ try {
                                                             data-delivery-term="<?= htmlspecialchars((string) ($item['delivery_term'] ?? ''), ENT_QUOTES) ?>"
                                                             data-payment-term="<?= htmlspecialchars((string) ($item['payment_term'] ?? ''), ENT_QUOTES) ?>"
                                                         >
-                                                            Full Details
+                                                            Details
                                                         </button>
                                                         <a
                                                             href="<?= htmlspecialchars(buildItemListUrl($search, $sort, '', (int) $item['id'], (string) ($item['batch_number'] ?? ''))) ?>"
-                                                            class="btn btn-outline-neutral-black item-list-action-btn"
+                                                            class="inventory-action-btn inventory-btn-edit"
                                                         >
                                                             Edit
                                                         </a>
@@ -993,7 +999,7 @@ try {
                                                             <input type="hidden" name="id" value="<?= (int) $item['id'] ?>">
                                                             <input type="hidden" name="return_q" value="<?= htmlspecialchars($search) ?>">
                                                             <input type="hidden" name="return_sort" value="<?= htmlspecialchars($sort) ?>">
-                                                            <button type="submit" class="btn btn-outline-neutral-black item-list-action-btn">Delete</button>
+                                                            <button type="submit" class="inventory-action-btn inventory-btn-delete">Delete</button>
                                                         </form>
                                                     </div>
                                                 </td>
@@ -1002,6 +1008,7 @@ try {
                                     </tbody>
                                 </table>
                             </div>
+                        </div>
                         <?php endif; ?>
                     <?php endif; ?>
                 </div>
