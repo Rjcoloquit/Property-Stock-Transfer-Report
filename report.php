@@ -341,6 +341,15 @@ try {
 
     if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $action = $_POST['action'] ?? '';
+        if (in_array($action, ['delete', 'update', 'create_related'], true)) {
+            $returnSearch = trim((string) ($_POST['return_q'] ?? ''));
+            $returnDateFrom = trim((string) ($_POST['return_date_from'] ?? ''));
+            $returnDateTo = trim((string) ($_POST['return_date_to'] ?? ''));
+            $returnSort = strtolower(trim((string) ($_POST['return_sort'] ?? 'desc')));
+            $returnSort = $returnSort === 'asc' ? 'asc' : 'desc';
+            header('Location: ' . buildReportUrl($returnSearch, $returnDateFrom, $returnDateTo, $returnSort, 'Transaction history is locked. Use Pending PTR to edit drafts before release.'));
+            exit;
+        }
         if ($action === 'delete') {
             $deleteId = isset($_POST['id']) ? (int) $_POST['id'] : 0;
             $returnSearch = trim((string) ($_POST['return_q'] ?? ''));
@@ -776,7 +785,7 @@ try {
         }
     }
 
-    if (!$isEditMode && isset($_GET['edit']) && ctype_digit($_GET['edit'])) {
+    if (false && !$isEditMode && isset($_GET['edit']) && ctype_digit($_GET['edit'])) {
         $editingId = (int) $_GET['edit'];
         if ($editingId > 0) {
             $editStmt = $pdo->prepare('
@@ -823,7 +832,7 @@ try {
         }
     }
 
-    if (!$showAddModal && isset($_GET['add']) && ctype_digit($_GET['add'])) {
+    if (false && !$showAddModal && isset($_GET['add']) && ctype_digit($_GET['add'])) {
         $addingRefId = (int) $_GET['add'];
         if ($addingRefId > 0) {
             $addRefStmt = $pdo->prepare('
@@ -1034,21 +1043,6 @@ try {
                                             >
                                                 Print
                                             </button>
-                                            <?php $groupRefId = isset($group['items'][0]['id']) ? (int) $group['items'][0]['id'] : 0; ?>
-                                            <?php if ($groupRefId > 0): ?>
-                                                <a
-                                                    href="<?= htmlspecialchars(buildReportUrl($search, $dateFrom, $dateTo, $sort, '', $groupRefId)) ?>"
-                                                    class="btn btn-outline-secondary btn-sm"
-                                                >
-                                                    Edit PTR
-                                                </a>
-                                                <a
-                                                    href="<?= htmlspecialchars(buildReportUrl($search, $dateFrom, $dateTo, $sort, '', 0, $groupRefId)) ?>"
-                                                    class="btn btn-outline-primary btn-sm"
-                                                >
-                                                    Add
-                                                </a>
-                                            <?php endif; ?>
                                         </div>
                                     </div>
                                     <div class="inventory-table-container">
@@ -1062,7 +1056,6 @@ try {
                                                 <col class="report-col-unit">
                                                 <col class="report-col-expiry">
                                                 <col class="report-col-qty">
-                                                <col class="report-col-action">
                                             </colgroup>
                                             <thead>
                                                 <tr>
@@ -1073,7 +1066,6 @@ try {
                                                     <th class="report-col-unit text-center">Unit</th>
                                                     <th class="report-col-expiry text-center">Exp. Date</th>
                                                     <th class="report-col-qty text-end">Qty</th>
-                                                    <th class="report-col-action text-center">Action</th>
                                                 </tr>
                                             </thead>
                                             <tbody>
@@ -1088,17 +1080,6 @@ try {
                                                         <td class="report-col-unit text-center"><?= htmlspecialchars($record['unit'] ?? '-') ?></td>
                                                         <td class="report-col-expiry text-center"><?= htmlspecialchars($record['expiration_date'] ?? '-') ?></td>
                                                         <td class="report-col-qty text-end"><?= (int) ($record['quantity'] ?? 0) ?></td>
-                                                        <td class="report-col-action text-center">
-                                                            <form method="post" action="report.php" onsubmit="return confirm('Delete this transaction?');" class="d-inline">
-                                                                <input type="hidden" name="action" value="delete">
-                                                                <input type="hidden" name="id" value="<?= (int) ($record['id'] ?? 0) ?>">
-                                                                <input type="hidden" name="return_q" value="<?= htmlspecialchars($search) ?>">
-                                                                <input type="hidden" name="return_date_from" value="<?= htmlspecialchars($dateFrom) ?>">
-                                                                <input type="hidden" name="return_date_to" value="<?= htmlspecialchars($dateTo) ?>">
-                                                                <input type="hidden" name="return_sort" value="<?= htmlspecialchars($sort) ?>">
-                                                                <button type="submit" class="inventory-action-btn inventory-btn-delete">Delete</button>
-                                                            </form>
-                                                        </td>
                                                     </tr>
                                                 <?php endforeach; ?>
                                             </tbody>

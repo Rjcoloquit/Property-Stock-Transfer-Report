@@ -549,6 +549,7 @@ try {
                                         <span class="report-group-chip"><strong>Total Amount:</strong> PHP <?= number_format((float) $group['total_amount'], 2) ?></span>
                                     </div>
                                     <div class="report-group-head-actions">
+                                        <a href="create_ptr.php?draft=<?= urlencode((string) $group['release_token']) ?>" class="btn btn-outline-secondary btn-sm">Edit Draft</a>
                                         <form method="post" action="pending_transactions.php" onsubmit="return confirm('Release this PTR? This will deduct current stock and make it printable.');" class="d-inline">
                                             <input type="hidden" name="action" value="release">
                                             <input type="hidden" name="release_token" value="<?= htmlspecialchars((string) $group['release_token']) ?>">

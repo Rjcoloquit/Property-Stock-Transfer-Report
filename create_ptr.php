@@ -30,6 +30,20 @@ require_once __DIR__ . '/config/database.php';
 require_once __DIR__ . '/config/ptr_numbering.php';
 $pdo = getConnection();
 $nextPtrNo = '';
+$draftToken = trim((string) ($_GET['draft'] ?? $_POST['draft_token'] ?? ''));
+$isDraftEditMode = false;
+$draftPtrNo = '';
+$draftRowId = 0;
+
+if ($draftToken !== '') {
+    if (str_starts_with($draftToken, 'ptr:')) {
+        $draftPtrNo = trim(substr($draftToken, 4));
+        $isDraftEditMode = $draftPtrNo !== '';
+    } elseif (str_starts_with($draftToken, 'id:')) {
+        $draftRowId = (int) trim(substr($draftToken, 3));
+        $isDraftEditMode = $draftRowId > 0;
+    }
+}
 
 function createBlankItem(): array
 {
@@ -248,10 +262,80 @@ try {
     $errors[] = 'Could not load item descriptions. Please check the products table.';
 }
 
+if ($isDraftEditMode) {
+    try {
+        if ($draftPtrNo !== '') {
+            $draftRowsStmt = $pdo->prepare('
+                SELECT id, record_date, ptr_no, recipient, description, batch_number, batch_id, supplier, quantity, unit, unit_cost, program, po_no, expiration_date
+                FROM inventory_records
+                WHERE ptr_no = ? AND COALESCE(release_status, "released") = "pending"
+                ORDER BY id ASC
+            ');
+            $draftRowsStmt->execute([$draftPtrNo]);
+        } else {
+            $draftRowsStmt = $pdo->prepare('
+                SELECT id, record_date, ptr_no, recipient, description, batch_number, batch_id, supplier, quantity, unit, unit_cost, program, po_no, expiration_date
+                FROM inventory_records
+                WHERE id = ? AND COALESCE(release_status, "released") = "pending"
+                ORDER BY id ASC
+            ');
+            $draftRowsStmt->execute([$draftRowId]);
+        }
+
+        $draftRows = $draftRowsStmt->fetchAll();
+        if (empty($draftRows)) {
+            $errors[] = 'Pending PTR draft not found or already released.';
+            $isDraftEditMode = false;
+            $draftToken = '';
+        } else {
+            $firstDraftRow = $draftRows[0];
+            $data['record_date'] = (string) ($firstDraftRow['record_date'] ?? $data['record_date']);
+            $data['ptr_no'] = (string) ($firstDraftRow['ptr_no'] ?? '');
+            $data['recipient'] = (string) ($firstDraftRow['recipient'] ?? '');
+            $data['items'] = [];
+
+            foreach ($draftRows as $row) {
+                $data['items'][] = [
+                    'batch_id' => (int) ($row['batch_id'] ?? 0),
+                    'description' => (string) ($row['description'] ?? ''),
+                    'batch_number' => (string) ($row['batch_number'] ?? ''),
+                    'supplier' => (string) ($row['supplier'] ?? ''),
+                    'quantity' => (string) ($row['quantity'] ?? ''),
+                    'unit' => (string) ($row['unit'] ?? ''),
+                    'unit_cost' => number_format((float) ($row['unit_cost'] ?? 0), 2, '.', ''),
+                    'program' => (string) ($row['program'] ?? ''),
+                    'po_no' => (string) ($row['po_no'] ?? ''),
+                    'expiration_date' => (string) ($row['expiration_date'] ?? ''),
+                ];
+            }
+        }
+    } catch (PDOException $e) {
+        $errors[] = 'Unable to load pending PTR draft for editing right now.';
+    }
+}
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $postedDraftToken = trim((string) ($_POST['draft_token'] ?? ''));
+    $isDraftEditMode = false;
+    $draftPtrNo = '';
+    $draftRowId = 0;
+    if ($postedDraftToken !== '') {
+        if (str_starts_with($postedDraftToken, 'ptr:')) {
+            $draftPtrNo = trim(substr($postedDraftToken, 4));
+            $isDraftEditMode = $draftPtrNo !== '';
+        } elseif (str_starts_with($postedDraftToken, 'id:')) {
+            $draftRowId = (int) trim(substr($postedDraftToken, 3));
+            $isDraftEditMode = $draftRowId > 0;
+        }
+    }
+
     $data['record_date'] = isset($_POST['record_date']) ? trim((string) $_POST['record_date']) : '';
     $data['recipient'] = isset($_POST['recipient']) ? trim((string) $_POST['recipient']) : '';
-    $data['ptr_no'] = getNextPtrNumber($pdo, $data['record_date']);
+    if ($isDraftEditMode) {
+        $data['ptr_no'] = trim((string) ($_POST['existing_ptr_no'] ?? ''));
+    } else {
+        $data['ptr_no'] = getNextPtrNumber($pdo, $data['record_date']);
+    }
     $data['items'] = [];
 
     $descriptions = isset($_POST['description']) && is_array($_POST['description']) ? $_POST['description'] : [];
@@ -378,8 +462,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     if (empty($errors)) {
         try {
-            $nextPtrNo = getNextPtrNumber($pdo, $data['record_date']);
-            $data['ptr_no'] = (string) $nextPtrNo;
+            if (!$isDraftEditMode) {
+                $nextPtrNo = getNextPtrNumber($pdo, $data['record_date']);
+                $data['ptr_no'] = (string) $nextPtrNo;
+            }
 
             $stmt = $pdo->prepare('
                 INSERT INTO inventory_records
@@ -411,6 +497,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $recipientInsertStmt->execute([$data['recipient']]);
             }
 
+            if ($isDraftEditMode) {
+                if ($draftPtrNo !== '') {
+                    $deleteDraftStmt = $pdo->prepare('
+                        DELETE FROM inventory_records
+                        WHERE ptr_no = ? AND COALESCE(release_status, "released") = "pending"
+                    ');
+                    $deleteDraftStmt->execute([$draftPtrNo]);
+                } elseif ($draftRowId > 0) {
+                    $deleteDraftStmt = $pdo->prepare('
+                        DELETE FROM inventory_records
+                        WHERE id = ? AND COALESCE(release_status, "released") = "pending"
+                    ');
+                    $deleteDraftStmt->execute([$draftRowId]);
+                }
+            }
+
             foreach ($data['items'] as $item) {
                 $stmt->execute([
                     $item['expiration_date'] !== '' ? $item['expiration_date'] : null,
@@ -431,7 +533,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 ]);
             }
             $pdo->commit();
-            header('Location: pending_transactions.php?msg=' . urlencode('PTR saved as pending. Release it to deduct stock and print.'));
+            if ($isDraftEditMode) {
+                header('Location: pending_transactions.php?msg=' . urlencode('Pending PTR draft updated. You can release when final.'));
+            } else {
+                header('Location: pending_transactions.php?msg=' . urlencode('PTR saved as pending. Release it to deduct stock and print.'));
+            }
             exit;
         } catch (Throwable $e) {
             if ($pdo->inTransaction()) {
@@ -464,7 +570,7 @@ $previewLineRows = 10;
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Create Property Stock Transfer Report</title>
+    <title><?= $isDraftEditMode ? 'Edit Pending PTR Draft' : 'Create Property Stock Transfer Report' ?></title>
     <link rel="stylesheet" href="style.css?v=20260305">
     <style>
         .preview-sheet {
@@ -561,7 +667,7 @@ $previewLineRows = 10;
                 <?php endif; ?>
                 <span class="d-inline-flex flex-column lh-sm">
                     <span>Provincial Health Office</span>
-                    <small class="fw-normal">Create Property Stock Transfer Report</small>
+                    <small class="fw-normal"><?= $isDraftEditMode ? 'Edit Pending PTR Draft' : 'Create Property Stock Transfer Report' ?></small>
                 </span>
             </span>
             <div class="app-header-actions">
@@ -580,7 +686,12 @@ $previewLineRows = 10;
         <div class="container">
             <div class="card app-card">
                 <div class="card-body">
-                    <h2 class="h5 mb-3">Property Stock Transfer Report</h2>
+                    <div class="ptr-form-title-row">
+                        <h2 class="h5 mb-0"><?= $isDraftEditMode ? 'Pending PTR Draft Editor' : 'Property Stock Transfer Report' ?></h2>
+                        <?php if ($isDraftEditMode): ?>
+                            <span class="ptr-mode-badge">Draft Mode</span>
+                        <?php endif; ?>
+                    </div>
 
                     <div class="mb-3">
                         <?php if (!empty($errors)): ?>
@@ -588,12 +699,26 @@ $previewLineRows = 10;
                                 <div class="alert alert-danger py-2 mb-2"><?= htmlspecialchars($e) ?></div>
                             <?php endforeach; ?>
                         <?php endif; ?>
+                        <?php if ($isDraftEditMode): ?>
+                            <section class="ptr-draft-info-card" aria-label="Draft information">
+                                <div class="ptr-draft-info-title">Pending Draft Information</div>
+                                <div class="ptr-draft-info-grid">
+                                    <div class="ptr-draft-chip"><strong>PTR No.:</strong> <?= htmlspecialchars((string) ($data['ptr_no'] !== '' ? $data['ptr_no'] : '-')) ?></div>
+                                    <div class="ptr-draft-chip"><strong>Status:</strong> Pending</div>
+                                    <div class="ptr-draft-chip"><strong>Action:</strong> Save changes, then release from Pending Transactions.</div>
+                                </div>
+                            </section>
+                        <?php endif; ?>
                         <?php if ($success): ?>
                             <div class="alert alert-success py-2 mb-0">Report saved successfully.</div>
                         <?php endif; ?>
                     </div>
 
                     <form method="post" action="create_ptr.php" autocomplete="off" novalidate id="ptrForm">
+                        <?php if ($isDraftEditMode): ?>
+                            <input type="hidden" name="draft_token" value="<?= htmlspecialchars($draftToken) ?>">
+                            <input type="hidden" name="existing_ptr_no" value="<?= htmlspecialchars((string) $data['ptr_no']) ?>">
+                        <?php endif; ?>
                         <div class="row g-3">
                             <div class="col-md-6">
                                 <label for="record_date" class="form-label">Record Date</label>
@@ -904,7 +1029,7 @@ $previewLineRows = 10;
                 </div>
                 <div class="modal-footer">
                     <button type="button" id="printPreviewBtn" class="btn btn-outline-secondary">Print</button>
-                    <button type="submit" form="ptrForm" class="btn btn-primary">Save Report</button>
+                    <button type="submit" form="ptrForm" class="btn btn-primary"><?= $isDraftEditMode ? 'Save Draft Changes' : 'Save Report' ?></button>
                 </div>
             </div>
         </div>
