@@ -120,7 +120,7 @@ function appendReceivedStockCardEntry(
         'balance' => number_format($newBalance, 2, '.', ''),
         'total_cost' => number_format($newBalance * $unitCost, 2, '.', ''),
         'ref_no' => $poNo !== '' ? ('PO ' . $poNo) : 'Manage Items',
-        'remarks' => 'Stock received via Manage Items',
+        'remarks' => (trim($supplier) !== '' ? (trim($supplier) . '/') : '') . 'Stock received via Manage Items',
     ];
     $ledgerJson = json_encode($ledgerRows, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
 
@@ -855,6 +855,56 @@ try {
     ');
     $productDescriptionOptions = $descriptionOptionsStmt->fetchAll(PDO::FETCH_COLUMN);
 
+    // Fetch all products with their attributes for recommendations
+    $allProductsStmt = $pdo->query('
+        SELECT DISTINCT product_description, uom, program, po_no, supplier
+        FROM products
+        WHERE product_description IS NOT NULL AND TRIM(product_description) <> ""
+        ORDER BY product_description ASC
+    ');
+    $allProducts = $allProductsStmt->fetchAll();
+    
+    // Build a map of product descriptions to their attributes
+    $productAttributesMap = [];
+    foreach ($allProducts as $product) {
+        $desc = trim($product['product_description'] ?? '');
+        if ($desc !== '') {
+            if (!isset($productAttributesMap[$desc])) {
+                $productAttributesMap[$desc] = [
+                    'uom_list' => [],
+                    'program_list' => [],
+                    'supplier_list' => [],
+                    'po_no_list' => []
+                ];
+            }
+            if (!empty($product['uom'])) {
+                $productAttributesMap[$desc]['uom_list'][] = $product['uom'];
+            }
+            if (!empty($product['program'])) {
+                $productAttributesMap[$desc]['program_list'][] = $product['program'];
+            }
+            if (!empty($product['supplier'])) {
+                $productAttributesMap[$desc]['supplier_list'][] = $product['supplier'];
+            }
+            if (!empty($product['po_no'])) {
+                $productAttributesMap[$desc]['po_no_list'][] = $product['po_no'];
+            }
+        }
+    }
+
+    // Deduplicate and sort the lists
+    foreach ($productAttributesMap as &$attrs) {
+        $attrs['uom_list'] = array_values(array_unique($attrs['uom_list']));
+        $attrs['program_list'] = array_values(array_unique($attrs['program_list']));
+        $attrs['supplier_list'] = array_values(array_unique($attrs['supplier_list']));
+        $attrs['po_no_list'] = array_values(array_unique($attrs['po_no_list']));
+        sort($attrs['uom_list']);
+        sort($attrs['program_list']);
+        sort($attrs['supplier_list']);
+        sort($attrs['po_no_list']);
+    }
+    unset($attrs);
+
     $historyStmt = $pdo->query('
         SELECT id, product_id, product_description, uom, cost_per_unit, expiry_date, program, added_by, added_at
         FROM item_add_history
@@ -1130,10 +1180,13 @@ try {
                                         id="uom"
                                         name="uom"
                                         class="form-control item-form-input"
+                                        list="uomRecommendationsList"
                                         value="<?= htmlspecialchars($formData['uom']) ?>"
                                         placeholder="e.g. Box, Bottle, Unit"
                                         required
                                     >
+                                    <datalist id="uomRecommendationsList">
+                                    </datalist>
                                 </div>
                                 <div class="col-sm-6 col-md-4">
                                     <label for="program" class="form-label item-form-label">Program</label>
@@ -1142,9 +1195,12 @@ try {
                                         id="program"
                                         name="program"
                                         class="form-control item-form-input"
+                                        list="programRecommendationsList"
                                         value="<?= htmlspecialchars($formData['program']) ?>"
                                         placeholder="e.g. EPI, MCH, TB"
                                     >
+                                    <datalist id="programRecommendationsList">
+                                    </datalist>
                                 </div>
                             </div>
                         </section>
@@ -1203,9 +1259,12 @@ try {
                                         id="po_no"
                                         name="po_no"
                                         class="form-control item-form-input"
+                                        list="poNoRecommendationsList"
                                         value="<?= htmlspecialchars($formData['po_no']) ?>"
                                         placeholder="Purchase order number"
                                     >
+                                    <datalist id="poNoRecommendationsList">
+                                    </datalist>
                                 </div>
                                 <div class="col-sm-6 col-md-4">
                                     <label for="supplier" class="form-label item-form-label">Supplier</label>
@@ -1214,9 +1273,12 @@ try {
                                         id="supplier"
                                         name="supplier"
                                         class="form-control item-form-input"
+                                        list="supplierRecommendationsList"
                                         value="<?= htmlspecialchars($formData['supplier']) ?>"
                                         placeholder="Supplier name"
                                     >
+                                    <datalist id="supplierRecommendationsList">
+                                    </datalist>
                                 </div>
                             </div>
                         </section>
@@ -1363,7 +1425,8 @@ try {
     <script>
         window.itemListConfig = {
             showFormModal: <?= $showFormModal ? 'true' : 'false' ?>,
-            productDescriptionOptions: <?= json_encode(array_values($productDescriptionOptions), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>
+            productDescriptionOptions: <?= json_encode(array_values($productDescriptionOptions), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>,
+            productAttributesMap: <?= json_encode($productAttributesMap, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>
         };
     </script>
     <script src="assets/js/item_list.js"></script>

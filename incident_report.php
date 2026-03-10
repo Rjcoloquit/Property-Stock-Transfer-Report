@@ -36,6 +36,7 @@ $specRows = array_fill(0, 1, [
     'po' => '',
     'batch' => '',
     'exp' => '',
+    'qty' => '',
 ]);
 
 $pdo = getConnection();
@@ -122,10 +123,10 @@ $programStmt = $pdo->query('SELECT DISTINCT program FROM products WHERE program 
 $programList = $programStmt ? array_column($programStmt->fetchAll(PDO::FETCH_ASSOC), 'program') : [];
 
 // Get next incident number
-$maxIncidentStmt = $pdo->query('SELECT MAX(CAST(SUBSTRING(incident_no, 6) AS UNSIGNED)) as max_num FROM incident_reports WHERE incident_no IS NOT NULL AND incident_no LIKE "INC-%"');
+$maxIncidentStmt = $pdo->query('SELECT MAX(CAST(SUBSTRING(incident_no, 5) AS UNSIGNED)) as max_num FROM incident_reports WHERE incident_no IS NOT NULL AND incident_no LIKE "inc-%"');
 $maxResult = $maxIncidentStmt ? $maxIncidentStmt->fetch(PDO::FETCH_ASSOC) : null;
 $nextIncidentNum = ($maxResult && $maxResult['max_num']) ? intval($maxResult['max_num']) + 1 : 1;
-$nextIncidentNo = 'INC-' . $nextIncidentNum;
+$nextIncidentNo = 'inc-' . $nextIncidentNum;
 
 // Set current datetime if not already set
 if (empty($formData['incident_datetime'])) {
@@ -148,7 +149,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $specPo = isset($_POST['spec_po']) && is_array($_POST['spec_po']) ? $_POST['spec_po'] : [];
     $specBatch = isset($_POST['spec_batch']) && is_array($_POST['spec_batch']) ? $_POST['spec_batch'] : [];
     $specExp = isset($_POST['spec_exp']) && is_array($_POST['spec_exp']) ? $_POST['spec_exp'] : [];
-    $specCount = max(count($specItems), count($specUom), count($specProgram), count($specPo), count($specBatch), count($specExp), 1);
+    $specQty = isset($_POST['spec_qty']) && is_array($_POST['spec_qty']) ? $_POST['spec_qty'] : [];
+    $specCount = max(count($specItems), count($specUom), count($specProgram), count($specPo), count($specBatch), count($specExp), count($specQty), 1);
 
     $specRows = [];
     $hasAnySpecifics = false;
@@ -160,8 +162,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             'po' => trim((string) ($specPo[$i] ?? '')),
             'batch' => trim((string) ($specBatch[$i] ?? '')),
             'exp' => trim((string) ($specExp[$i] ?? '')),
+            'qty' => trim((string) ($specQty[$i] ?? '')),
         ];
-        if ($row['item'] !== '' || $row['uom'] !== '' || $row['program'] !== '' || $row['po'] !== '' || $row['batch'] !== '' || $row['exp'] !== '') {
+        if ($row['item'] !== '' || $row['uom'] !== '' || $row['program'] !== '' || $row['po'] !== '' || $row['batch'] !== '' || $row['exp'] !== '' || $row['qty'] !== '') {
             $hasAnySpecifics = true;
         }
         $specRows[] = $row;
@@ -223,6 +226,59 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $formData['submitted_to_date'] !== '' ? $formData['submitted_to_date'] : null,
             $username,
         ]);
+
+        // Process item disposal - reduce stock quantities and remove items when disposed
+        if ($hasProductBatchesTable) {
+            foreach ($specRows as $specRow) {
+                $itemDesc = trim($specRow['item']);
+                $batchNum = trim($specRow['batch']);
+                $qtyDisposed = (int) ($specRow['qty'] ?? 0);
+
+                if ($itemDesc !== '' && $batchNum !== '' && $qtyDisposed > 0) {
+                    // Find the product by description
+                    $productLookup = $pdo->prepare('SELECT id FROM products WHERE TRIM(product_description) = ? LIMIT 1');
+                    $productLookup->execute([$itemDesc]);
+                    $product = $productLookup->fetch();
+
+                    if ($product) {
+                        $productId = (int) $product['id'];
+
+                        // Find the batch and reduce stock
+                        $batchLookup = $pdo->prepare('SELECT id, stock_quantity FROM product_batches WHERE product_id = ? AND batch_number = ? LIMIT 1');
+                        $batchLookup->execute([$productId, $batchNum]);
+                        $batch = $batchLookup->fetch();
+
+                        if ($batch) {
+                            $batchId = (int) $batch['id'];
+                            $currentStock = (int) $batch['stock_quantity'];
+                            $newStock = max(0, $currentStock - $qtyDisposed);
+
+                            if ($newStock <= 0) {
+                                // Delete the batch when stock reaches 0
+                                $deleteBatchStmt = $pdo->prepare('DELETE FROM product_batches WHERE id = ?');
+                                $deleteBatchStmt->execute([$batchId]);
+
+                                // Check if product has any remaining batches
+                                $remainingBatchesStmt = $pdo->prepare('SELECT COUNT(*) as batch_count FROM product_batches WHERE product_id = ?');
+                                $remainingBatchesStmt->execute([$productId]);
+                                $remainingBatches = $remainingBatchesStmt->fetch();
+
+                                // If no batches remain, delete the product
+                                if ($remainingBatches && (int) $remainingBatches['batch_count'] === 0) {
+                                    $deleteProductStmt = $pdo->prepare('DELETE FROM products WHERE id = ?');
+                                    $deleteProductStmt->execute([$productId]);
+                                }
+                            } else {
+                                // Update stock quantity
+                                $updateBatchStmt = $pdo->prepare('UPDATE product_batches SET stock_quantity = ? WHERE id = ?');
+                                $updateBatchStmt->execute([$newStock, $batchId]);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
         header('Location: incident_reports.php?msg=' . urlencode('Incident report saved successfully.'));
         exit;
     }
@@ -236,6 +292,7 @@ while (count($specRows) < 1) {
         'po' => '',
         'batch' => '',
         'exp' => '',
+        'qty' => '',
     ];
 }
 ?>
@@ -434,32 +491,32 @@ while (count($specRows) < 1) {
                         <!-- Summary Section -->
                         <div class="row g-3 mb-4 pb-3 border-bottom">
                             <div class="col-md-6">
-                                <label for="name_of_office" class="form-label fw-bold">Office Name</label>
-                                <input type="text" class="form-control form-control-sm" id="name_of_office" name="name_of_office" value="<?= htmlspecialchars($formData['name_of_office']) ?>">
+                                <label for="name_of_office" class="form-label fw-bold">Office Name <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control form-control-sm" id="name_of_office" name="name_of_office" value="<?= htmlspecialchars($formData['name_of_office']) ?>" required>
                             </div>
                             <div class="col-md-6">
-                                <label for="address" class="form-label fw-bold">Address</label>
-                                <input type="text" class="form-control form-control-sm" id="address" name="address" value="<?= htmlspecialchars($formData['address']) ?>">
+                                <label for="address" class="form-label fw-bold">Address <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control form-control-sm" id="address" name="address" value="<?= htmlspecialchars($formData['address']) ?>" required>
                             </div>
                             <div class="col-md-4">
-                                <label for="incident_no" class="form-label fw-bold">Incident No.</label>
-                                <input type="text" class="form-control form-control-sm" id="incident_no" name="incident_no" value="<?= htmlspecialchars($formData['incident_no']) ?>">
+                                <label for="incident_no" class="form-label fw-bold">Incident No. <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control form-control-sm" id="incident_no" name="incident_no" value="<?= htmlspecialchars($formData['incident_no']) ?>" required>
                             </div>
                             <div class="col-md-4">
-                                <label for="incident_type" class="form-label fw-bold">Incident Type</label>
-                                <select class="form-control form-control-sm" id="incident_type" name="incident_type">
+                                <label for="incident_type" class="form-label fw-bold">Incident Type <span class="text-danger">*</span></label>
+                                <select class="form-control form-control-sm" id="incident_type" name="incident_type" required>
                                     <option value="">-- Select Type --</option>
                                     <option value="Expired Commodity" <?= $formData['incident_type'] === 'Expired Commodity' ? 'selected' : '' ?>>Expired Commodity</option>
                                     <option value="Damage Commodity" <?= $formData['incident_type'] === 'Damage Commodity' ? 'selected' : '' ?>>Damage Commodity</option>
                                 </select>
                             </div>
                             <div class="col-md-4">
-                                <label for="incident_datetime" class="form-label fw-bold">Date/Time</label>
-                                <input type="datetime-local" class="form-control form-control-sm" id="incident_datetime" name="incident_datetime" value="<?= htmlspecialchars($formData['incident_datetime']) ?>">
+                                <label for="incident_datetime" class="form-label fw-bold">Date/Time <span class="text-danger">*</span></label>
+                                <input type="datetime-local" class="form-control form-control-sm" id="incident_datetime" name="incident_datetime" value="<?= htmlspecialchars($formData['incident_datetime']) ?>" required>
                             </div>
                             <div class="col-12">
-                                <label for="location" class="form-label fw-bold">Location</label>
-                                <input type="text" class="form-control form-control-sm" id="location" name="location" value="<?= htmlspecialchars($formData['location']) ?>">
+                                <label for="location" class="form-label fw-bold">Location <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control form-control-sm" id="location" name="location" value="<?= htmlspecialchars($formData['location']) ?>" required>
                             </div>
                         </div>
 
@@ -473,12 +530,13 @@ while (count($specRows) < 1) {
                                 <table class="table table-sm table-hover mb-0" id="specificsTable">
                                     <thead class="table-light">
                                         <tr>
-                                            <th style="width: 28%">Item</th>
-                                            <th style="width: 8%">UOM</th>
-                                            <th style="width: 18%">Program</th>
-                                            <th style="width: 12%">PO #</th>
-                                            <th style="width: 12%">Batch #</th>
-                                            <th style="width: 12%">Exp Date</th>
+                                            <th style="width: 24%">Item</th>
+                                            <th style="width: 7%">UOM</th>
+                                            <th style="width: 16%">Program</th>
+                                            <th style="width: 10%">PO #</th>
+                                            <th style="width: 10%">Batch #</th>
+                                            <th style="width: 10%">Exp Date</th>
+                                            <th style="width: 8%">Qty</th>
                                             <th style="width: 10%" class="text-center">Action</th>
                                         </tr>
                                     </thead>
@@ -506,6 +564,7 @@ while (count($specRows) < 1) {
                                                     <input type="text" name="spec_batch[]" class="form-control form-control-sm border-0 spec-batch-input" list="batchDatalist-<?= $rowIdx ?>" value="<?= htmlspecialchars($specRow['batch']) ?>" placeholder="Batch #">
                                                 </td>
                                                 <td><input type="date" name="spec_exp[]" class="form-control form-control-sm border-0" value="<?= htmlspecialchars($specRow['exp']) ?>"></td>
+                                                <td><input type="number" name="spec_qty[]" class="form-control form-control-sm border-0" value="<?= htmlspecialchars($specRow['qty']) ?>" placeholder="Qty" min="1" step="1"></td>
                                                 <td class="text-center"><button type="button" class="btn btn-sm btn-outline-danger remove-item-btn" style="padding: 2px 8px; font-size: 0.8rem;">Remove</button></td>
                                             </tr>
                                         <?php endforeach; ?>
@@ -517,12 +576,12 @@ while (count($specRows) < 1) {
                         <!-- Remarks and Action Taken Section -->
                         <div class="row g-3 mb-4 pb-3 border-bottom">
                             <div class="col-12">
-                                <label for="remarks" class="form-label fw-bold">Remarks</label>
-                                <textarea class="form-control form-control-sm" id="remarks" name="remarks" rows="3" style="font-size: 0.9rem;"><?= htmlspecialchars($formData['remarks']) ?></textarea>
+                                <label for="remarks" class="form-label fw-bold">Remarks <span class="text-danger">*</span></label>
+                                <textarea class="form-control form-control-sm" id="remarks" name="remarks" rows="3" style="font-size: 0.9rem;" required><?= htmlspecialchars($formData['remarks']) ?></textarea>
                             </div>
                             <div class="col-12">
-                                <label for="action_taken" class="form-label fw-bold">Action Taken</label>
-                                <textarea class="form-control form-control-sm" id="action_taken" name="action_taken" rows="3" style="font-size: 0.9rem;"><?= htmlspecialchars($formData['action_taken']) ?></textarea>
+                                <label for="action_taken" class="form-label fw-bold">Action Taken <span class="text-danger">*</span></label>
+                                <textarea class="form-control form-control-sm" id="action_taken" name="action_taken" rows="3" style="font-size: 0.9rem;" required><?= htmlspecialchars($formData['action_taken']) ?></textarea>
                             </div>
                         </div>
 
@@ -532,16 +591,16 @@ while (count($specRows) < 1) {
                                 <h6 class="fw-bold mb-2">Prepared By</h6>
                             </div>
                             <div class="col-md-6">
-                                <label for="prepared_by_name" class="form-label form-label-sm">Name</label>
-                                <input type="text" class="form-control form-control-sm" id="prepared_by_name" name="prepared_by_name" value="<?= htmlspecialchars($formData['prepared_by_name']) ?>">
+                                <label for="prepared_by_name" class="form-label form-label-sm">Name <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control form-control-sm" id="prepared_by_name" name="prepared_by_name" value="<?= htmlspecialchars($formData['prepared_by_name']) ?>" required>
                             </div>
                             <div class="col-md-3">
-                                <label for="prepared_by_designation" class="form-label form-label-sm">Designation</label>
-                                <input type="text" class="form-control form-control-sm" id="prepared_by_designation" name="prepared_by_designation" value="<?= htmlspecialchars($formData['prepared_by_designation']) ?>">
+                                <label for="prepared_by_designation" class="form-label form-label-sm">Designation <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control form-control-sm" id="prepared_by_designation" name="prepared_by_designation" value="<?= htmlspecialchars($formData['prepared_by_designation']) ?>" required>
                             </div>
                             <div class="col-md-3">
-                                <label for="prepared_by_date" class="form-label form-label-sm">Date</label>
-                                <input type="date" class="form-control form-control-sm" id="prepared_by_date" name="prepared_by_date" value="<?= htmlspecialchars($formData['prepared_by_date']) ?>">
+                                <label for="prepared_by_date" class="form-label form-label-sm">Date <span class="text-danger">*</span></label>
+                                <input type="date" class="form-control form-control-sm" id="prepared_by_date" name="prepared_by_date" value="<?= htmlspecialchars($formData['prepared_by_date']) ?>" required>
                             </div>
                             <div class="col-12">
                                 <label class="form-label form-label-sm">Signature</label>
@@ -555,16 +614,20 @@ while (count($specRows) < 1) {
                                 <h6 class="fw-bold mb-2">Submitted To</h6>
                             </div>
                             <div class="col-md-6">
-                                <label for="submitted_to_name" class="form-label form-label-sm">Name</label>
-                                <input type="text" class="form-control form-control-sm" id="submitted_to_name" name="submitted_to_name" value="<?= htmlspecialchars($formData['submitted_to_name']) ?>">
+                                <label for="submitted_to_name" class="form-label form-label-sm">Name <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control form-control-sm" id="submitted_to_name" name="submitted_to_name" value="<?= htmlspecialchars($formData['submitted_to_name']) ?>" required>
                             </div>
                             <div class="col-md-3">
-                                <label for="submitted_to_designation" class="form-label form-label-sm">Designation</label>
-                                <input type="text" class="form-control form-control-sm" id="submitted_to_designation" name="submitted_to_designation" value="<?= htmlspecialchars($formData['submitted_to_designation']) ?>">
+                                <label for="submitted_to_designation" class="form-label form-label-sm">Designation <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control form-control-sm" id="submitted_to_designation" name="submitted_to_designation" value="<?= htmlspecialchars($formData['submitted_to_designation']) ?>" required>
                             </div>
                             <div class="col-md-3">
-                                <label for="submitted_to_date" class="form-label form-label-sm">Date</label>
-                                <input type="date" class="form-control form-control-sm" id="submitted_to_date" name="submitted_to_date" value="<?= htmlspecialchars($formData['submitted_to_date']) ?>">
+                                <label for="submitted_to_date" class="form-label form-label-sm">Date <span class="text-danger">*</span></label>
+                                <input type="date" class="form-control form-control-sm" id="submitted_to_date" name="submitted_to_date" value="<?= htmlspecialchars($formData['submitted_to_date']) ?>" required>
+                            </div>
+                            <div class="col-12">
+                                <label class="form-label form-label-sm">Signature</label>
+                                <div style="border-bottom: 1px solid #333; height: 60px; margin-top: 20px;"></div>
                             </div>
                         </div>
 
@@ -625,12 +688,13 @@ while (count($specRows) < 1) {
                             <table class="specs-table" style="width: 100%; border-collapse: collapse; table-layout: fixed;">
                                 <thead>
                                     <tr>
-                                        <th style="width: 28%; border: 1px solid #222; padding: 2px 3px; background: #f0f0f0; font-weight: 700; font-size: 0.7rem;">Item</th>
-                                        <th style="width: 8%; border: 1px solid #222; padding: 2px 3px; background: #f0f0f0; font-weight: 700; font-size: 0.7rem;">UOM</th>
-                                        <th style="width: 18%; border: 1px solid #222; padding: 2px 3px; background: #f0f0f0; font-weight: 700; font-size: 0.7rem;">Program</th>
-                                        <th style="width: 12%; border: 1px solid #222; padding: 2px 3px; background: #f0f0f0; font-weight: 700; font-size: 0.7rem;">PO #</th>
-                                        <th style="width: 12%; border: 1px solid #222; padding: 2px 3px; background: #f0f0f0; font-weight: 700; font-size: 0.7rem;">Batch #</th>
-                                        <th style="width: 12%; border: 1px solid #222; padding: 2px 3px; background: #f0f0f0; font-weight: 700; font-size: 0.7rem;">Exp Date</th>
+                                        <th style="width: 24%; border: 1px solid #222; padding: 2px 3px; background: #f0f0f0; font-weight: 700; font-size: 0.7rem;">Item</th>
+                                        <th style="width: 7%; border: 1px solid #222; padding: 2px 3px; background: #f0f0f0; font-weight: 700; font-size: 0.7rem;">UOM</th>
+                                        <th style="width: 16%; border: 1px solid #222; padding: 2px 3px; background: #f0f0f0; font-weight: 700; font-size: 0.7rem;">Program</th>
+                                        <th style="width: 10%; border: 1px solid #222; padding: 2px 3px; background: #f0f0f0; font-weight: 700; font-size: 0.7rem;">PO #</th>
+                                        <th style="width: 10%; border: 1px solid #222; padding: 2px 3px; background: #f0f0f0; font-weight: 700; font-size: 0.7rem;">Batch #</th>
+                                        <th style="width: 10%; border: 1px solid #222; padding: 2px 3px; background: #f0f0f0; font-weight: 700; font-size: 0.7rem;">Exp Date</th>
+                                        <th style="width: 8%; border: 1px solid #222; padding: 2px 3px; background: #f0f0f0; font-weight: 700; font-size: 0.7rem;">Qty</th>
                                     </tr>
                                 </thead>
                                 <tbody id="previewSpecificsBody">
@@ -656,36 +720,36 @@ while (count($specRows) < 1) {
                         <table style="width: 100%; border-collapse: collapse; margin-top: 6px;">
                             <thead>
                                 <tr>
-                                    <th style="border: 1px solid #222; padding: 3px 4px; width: 50%; text-align: center; background: #f4f4f4; font-weight: 700; font-size: 0.75rem;">Prepared By</th>
-                                    <th style="border: 1px solid #222; padding: 3px 4px; width: 50%; text-align: center; background: #f4f4f4; font-weight: 700; font-size: 0.75rem;">Submitted To</th>
+                                    <th style="border: 1px solid #222; padding: 5px 6px; width: 50%; text-align: center; background: #f4f4f4; font-weight: 700; font-size: 0.75rem;">Prepared By</th>
+                                    <th style="border: 1px solid #222; padding: 5px 6px; width: 50%; text-align: center; background: #f4f4f4; font-weight: 700; font-size: 0.75rem;">Submitted To</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 <tr>
-                                    <td style="border: 1px solid #222; padding: 3px 4px; height: 52px; text-align: center; vertical-align: bottom; font-size: 0.75rem;">
+                                    <td style="border: 1px solid #222; padding: 4px 5px; height: 48px; text-align: center; vertical-align: bottom; font-size: 0.75rem;">
                                         <span id="previewPreparedByName">-</span>
                                     </td>
-                                    <td style="border: 1px solid #222; padding: 3px 4px; height: 52px; text-align: center; vertical-align: bottom; font-size: 0.75rem;">
+                                    <td style="border: 1px solid #222; padding: 4px 5px; height: 48px; text-align: center; vertical-align: bottom; font-size: 0.75rem;">
                                         <span id="previewSubmittedToName">-</span>
                                     </td>
                                 </tr>
                                 <tr style="font-size: 0.65rem;">
-                                    <td style="border: 1px solid #222; padding: 2px 3px; text-align: center;">Signature</td>
-                                    <td style="border: 1px solid #222; padding: 2px 3px; text-align: center;">Signature</td>
+                                    <td style="border: 1px solid #222; padding: 4px 5px; text-align: center; height: 80px; vertical-align: bottom; font-size: 0.7rem; background: #fafafa;">Signature</td>
+                                    <td style="border: 1px solid #222; padding: 4px 5px; text-align: center; height: 80px; vertical-align: bottom; font-size: 0.7rem; background: #fafafa;">Signature</td>
                                 </tr>
                                 <tr>
-                                    <td style="border: 1px solid #222; padding: 2px 3px; text-align: center; font-size: 0.7rem;">
+                                    <td style="border: 1px solid #222; padding: 4px 5px; text-align: center; font-size: 0.7rem;">
                                         <span id="previewPreparedByDesignation">-</span>
                                     </td>
-                                    <td style="border: 1px solid #222; padding: 2px 3px; text-align: center; font-size: 0.7rem;">
+                                    <td style="border: 1px solid #222; padding: 4px 5px; text-align: center; font-size: 0.7rem;">
                                         <span id="previewSubmittedToDesignation">-</span>
                                     </td>
                                 </tr>
                                 <tr>
-                                    <td style="border: 1px solid #222; padding: 2px 3px; text-align: center; font-size: 0.7rem;">
+                                    <td style="border: 1px solid #222; padding: 4px 5px; text-align: center; font-size: 0.7rem;">
                                         <span id="previewPreparedByDate">-</span>
                                     </td>
-                                    <td style="border: 1px solid #222; padding: 2px 3px; text-align: center; font-size: 0.7rem;">
+                                    <td style="border: 1px solid #222; padding: 4px 5px; text-align: center; font-size: 0.7rem;">
                                         <span id="previewSubmittedToDate">-</span>
                                     </td>
                                 </tr>
@@ -745,6 +809,7 @@ while (count($specRows) < 1) {
                     var po = textOrDash(document.querySelectorAll('input[name="spec_po[]"]')[index]?.value || '');
                     var batch = textOrDash(document.querySelectorAll('input[name="spec_batch[]"]')[index]?.value || '');
                     var exp = textOrDash(document.querySelectorAll('input[name="spec_exp[]"]')[index]?.value || '');
+                    var qty = textOrDash(document.querySelectorAll('input[name="spec_qty[]"]')[index]?.value || '');
 
                     var row = document.createElement('tr');
                     row.innerHTML = '<td style="border: 1px solid #222; padding: 2px 3px; font-size: 0.7rem;">' + item + '</td>' +
@@ -752,7 +817,8 @@ while (count($specRows) < 1) {
                                   '<td style="border: 1px solid #222; padding: 2px 3px; font-size: 0.7rem;">' + program + '</td>' +
                                   '<td style="border: 1px solid #222; padding: 2px 3px; font-size: 0.7rem;">' + po + '</td>' +
                                   '<td style="border: 1px solid #222; padding: 2px 3px; font-size: 0.7rem;">' + batch + '</td>' +
-                                  '<td style="border: 1px solid #222; padding: 2px 3px; font-size: 0.7rem;">' + exp + '</td>';
+                                  '<td style="border: 1px solid #222; padding: 2px 3px; font-size: 0.7rem;">' + exp + '</td>' +
+                                  '<td style="border: 1px solid #222; padding: 2px 3px; font-size: 0.7rem; text-align: center;">' + qty + '</td>';
                     previewSpecificsBody.appendChild(row);
                 });
             }
@@ -803,6 +869,7 @@ while (count($specRows) < 1) {
                     '<td><input type="text" name="spec_po[]" class="form-control form-control-sm border-0" placeholder="PO #"></td>' +
                     '<td><datalist id="' + batchListId + '"></datalist><input type="text" name="spec_batch[]" class="form-control form-control-sm border-0 spec-batch-input" list="' + batchListId + '" placeholder="Batch #"></td>' +
                     '<td><input type="date" name="spec_exp[]" class="form-control form-control-sm border-0"></td>' +
+                    '<td><input type="number" name="spec_qty[]" class="form-control form-control-sm border-0" placeholder="Qty" min="1" step="1"></td>' +
                     '<td class="text-center"><button type="button" class="btn btn-sm btn-outline-danger remove-item-btn">Remove</button></td>';
 
                 specificsBody.appendChild(newRow);

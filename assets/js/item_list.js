@@ -92,6 +92,72 @@
             descriptionInput.addEventListener('focus', refreshDescriptionSuggestions);
         }
 
+        // Handle product recommendations based on selected description
+        var productAttributesMap = config.productAttributesMap || {};
+        var uomInput = document.getElementById('uom');
+        var programInput = document.getElementById('program');
+        var poNoInput = document.getElementById('po_no');
+        var supplierInput = document.getElementById('supplier');
+        var uomList = document.getElementById('uomRecommendationsList');
+        var programList = document.getElementById('programRecommendationsList');
+        var poNoList = document.getElementById('poNoRecommendationsList');
+        var supplierList = document.getElementById('supplierRecommendationsList');
+
+        function updateRecommendations() {
+            var selectedDescription = String(descriptionInput.value || '').trim();
+            var attrs = productAttributesMap[selectedDescription] || {
+                uom_list: [],
+                program_list: [],
+                supplier_list: [],
+                po_no_list: []
+            };
+
+            // Update UOM recommendations
+            if (uomList) {
+                uomList.innerHTML = attrs.uom_list
+                    .map(function (value) {
+                        return '<option value="' + escapeHtml(value) + '"></option>';
+                    })
+                    .join('');
+            }
+
+            // Update Program recommendations
+            if (programList) {
+                programList.innerHTML = attrs.program_list
+                    .map(function (value) {
+                        return '<option value="' + escapeHtml(value) + '"></option>';
+                    })
+                    .join('');
+            }
+
+            // Update PO number recommendations
+            if (poNoList) {
+                poNoList.innerHTML = attrs.po_no_list
+                    .map(function (value) {
+                        return '<option value="' + escapeHtml(value) + '"></option>';
+                    })
+                    .join('');
+            }
+
+            // Update Supplier recommendations
+            if (supplierList) {
+                supplierList.innerHTML = attrs.supplier_list
+                    .map(function (value) {
+                        return '<option value="' + escapeHtml(value) + '"></option>';
+                    })
+                    .join('');
+            }
+        }
+
+        if (descriptionInput) {
+            // Update recommendations when description changes
+            descriptionInput.addEventListener('change', updateRecommendations);
+            // Also update on input for real-time suggestions
+            descriptionInput.addEventListener('input', updateRecommendations);
+            // Initialize recommendations on page load if description is already filled
+            updateRecommendations();
+        }
+
         document.addEventListener('click', function (event) {
             var detailsBtn = event.target.closest('.item-details-btn');
             if (!detailsBtn || !itemDetailsModal) {

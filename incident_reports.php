@@ -76,6 +76,7 @@ try {
                         'po' => (string) ($row['po'] ?? ''),
                         'batch' => (string) ($row['batch'] ?? ''),
                         'exp' => (string) ($row['exp'] ?? ''),
+                        'qty' => (string) ($row['qty'] ?? ''),
                     ];
                 }
             }
@@ -93,6 +94,7 @@ if (empty($selectedSpecifics)) {
         'po' => '',
         'batch' => '',
         'exp' => '',
+        'qty' => '',
     ]);
 }
 ?>
@@ -147,94 +149,156 @@ if (empty($selectedSpecifics)) {
             display: none;
         }
         @media print {
-            body * {
-                visibility: hidden;
+            html, body {
+                width: 100%;
+                height: 100%;
+                margin: 0;
+                padding: 0;
+                background: #ffffff;
             }
-            .incident-print-sheet,
-            .incident-print-sheet * {
-                visibility: visible;
+            body {
+                background: #ffffff;
+                margin: 0;
+                padding: 0;
+            }
+            body * {
+                display: none !important;
             }
             .incident-print-sheet {
                 display: block !important;
-                position: absolute;
-                left: 0;
-                top: 0;
-                width: 100%;
-                min-height: 100%;
+            }
+            .incident-print-sheet,
+            .incident-print-sheet * {
+                display: block !important;
+                visibility: visible !important;
+            }
+            .incident-print-sheet {
+                display: block !important;
+                position: static !important;
+                left: 0 !important;
+                top: 0 !important;
+                width: 100% !important;
+                height: auto !important;
+                margin: 0 !important;
+                padding: 0 !important;
+                border: none !important;
+                background: #ffffff !important;
+                page-break-inside: avoid;
+                page-break-after: auto;
             }
             .no-print {
                 display: none !important;
             }
             @page {
                 size: A4;
-                margin: 8mm;
+                margin: 10mm;
+                background: #ffffff;
+                @top-left {
+                    content: none !important;
+                }
+                @top-right {
+                    content: none !important;
+                }
+                @top-center {
+                    content: none !important;
+                }
+                @bottom-left {
+                    content: none !important;
+                }
+                @bottom-right {
+                    content: none !important;
+                }
+                @bottom-center {
+                    content: none !important;
+                }
+            }
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+            .incident-print-sheet-content * {
+                display: block !important;
+            }
+            .incident-print-sheet table {
+                display: table !important;
+            }
+            .incident-print-sheet thead {
+                display: table-header-group !important;
+            }
+            .incident-print-sheet tbody {
+                display: table-row-group !important;
+            }
+            .incident-print-sheet tr {
+                display: table-row !important;
+            }
+            .incident-print-sheet th,
+            .incident-print-sheet td {
+                display: table-cell !important;
+            }
+            .incident-print-sheet-content div,
+            .incident-print-sheet-content span {
+                display: block !important;
             }
             .incident-print-wrapper {
-                display: flex;
-                justify-content: flex-start;
-                align-items: stretch;
-                min-height: 100%;
-                width: 100%;
-                padding: 0;
-                margin: 0;
+                display: block !important;
+                width: 100% !important;
+                padding: 0 !important;
+                margin: 0 !important;
             }
             .incident-print-sheet-content {
-                width: 100%;
-                max-width: 100%;
-                min-height: 100%;
-                padding: 6mm 8mm;
-                background: #fff;
-                border: 1px solid #333;
-                box-sizing: border-box;
-                font-family: 'Times New Roman', Georgia, serif;
-                font-size: 10pt;
-                line-height: 1.35;
-                page-break-inside: avoid;
+                width: 100% !important;
+                max-width: 100% !important;
+                padding: 0 !important;
+                background: #fff !important;
+                box-sizing: border-box !important;
+                font-family: 'Times New Roman', Georgia, serif !important;
+                font-size: 9pt !important;
+                line-height: 1.3 !important;
+                page-break-inside: avoid !important;
+                margin: 0 !important;
             }
             .incident-print-sheet-content .print-header {
                 text-align: center;
-                margin-bottom: 6pt;
+                margin-bottom: 4pt;
                 border-bottom: 1px solid #333;
-                padding-bottom: 6pt;
+                padding-bottom: 4pt;
             }
             .incident-print-sheet-content .print-office-name {
                 font-weight: 700;
-                font-size: 12pt;
+                font-size: 11pt;
                 letter-spacing: 0.02em;
             }
             .incident-print-sheet-content .print-address {
-                font-size: 9pt;
-                margin-top: 2pt;
+                font-size: 8.5pt;
+                margin-top: 1pt;
             }
             .incident-print-sheet-content .print-title {
                 text-align: center;
                 font-weight: 700;
-                font-size: 14pt;
+                font-size: 13pt;
                 letter-spacing: 0.05em;
-                margin: 8pt 0 4pt;
+                margin: 6pt 0 3pt;
             }
             .incident-print-sheet-content .print-incident-no {
                 text-align: center;
-                margin-bottom: 6pt;
-                font-size: 10pt;
+                margin-bottom: 4pt;
+                font-size: 9pt;
             }
             .incident-print-sheet-content table {
                 width: 100%;
                 border-collapse: collapse;
-                margin-bottom: 6pt;
-                font-size: 9pt;
+                margin-bottom: 4pt;
+                font-size: 8.5pt;
             }
             .incident-print-sheet-content th,
             .incident-print-sheet-content td {
                 border: 1px solid #333;
-                padding: 3pt 4pt;
+                padding: 2pt 3pt;
                 text-align: left;
                 vertical-align: top;
             }
             .incident-print-sheet-content th {
                 background: #f5f5f5;
                 font-weight: 700;
-                font-size: 8.5pt;
+                font-size: 8pt;
                 width: 22%;
             }
             .incident-print-sheet-content .print-section-label {
@@ -243,15 +307,15 @@ if (empty($selectedSpecifics)) {
                 text-transform: uppercase;
                 letter-spacing: 0.03em;
                 color: #1a472a;
-                margin: 6pt 0 3pt;
+                margin: 4pt 0 2pt;
             }
             .incident-print-sheet-content .specs-table {
                 table-layout: fixed;
             }
             .incident-print-sheet-content .specs-table th,
             .incident-print-sheet-content .specs-table td {
-                padding: 2pt 3pt;
-                font-size: 8pt;
+                padding: 1.5pt 2pt;
+                font-size: 7.5pt;
                 overflow-wrap: break-word;
                 word-wrap: break-word;
                 text-align: center;
@@ -265,10 +329,13 @@ if (empty($selectedSpecifics)) {
             .incident-print-sheet-content .specs-table th {
                 background: #e8e8e8;
             }
+            .incident-print-sheet-content .signature-table {
+                margin-top: 4pt;
+                font-size: 8.5pt;
+            }
             .incident-print-sheet-content .signature-table td {
                 text-align: center;
                 vertical-align: bottom;
-                font-size: 9pt;
             }
             .incident-print-sheet-content .signature-label {
                 font-size: 7pt;
@@ -398,12 +465,13 @@ if (empty($selectedSpecifics)) {
                                     <table class="incident-spec-table">
                                         <thead>
                                             <tr>
-                                                <th style="width: 28%;">Item</th>
-                                                <th style="width: 8%;">UOM</th>
-                                                <th style="width: 18%;">Program</th>
-                                                <th style="width: 12%;">PO #</th>
-                                                <th style="width: 12%;">Batch #</th>
-                                                <th style="width: 12%;">Exp. Date</th>
+                                                <th style="width: 24%;">Item</th>
+                                                <th style="width: 7%;">UOM</th>
+                                                <th style="width: 16%;">Program</th>
+                                                <th style="width: 10%;">PO #</th>
+                                                <th style="width: 10%;">Batch #</th>
+                                                <th style="width: 10%;">Exp. Date</th>
+                                                <th style="width: 8%;">Qty</th>
                                             </tr>
                                         </thead>
                                         <tbody>
@@ -415,6 +483,7 @@ if (empty($selectedSpecifics)) {
                                                     <td><?= htmlspecialchars((string) ($row['po'] ?? '')) ?></td>
                                                     <td><?= htmlspecialchars((string) ($row['batch'] ?? '')) ?></td>
                                                     <td><?= htmlspecialchars((string) ($row['exp'] ?? '')) ?></td>
+                                                    <td class="text-center"><?= htmlspecialchars((string) ($row['qty'] ?? '')) ?></td>
                                                 </tr>
                                             <?php endforeach; ?>
                                         </tbody>
@@ -490,12 +559,13 @@ if (empty($selectedSpecifics)) {
                 <table class="specs-table" style="table-layout: fixed;">
                     <thead>
                         <tr>
-                            <th style="width: 28%;">Item</th>
-                            <th style="width: 8%;">UOM</th>
-                            <th style="width: 18%;">Program</th>
-                            <th style="width: 12%;">PO #</th>
-                            <th style="width: 12%;">Batch #</th>
-                            <th style="width: 12%;">Exp Date</th>
+                            <th style="width: 24%;">Item</th>
+                            <th style="width: 7%;">UOM</th>
+                            <th style="width: 16%;">Program</th>
+                            <th style="width: 10%;">PO #</th>
+                            <th style="width: 10%;">Batch #</th>
+                            <th style="width: 10%;">Exp Date</th>
+                            <th style="width: 8%;">Qty</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -507,6 +577,7 @@ if (empty($selectedSpecifics)) {
                             <td><?= htmlspecialchars((string) ($row['po'] ?? '')) ?></td>
                             <td><?= htmlspecialchars((string) ($row['batch'] ?? '')) ?></td>
                             <td><?= htmlspecialchars((string) ($row['exp'] ?? '')) ?></td>
+                            <td class="text-center"><?= htmlspecialchars((string) ($row['qty'] ?? '')) ?></td>
                         </tr>
                         <?php endforeach; ?>
                     </tbody>
@@ -523,20 +594,41 @@ if (empty($selectedSpecifics)) {
                     </tr>
                 </table>
 
-                <table class="signature-table" style="margin-top: 8pt;">
+                <table class="signature-table" style="width: 100%; border-collapse: collapse;">
                     <thead>
                         <tr>
-                            <th style="width: 18%; background: #e8e8e8; font-size: 9pt;"></th>
-                            <th style="width: 41%; background: #e8e8e8; font-size: 9pt;">Prepared By</th>
-                            <th style="width: 41%; background: #e8e8e8; font-size: 9pt;">Submitted To</th>
+                            <th style="border: 1px solid #222; padding: 3px 4px; width: 50%; text-align: center; background: #f4f4f4; font-weight: 700; font-size: 8pt;">Prepared By</th>
+                            <th style="border: 1px solid #222; padding: 3px 4px; width: 50%; text-align: center; background: #f4f4f4; font-weight: 700; font-size: 8pt;">Submitted To</th>
                         </tr>
                     </thead>
                     <tbody>
                         <tr>
-                            <th style="font-size: 8.5pt; background: #f5f5f5;">Signature:</th>
-                            <td style="padding: 6pt 10pt; height: 70pt;"></td>
-                            <td style="padding: 6pt 10pt; height: 70pt;"></td>
-['submitted_to_date'] ?? '')) ?></td>
+                            <td style="border: 1px solid #222; padding: 3px 4px; height: 35px; text-align: center; vertical-align: bottom; font-size: 8pt;">
+                                <?= htmlspecialchars((string) ($selectedReport['prepared_by_name'] ?? '-')) ?>
+                            </td>
+                            <td style="border: 1px solid #222; padding: 3px 4px; height: 35px; text-align: center; vertical-align: bottom; font-size: 8pt;">
+                                <?= htmlspecialchars((string) ($selectedReport['submitted_to_name'] ?? '-')) ?>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td style="border: 1px solid #222; padding: 3px 4px; text-align: center; height: 60px; vertical-align: bottom; font-size: 7pt; background: #fafafa;">Signature</td>
+                            <td style="border: 1px solid #222; padding: 3px 4px; text-align: center; height: 60px; vertical-align: bottom; font-size: 7pt; background: #fafafa;">Signature</td>
+                        </tr>
+                        <tr>
+                            <td style="border: 1px solid #222; padding: 3px 4px; text-align: center; font-size: 7pt;">
+                                <?= htmlspecialchars((string) ($selectedReport['prepared_by_designation'] ?? '-')) ?>
+                            </td>
+                            <td style="border: 1px solid #222; padding: 3px 4px; text-align: center; font-size: 7pt;">
+                                <?= htmlspecialchars((string) ($selectedReport['submitted_to_designation'] ?? '-')) ?>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td style="border: 1px solid #222; padding: 3px 4px; text-align: center; font-size: 7pt;">
+                                <?= htmlspecialchars((string) ($selectedReport['prepared_by_date'] ?? '-')) ?>
+                            </td>
+                            <td style="border: 1px solid #222; padding: 3px 4px; text-align: center; font-size: 7pt;">
+                                <?= htmlspecialchars((string) ($selectedReport['submitted_to_date'] ?? '-')) ?>
+                            </td>
                         </tr>
                     </tbody>
                 </table>

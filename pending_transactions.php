@@ -363,7 +363,11 @@ try {
                                 'balance' => number_format($remainingStock, 2, '.', ''),
                                 'total_cost' => number_format($remainingStock * $unitCost, 2, '.', ''),
                                 'ref_no' => (string) ($card['ptr_no'] ?? ''),
-                                'remarks' => (string) ($card['recipient'] ?? ''),
+                                'remarks' => trim(
+                                    ((string) ($card['recipient'] ?? '') !== '' ? (string) $card['recipient'] : '') .
+                                    (((string) ($card['recipient'] ?? '') !== '' && (string) ($card['supplier'] ?? '') !== '' ? ' / ' : '') .
+                                    ((string) ($card['supplier'] ?? '') !== '' ? (string) $card['supplier'] : ''))
+                                ),
                             ];
                             $ledgerJson = json_encode($ledgerRows, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
 
