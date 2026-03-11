@@ -654,6 +654,29 @@ $previewLineRows = 10;
             line-height: 1.1;
             white-space: nowrap;
         }
+        .ptr-signatory-name {
+            display: block;
+            width: 100%;
+            min-width: 0;
+            margin: 0;
+            padding: 2px 4px;
+            font-family: inherit;
+            font-size: inherit;
+            line-height: 1.4;
+            text-align: center;
+            border: 1px solid #ccc;
+            background: #fafafa;
+            resize: vertical;
+            box-sizing: border-box;
+        }
+        .ptr-signatory-name::placeholder {
+            color: #888;
+        }
+        .ptr-signatory-name:focus {
+            outline: none;
+            border-color: #0d6efd;
+            background: #fff;
+        }
     </style>
 </head>
 <body class="create-ptr-page">
@@ -991,16 +1014,13 @@ $previewLineRows = 10;
                                 <td class="preview-signatory-half">
                                     <div class="signatory-content">
                                         <span class="preview-label signatory-label">Prepared by:</span>
-                                        Mark Anthony Borres<br>
-                                        John Paul Joseph Opiala<br>
-                                        Richard Roy
+                                        <textarea id="previewPreparedBy" class="ptr-signatory-name" name="ptr_prepared_by" rows="3" placeholder="Mark Anthony Borres, John Paul Joseph Opiala, Richard Roy"></textarea>
                                     </div>
                                 </td>
                                 <td class="preview-signatory-half">
                                     <div class="signatory-content">
                                         <span class="preview-label signatory-label">Approved by:</span>
-                                        Elizabeth C. Calaor, RPh<br>
-                                        (Pharmacist II/ Head, Supply & Logistics Unit)<br>
+                                        <textarea id="previewApprovedBy" class="ptr-signatory-name" name="ptr_approved_by" rows="3" placeholder="Elizabeth C. Calaor, RPh&#10;(Pharmacist II/ Head, Supply &amp; Logistics Unit)"></textarea>
                                         <span id="previewApprovedDate"><?= htmlspecialchars(date('m/d/Y')) ?></span>
                                     </div>
                                 </td>
@@ -1009,8 +1029,7 @@ $previewLineRows = 10;
                                 <td class="preview-signatory-half">
                                     <div class="signatory-content">
                                         <span class="preview-label signatory-label">Issued by:</span>
-                                        Jannete Ventura<br>
-                                        Earnest John Tolentino, RPh
+                                        <textarea id="previewIssuedBy" class="ptr-signatory-name" name="ptr_issued_by" rows="2" placeholder="Jannete Ventura, Earnest John Tolentino, RPh"></textarea>
                                     </div>
                                 </td>
                                 <td class="preview-signatory-half">

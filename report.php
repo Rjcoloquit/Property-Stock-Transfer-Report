@@ -1155,14 +1155,14 @@ try {
                                                 <?php endforeach; ?>
                                                 <?php for ($i = $renderedRows; $i < $previewLineRows; $i++): ?>
                                                     <tr>
-                                                        <td>&nbsp;</td>
-                                                        <td>&nbsp;</td>
-                                                        <td>&nbsp;</td>
-                                                        <td>&nbsp;</td>
-                                                        <td>&nbsp;</td>
-                                                        <td>&nbsp;</td>
-                                                        <td>&nbsp;</td>
-                                                        <td>&nbsp;</td>
+                                                        <td>-</td>
+                                                        <td>-</td>
+                                                        <td>-</td>
+                                                        <td>-</td>
+                                                        <td>-</td>
+                                                        <td>-</td>
+                                                        <td>-</td>
+                                                        <td>-</td>
                                                     </tr>
                                                 <?php endfor; ?>
                                             </tbody>
@@ -1185,17 +1185,14 @@ try {
                                                 <td class="preview-signatory-half">
                                                     <div class="signatory-content">
                                                         <span class="preview-label signatory-label">Prepared by:</span>
-                                                        Mark Anthony Borres<br>
-                                                        John Paul Joseph Opiala<br>
-                                                        Richard Roy
+                                                        <textarea class="ptr-signatory-name" rows="3" placeholder="Mark Anthony Borres, John Paul Joseph Opiala, Richard Roy"></textarea>
                                                     </div>
                                                 </td>
                                                 <td class="preview-signatory-half">
                                                     <div class="signatory-content">
                                                         <span class="preview-label signatory-label">Approved by:</span>
-                                                        Elizabeth C. Calaor, RPh<br>
-                                                        (Pharmacist II/ Head, Supply & Logistics Unit)<br>
-                                                        <?= htmlspecialchars(date('m/d/Y')) ?>
+                                                        <textarea class="ptr-signatory-name" rows="3" placeholder="Elizabeth C. Calaor, RPh&#10;(Pharmacist II/ Head, Supply &amp; Logistics Unit)"></textarea>
+                                                        <span class="preview-approved-date"><?= htmlspecialchars(date('m/d/Y')) ?></span>
                                                     </div>
                                                 </td>
                                             </tr>
@@ -1203,8 +1200,7 @@ try {
                                                 <td class="preview-signatory-half">
                                                     <div class="signatory-content">
                                                         <span class="preview-label signatory-label">Issued by:</span>
-                                                        Jannete Ventura<br>
-                                                        Earnest John Tolentino, RPh
+                                                        <textarea class="ptr-signatory-name" rows="2" placeholder="Jannete Ventura, Earnest John Tolentino, RPh"></textarea>
                                                     </div>
                                                 </td>
                                                 <td class="preview-signatory-half">

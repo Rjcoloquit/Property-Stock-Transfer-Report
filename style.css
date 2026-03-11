@@ -1879,6 +1879,32 @@ a,
     width: 50%;
 }
 
+.ptr-signatory-name {
+    display: block;
+    width: 100%;
+    min-width: 0;
+    margin: 0;
+    padding: 2px 4px;
+    font-family: inherit;
+    font-size: inherit;
+    line-height: 1.4;
+    text-align: center;
+    border: 1px solid #ccc;
+    background: #fafafa;
+    resize: vertical;
+    box-sizing: border-box;
+}
+
+.ptr-signatory-name::placeholder {
+    color: #888;
+}
+
+.ptr-signatory-name:focus {
+    outline: none;
+    border-color: #0d6efd;
+    background: #fff;
+}
+
 @media (max-width: 992px) {
     .app-header-title {
         font-size: 1.34rem;

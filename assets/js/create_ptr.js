@@ -534,6 +534,8 @@
             '.received-top{display:flex;align-items:center;justify-content:center;}' +
             '.received-bottom{border:0;padding:0;font-size:8px;line-height:1.1;white-space:nowrap;}' +
             '.text-end{text-align:right;}' +
+            '.ptr-signatory-name{border:none !important;background:transparent !important;resize:none;box-shadow:none !important;outline:none !important;width:100%;min-height:2.5em;padding:0 2px;font:inherit;text-align:center;overflow:visible;}' +
+            '@media print{.ptr-signatory-name{border:none !important;background:transparent !important;}}' +
             '</style></head><body>' + previewHtml + '</body></html>'
         );
         printWindow.document.close();
