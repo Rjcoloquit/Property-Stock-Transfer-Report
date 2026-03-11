@@ -84,6 +84,56 @@ function formatMoney($value): string
     <title>Outbound Summary Report</title>
     <link rel="stylesheet" href="style.css?v=20260305">
     <style>
+        .outbound-page .inventory-table-wrapper {
+            overflow-x: auto;
+            overflow-y: visible;
+        }
+        .outbound-page #outboundTable {
+            width: 100%;
+            min-width: 1320px;
+            table-layout: fixed;
+            border-collapse: collapse;
+        }
+        .outbound-page #outboundTable th,
+        .outbound-page #outboundTable td {
+            white-space: normal;
+            word-break: break-word;
+            overflow-wrap: anywhere;
+            vertical-align: middle;
+        }
+        .outbound-page #outboundTable th:nth-child(1),
+        .outbound-page #outboundTable td:nth-child(1) {
+            width: 13%;
+        }
+        .outbound-page #outboundTable th:nth-child(4),
+        .outbound-page #outboundTable td:nth-child(4) {
+            width: 18%;
+        }
+        .outbound-page #outboundTable th:nth-child(10),
+        .outbound-page #outboundTable td:nth-child(10) {
+            width: 13%;
+        }
+        .outbound-page #outboundTable th:nth-child(2),
+        .outbound-page #outboundTable td:nth-child(2),
+        .outbound-page #outboundTable th:nth-child(3),
+        .outbound-page #outboundTable td:nth-child(3),
+        .outbound-page #outboundTable th:nth-child(5),
+        .outbound-page #outboundTable td:nth-child(5),
+        .outbound-page #outboundTable th:nth-child(6),
+        .outbound-page #outboundTable td:nth-child(6),
+        .outbound-page #outboundTable th:nth-child(7),
+        .outbound-page #outboundTable td:nth-child(7),
+        .outbound-page #outboundTable th:nth-child(8),
+        .outbound-page #outboundTable td:nth-child(8),
+        .outbound-page #outboundTable th:nth-child(9),
+        .outbound-page #outboundTable td:nth-child(9),
+        .outbound-page #outboundTable th:nth-child(11),
+        .outbound-page #outboundTable td:nth-child(11) {
+            white-space: nowrap;
+            word-break: normal;
+            overflow-wrap: normal;
+        }
+
         @media print {
             @page {
                 size: A4 landscape;
@@ -139,6 +189,29 @@ function formatMoney($value): string
             .table td {
                 border: 1px solid #333 !important;
                 padding: 2pt 3pt !important;
+                white-space: normal !important;
+                word-break: break-word;
+                overflow-wrap: anywhere;
+            }
+            .table th:nth-child(2),
+            .table td:nth-child(2),
+            .table th:nth-child(3),
+            .table td:nth-child(3),
+            .table th:nth-child(5),
+            .table td:nth-child(5),
+            .table th:nth-child(6),
+            .table td:nth-child(6),
+            .table th:nth-child(7),
+            .table td:nth-child(7),
+            .table th:nth-child(8),
+            .table td:nth-child(8),
+            .table th:nth-child(9),
+            .table td:nth-child(9),
+            .table th:nth-child(11),
+            .table td:nth-child(11) {
+                white-space: nowrap !important;
+                word-break: normal;
+                overflow-wrap: normal;
             }
             .table thead th {
                 background-color: #f5f5f5 !important;
