@@ -38,6 +38,11 @@ body {
     -webkit-font-smoothing: antialiased;
 }
 
+/* Ensure all text elements use the formal font family */
+p, span, div, li, td, th, label, input, textarea, select, button {
+    font-family: inherit;
+}
+
 .home-page {
     min-height: 100vh;
     background-color: transparent;
@@ -186,11 +191,14 @@ main.py-4 {
 }
 
 h1, h2, h3, h4, h5, h6 {
+    font-family: "Libre Baskerville", "DM Sans", "Segoe UI", sans-serif;
     letter-spacing: 0.01em;
     color: var(--app-text);
+    font-weight: 700;
 }
 
 .form-label {
+    font-family: "DM Sans", "Segoe UI", sans-serif;
     margin-bottom: 0.35rem;
     font-size: 0.82rem;
     font-weight: 600;
@@ -199,12 +207,14 @@ h1, h2, h3, h4, h5, h6 {
 
 .form-control,
 .form-select {
+    font-family: "DM Sans", "Segoe UI", sans-serif;
     border-color: var(--app-border-strong);
     min-height: 38px;
     font-size: 0.9rem;
 }
 
 .table {
+    font-family: "DM Sans", "Segoe UI", sans-serif;
     --bs-table-striped-bg: rgba(40, 128, 75, 0.035);
     --bs-table-hover-bg: rgba(40, 128, 75, 0.06);
 }
@@ -213,13 +223,50 @@ h1, h2, h3, h4, h5, h6 {
     border-radius: 10px;
 }
 
+/* Modal and dialog styling with formal fonts */
+.modal-content,
+.modal-header,
+.modal-body,
+.modal-footer {
+    font-family: "DM Sans", "Segoe UI", sans-serif;
+}
+
+.modal-title {
+    font-family: "Libre Baskerville", "DM Sans", "Segoe UI", sans-serif;
+    font-weight: 700;
+}
+
+/* Alert and badge styling */
+.alert,
+.badge {
+    font-family: "DM Sans", "Segoe UI", sans-serif;
+}
+
+/* Dropdown and navbar styling */
+.dropdown-menu,
+.navbar,
+.navbar-text {
+    font-family: "DM Sans", "Segoe UI", sans-serif;
+}
+
+.navbar-brand {
+    font-family: "Libre Baskerville", "DM Sans", "Segoe UI", sans-serif;
+    font-weight: 700;
+}
+
 a,
 .btn,
 .card,
 .form-control,
 .form-select,
 .nav-link {
+    font-family: "DM Sans", "Segoe UI", sans-serif;
     transition: background-color var(--app-ease), border-color var(--app-ease), color var(--app-ease), box-shadow var(--app-ease), transform var(--app-ease);
+}
+
+.btn {
+    font-family: "DM Sans", "Segoe UI", sans-serif;
+    font-weight: 600;
 }
 
 /* Bootstrap component overrides for green theme */
@@ -293,6 +340,7 @@ a,
     padding-bottom: 0.25rem;
 }
 .item-form-section-title {
+    font-family: "DM Sans", "Segoe UI", sans-serif;
     font-size: 0.7rem;
     font-weight: 700;
     text-transform: uppercase;
@@ -303,12 +351,14 @@ a,
     border-bottom: 1px solid #d7f0e1;
 }
 .item-form-label {
+    font-family: "DM Sans", "Segoe UI", sans-serif;
     font-size: 0.8125rem;
     font-weight: 600;
     color: #1f3b2d;
     margin-bottom: 0.25rem;
 }
 .item-form-input {
+    font-family: "DM Sans", "Segoe UI", sans-serif;
     font-size: 0.9rem;
     border-radius: 0.4rem;
     border-color: #c5e6d4;
@@ -433,6 +483,7 @@ a,
 
 /* Modern inventory table styling */
 .inventory-table {
+    font-family: "DM Sans", "Segoe UI", sans-serif;
     margin-bottom: 0;
     font-size: 0.875rem;
     background: #ffffff;
@@ -444,6 +495,7 @@ a,
 }
 
 .inventory-table thead th {
+    font-family: "DM Sans", "Segoe UI", sans-serif;
     padding: 1rem 0.875rem;
     font-size: 0.8125rem;
     font-weight: 700;
@@ -843,12 +895,14 @@ a,
 }
 
 .dashboard-nav-title {
+    font-family: "DM Sans", "Segoe UI", sans-serif;
     font-weight: 700;
     color: #1f3b2d;
     font-size: 0.92rem;
 }
 
 .dashboard-nav-meta {
+    font-family: "DM Sans", "Segoe UI", sans-serif;
     color: #5a7464;
     font-size: 0.74rem;
 }
@@ -876,12 +930,14 @@ a,
 }
 
 .dashboard-stat-label {
+    font-family: "DM Sans", "Segoe UI", sans-serif;
     font-size: 0.82rem;
     color: #4b6a58;
     margin-bottom: 0.35rem;
 }
 
 .dashboard-stat-value {
+    font-family: "DM Sans", "Segoe UI", sans-serif;
     font-size: 1.7rem;
     font-weight: 700;
     line-height: 1.1;
@@ -895,11 +951,13 @@ a,
 }
 
 .recent-tx-table {
+    font-family: "DM Sans", "Segoe UI", sans-serif;
     table-layout: fixed;
     margin-bottom: 0;
 }
 
 .recent-tx-table thead th {
+    font-family: "DM Sans", "Segoe UI", sans-serif;
     font-size: 0.77rem;
     text-transform: uppercase;
     letter-spacing: 0.2px;
@@ -909,6 +967,7 @@ a,
 }
 
 .recent-tx-table tbody td {
+    font-family: "DM Sans", "Segoe UI", sans-serif;
     padding: 0.52rem 0.6rem;
     vertical-align: middle;
 }
@@ -952,6 +1011,7 @@ a,
 }
 
 .report-summary-label {
+    font-family: "DM Sans", "Segoe UI", sans-serif;
     font-size: 0.72rem;
     font-weight: 500;
     color: #5a7464;
@@ -961,6 +1021,7 @@ a,
 }
 
 .report-summary-value {
+    font-family: "DM Sans", "Segoe UI", sans-serif;
     font-size: 1.2rem;
     font-weight: 700;
     line-height: 1.2;
@@ -1006,6 +1067,7 @@ a,
     display: inline-flex;
     align-items: center;
     gap: 4px;
+    font-family: "DM Sans", "Segoe UI", sans-serif;
     font-size: 0.78rem;
     color: #2a4637;
     background: #fff;
@@ -1038,6 +1100,7 @@ a,
 }
 
 .report-group-table thead th {
+    font-family: "DM Sans", "Segoe UI", sans-serif;
     font-size: 0.72rem;
     font-weight: 600;
     text-transform: uppercase;
@@ -1052,6 +1115,7 @@ a,
 }
 
 .report-group-table tbody td {
+    font-family: "DM Sans", "Segoe UI", sans-serif;
     padding: 0.5rem 0.65rem;
     vertical-align: middle;
     border-bottom: 1px solid #ecf3ee;
@@ -1165,6 +1229,7 @@ a,
 }
 
 .report-edit-table thead th {
+    font-family: "DM Sans", "Segoe UI", sans-serif;
     font-size: 0.73rem;
     text-transform: uppercase;
     letter-spacing: 0.25px;
@@ -1173,11 +1238,13 @@ a,
 }
 
 .report-edit-table td {
+    font-family: "DM Sans", "Segoe UI", sans-serif;
     vertical-align: top;
     padding: 0.45rem 0.4rem;
 }
 
 .report-edit-input {
+    font-family: "DM Sans", "Segoe UI", sans-serif;
     min-height: 32px;
     font-size: 0.82rem;
 }
@@ -1262,6 +1329,7 @@ a,
 }
 
 .stock-card-title-cell {
+    font-family: "Libre Baskerville", "DM Sans", "Segoe UI", sans-serif;
     text-align: center;
     font-weight: 700;
     font-size: 0.95rem;
@@ -1270,6 +1338,7 @@ a,
 }
 
 .stock-card-label-cell {
+    font-family: "DM Sans", "Segoe UI", sans-serif;
     width: 23%;
     white-space: nowrap;
     font-weight: 600;
@@ -1280,6 +1349,7 @@ a,
 }
 
 .stock-card-line-input {
+    font-family: "DM Sans", "Segoe UI", sans-serif;
     border: 0;
     border-bottom: 1px solid transparent;
     border-radius: 0;
