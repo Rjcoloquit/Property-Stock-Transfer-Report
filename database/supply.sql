@@ -43,7 +43,7 @@ CREATE TABLE `incident_reports` (
   `created_by` varchar(150) DEFAULT NULL,
   `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -67,15 +67,20 @@ CREATE TABLE `inventory_records` (
   `expiration_date` date DEFAULT NULL,
   `unit` varchar(50) DEFAULT NULL,
   `description` text,
+  `batch_number` varchar(100) DEFAULT NULL,
+  `batch_id` int DEFAULT NULL,
   `quantity` int DEFAULT '0',
   `unit_cost` decimal(10,2) DEFAULT '0.00',
   `program` varchar(255) DEFAULT NULL,
   `po_no` varchar(100) DEFAULT NULL,
+  `supplier` varchar(255) DEFAULT NULL,
   `recipient` varchar(255) DEFAULT NULL,
   `ptr_no` varchar(50) DEFAULT NULL,
   `record_date` date DEFAULT NULL,
+  `release_status` varchar(20) NOT NULL DEFAULT 'released',
+  `released_at` datetime DEFAULT NULL,
   PRIMARY KEY (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=7 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -85,6 +90,43 @@ CREATE TABLE `inventory_records` (
 LOCK TABLES `inventory_records` WRITE;
 /*!40000 ALTER TABLE `inventory_records` DISABLE KEYS */;
 /*!40000 ALTER TABLE `inventory_records` ENABLE KEYS */;
+UNLOCK TABLES;
+
+--
+-- Table structure for table `item_add_history`
+--
+
+DROP TABLE IF EXISTS `item_add_history`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `item_add_history` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `product_id` int DEFAULT NULL,
+  `product_description` text,
+  `uom` varchar(50) DEFAULT NULL,
+  `cost_per_unit` decimal(12,2) DEFAULT '0.00',
+  `expiry_date` date DEFAULT NULL,
+  `program` varchar(255) DEFAULT NULL,
+  `po_no` varchar(100) DEFAULT NULL,
+  `supplier` varchar(255) DEFAULT NULL,
+  `place_of_delivery` varchar(255) DEFAULT NULL,
+  `date_of_delivery` date DEFAULT NULL,
+  `delivery_term` varchar(255) DEFAULT NULL,
+  `payment_term` varchar(255) DEFAULT NULL,
+  `added_by` varchar(150) DEFAULT NULL,
+  `added_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB AUTO_INCREMENT=6 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `item_add_history`
+--
+
+LOCK TABLES `item_add_history` WRITE;
+/*!40000 ALTER TABLE `item_add_history` DISABLE KEYS */;
+INSERT INTO `item_add_history` VALUES (5,1,'Influenza Vaccine (Flu) Vaccine 10 Doses per Vial','Vial',1931.00,'2025-01-28','National Immunization Program','CHD4M-PTR-2025-01-00017','DOH','PHO Palawan','2025-01-20','Full','None','admin','2026-03-13 01:00:24');
+/*!40000 ALTER TABLE `item_add_history` ENABLE KEYS */;
 UNLOCK TABLES;
 
 --
@@ -105,7 +147,7 @@ CREATE TABLE `product_batches` (
   PRIMARY KEY (`id`),
   UNIQUE KEY `unique_batch` (`product_id`,`batch_number`),
   CONSTRAINT `fk_product` FOREIGN KEY (`product_id`) REFERENCES `products` (`id`) ON DELETE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=39 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -114,7 +156,7 @@ CREATE TABLE `product_batches` (
 
 LOCK TABLES `product_batches` WRITE;
 /*!40000 ALTER TABLE `product_batches` DISABLE KEYS */;
-INSERT INTO `product_batches` VALUES (1,1,'292403398',0,'2027-06-30','2026-02-26 00:58:15','2026-02-26 00:58:15'),(2,2,'23H07',0,'2028-08-31','2026-02-26 00:58:15','2026-02-26 00:58:15'),(3,3,'23H10',0,'2028-08-31','2026-02-26 00:58:15','2026-02-26 00:58:15'),(4,4,'23K12',0,'2028-11-30','2026-02-26 00:58:15','2026-02-26 00:58:15'),(5,5,'23K13',0,'2028-11-30','2026-02-26 00:58:15','2026-02-26 00:58:15'),(6,6,'23L06',0,'2028-12-31','2026-02-26 00:58:15','2026-02-26 00:58:15'),(7,7,'23L07',0,'2028-12-31','2026-02-26 00:58:15','2026-02-26 00:58:15'),(8,8,'L2212',0,'2025-12-31','2026-02-26 00:58:15','2026-02-26 00:58:15'),(9,9,'L2308',0,'2026-10-12','2026-02-26 00:58:15','2026-02-26 00:58:15'),(10,10,'81139',85,'2028-09-30','2026-02-26 00:58:15','2026-02-26 00:58:15'),(11,11,'81187',85,'2029-04-30','2026-02-26 00:58:15','2026-02-26 00:58:15'),(12,12,'81190',85,'2029-04-30','2026-02-26 00:58:15','2026-02-26 00:58:15'),(13,13,'81100',55,'2028-04-30','2026-02-26 00:58:15','2026-02-26 00:58:15'),(14,14,'20230108',1100,'2027-01-07','2026-02-26 00:58:15','2026-02-26 00:58:15'),(15,15,'120012210',280,'2025-01-10','2026-02-26 00:58:15','2026-02-26 00:58:15'),(16,16,'20210721',0,'2026-07-31','2026-02-26 00:58:15','2026-02-26 00:58:15'),(17,17,'20221203',1000,'2026-12-02','2026-02-26 00:58:15','2026-02-26 00:58:15'),(18,18,'20230108',950,'2027-01-07','2026-02-26 00:58:15','2026-02-26 00:58:15'),(19,19,'20220627',0,'2027-06-30','2026-02-26 00:58:15','2026-02-26 00:58:15'),(20,20,'NBS23089A95',0,'2025-08-08','2026-02-26 00:58:15','2026-02-26 00:58:15'),(21,21,'320720',0,'2025-05-31','2026-02-26 00:58:15','2026-02-26 00:58:15'),(22,22,'51631',0,'2025-06-30','2026-02-26 00:58:15','2026-02-26 00:58:15'),(23,23,'51634',0,'2025-09-30','2026-02-26 00:58:15','2026-02-26 00:58:15'),(24,24,'51637',0,'2025-11-30','2026-02-26 00:58:15','2026-02-26 00:58:15'),(25,25,'51639',0,'2026-03-31','2026-02-26 00:58:15','2026-02-26 00:58:15'),(26,26,'22081',0,'2025-11-30','2026-02-26 00:58:15','2026-02-26 00:58:15'),(27,27,'37415',0,'2025-07-31','2026-02-26 00:58:15','2026-02-26 00:58:15'),(28,28,'M24301',0,'2026-02-23','2026-02-26 00:58:15','2026-02-26 00:58:15'),(29,29,'ALB310',0,'2026-05-31','2026-02-26 00:58:15','2026-02-26 00:58:15'),(30,30,'N/A',0,NULL,'2026-02-26 00:58:15','2026-02-26 00:58:15'),(31,31,'N/A',0,'2028-09-30','2026-02-26 00:58:15','2026-02-26 00:58:15'),(32,32,'1773174',0,'2026-04-01','2026-02-26 00:58:15','2026-02-26 00:58:15'),(33,33,'2401127',0,'2029-01-31','2026-02-26 00:58:15','2026-02-26 00:58:15'),(34,34,'GT22535',0,'2025-11-30','2026-02-26 00:58:15','2026-02-26 00:58:15'),(35,35,'2B06133',0,'2027-01-31','2026-02-26 00:58:15','2026-02-26 00:58:15'),(36,36,'B04086',0,'2027-04-30','2026-02-26 00:58:15','2026-02-26 00:58:15'),(37,37,'2BB076',0,'2026-02-28','2026-02-26 00:58:15','2026-02-26 00:58:15'),(38,38,'70624O518',0,'2027-05-31','2026-02-26 00:58:15','2026-02-26 00:58:15');
+INSERT INTO `product_batches` VALUES (1,1,'U8319AA',500,'2025-01-28','2026-03-13 01:00:24','2026-03-13 01:00:24');
 /*!40000 ALTER TABLE `product_batches` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -140,7 +182,7 @@ CREATE TABLE `products` (
   `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
   `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=39 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -149,7 +191,7 @@ CREATE TABLE `products` (
 
 LOCK TABLES `products` WRITE;
 /*!40000 ALTER TABLE `products` DISABLE KEYS */;
-INSERT INTO `products` VALUES (1,'[Co-Amoxiclav] Amoxicillin 400mg + Clavulanic Acid 57mg per 5mL Powder for Oral Suspension 70mL','Bottles',0.00,'General Consumption',NULL,NULL,NULL,NULL,NULL,NULL,'2026-02-26 00:58:10','2026-02-26 00:58:10'),(2,'[COC Pill] Levonorgestrel 150mcg + Ethinylestradiol 30mcg + Ferrous Fumarate 75mg Film-Coated Tablet','Cycle',21.05,'National Family Planning',NULL,NULL,NULL,NULL,NULL,NULL,'2026-02-26 00:58:10','2026-02-26 00:58:10'),(3,'[COC Pill] Levonorgestrel 150mcg + Ethinylestradiol 30mcg + Ferrous Fumarate 75mg Film-Coated Tablet','Cycle',21.05,'National Family Planning',NULL,NULL,NULL,NULL,NULL,NULL,'2026-02-26 00:58:10','2026-02-26 00:58:10'),(4,'[COC Pill] Levonorgestrel 150mcg + Ethinylestradiol 30mcg + Ferrous Fumarate 75mg Film-Coated Tablet','Cycle',21.05,'National Family Planning',NULL,NULL,NULL,NULL,NULL,NULL,'2026-02-26 00:58:10','2026-02-26 00:58:10'),(5,'[COC Pill] Levonorgestrel 150mcg + Ethinylestradiol 30mcg + Ferrous Fumarate 75mg Film-Coated Tablet','Cycle',21.05,'National Family Planning',NULL,NULL,NULL,NULL,NULL,NULL,'2026-02-26 00:58:10','2026-02-26 00:58:10'),(6,'[COC Pill] Levonorgestrel 150mcg + Ethinylestradiol 30mcg + Ferrous Fumarate 75mg Film-Coated Tablet','Cycle',21.05,'Responsible Parenthood and Reproductive Health Program',NULL,NULL,NULL,NULL,NULL,NULL,'2026-02-26 00:58:10','2026-02-26 00:58:10'),(7,'[COC Pill] Levonorgestrel 150mcg + Ethinylestradiol 30mcg + Ferrous Fumarate 75mg Film-Coated Tablet','Cycle',21.05,'Responsible Parenthood and Reproductive Health Program',NULL,NULL,NULL,NULL,NULL,NULL,'2026-02-26 00:58:10','2026-02-26 00:58:10'),(8,'[POP Pill] Lynestrenol 500mcg Tablet (Cycle of 28s)','Cycle',25.44,'National Family Planning',NULL,NULL,NULL,NULL,NULL,NULL,'2026-02-26 00:58:10','2026-02-26 00:58:10'),(9,'[POP Pill] Lynestrenol 500mcg Tablet (Cycle of 28s)','Cycle',25.44,'National Family Planning',NULL,NULL,NULL,NULL,NULL,NULL,'2026-02-26 00:58:10','2026-02-26 00:58:10'),(10,'0.9% Sodium Chloride 1L Solution for Infusion','Bottles',85.00,'Food and Waterborne Disease Prevention and Control Program',NULL,NULL,NULL,NULL,NULL,NULL,'2026-02-26 00:58:10','2026-02-26 00:58:10'),(11,'0.9% Sodium Chloride 1L Solution for Infusion','Bottles',85.00,'General Consumption',NULL,NULL,NULL,NULL,NULL,NULL,'2026-02-26 00:58:10','2026-02-26 00:58:10'),(12,'0.9% Sodium Chloride 1L Solution for Infusion','Bottles',85.00,'Food and Waterborne Disease Prevention and Control Program',NULL,NULL,NULL,NULL,NULL,NULL,'2026-02-26 00:58:10','2026-02-26 00:58:10'),(13,'0.9% Sodium Chloride Solution for Irrigation 1L','Bottles',55.00,'Food and Waterborne Disease Prevention and Control Program',NULL,NULL,NULL,NULL,NULL,NULL,'2026-02-26 00:58:10','2026-02-26 00:58:10'),(14,'1250uL Pipette Tips','Box',1100.00,'COVID-19 Laboratory Network',NULL,NULL,NULL,NULL,NULL,NULL,'2026-02-26 00:58:10','2026-02-26 00:58:10'),(15,'1cc Syringe 23Gx1','Box',280.00,'COVID-19 (PHP Monitoring)',NULL,NULL,NULL,NULL,NULL,NULL,'2026-02-26 00:58:10','2026-02-26 00:58:10'),(16,'1cc Syringe 25G x 1','Pieces',0.00,'National Immunization Program',NULL,NULL,NULL,NULL,NULL,NULL,'2026-02-26 00:58:10','2026-02-26 00:58:10'),(17,'200uL Pipette Tips','Box',1000.00,'COVID-19 Laboratory Network',NULL,NULL,NULL,NULL,NULL,NULL,'2026-02-26 00:58:10','2026-02-26 00:58:10'),(18,'20uL Pipette Tips','Box',950.00,'COVID-19 Laboratory Network',NULL,NULL,NULL,NULL,NULL,NULL,'2026-02-26 00:58:10','2026-02-26 00:58:10'),(19,'3cc Syringe 23G x 1','Pieces',0.00,'National Immunization Program',NULL,NULL,NULL,NULL,NULL,NULL,'2026-02-26 00:58:10','2026-02-26 00:58:10'),(20,'3-in-1 Multi-Function Monitoring System Glucose Hemoblogin and Cholesterol Meter with Strips','Kit',0.00,'Maternal Health Program',NULL,NULL,NULL,NULL,NULL,NULL,'2026-02-26 00:58:10','2026-02-26 00:58:10'),(21,'5% Dextrose in 0.3% Sodium Chloride 500 mL Solution for Infusion (IV Infusion)','Bottles',0.00,'General Consumption',NULL,NULL,NULL,NULL,NULL,NULL,'2026-02-26 00:58:10','2026-02-26 00:58:10'),(22,'5% Dextrose in 0.9% Sodium Chloride 1 L Solution for Infusion (IV Infusion)','Bottles',0.00,'General Consumption',NULL,NULL,NULL,NULL,NULL,NULL,'2026-02-26 00:58:10','2026-02-26 00:58:10'),(23,'5% Dextrose in 0.9% Sodium Chloride 1 L Solution for Infusion (IV Infusion)','Bottles',0.00,'General Consumption',NULL,NULL,NULL,NULL,NULL,NULL,'2026-02-26 00:58:10','2026-02-26 00:58:10'),(24,'5% Dextrose in 0.9% Sodium Chloride 1 L Solution for Infusion (IV Infusion)','Bottles',0.00,'General Consumption',NULL,NULL,NULL,NULL,NULL,NULL,'2026-02-26 00:58:10','2026-02-26 00:58:10'),(25,'5% Dextrose in 0.9% Sodium Chloride 1 L Solution for Infusion (IV Infusion)','Bottles',0.00,'General Consumption',NULL,NULL,NULL,NULL,NULL,NULL,'2026-02-26 00:58:10','2026-02-26 00:58:10'),(26,'5% Dextrose in Lactated Ringers Solution 1 L Solution for Infusion (IV Infusion)','Bottles',0.00,'General Consumption',NULL,NULL,NULL,NULL,NULL,NULL,'2026-02-26 00:58:10','2026-02-26 00:58:10'),(27,'Aciclovir 400 mg tablet','Tablet',8.50,'National HIV/ AIDS and STI Prevention and Control Program',NULL,NULL,NULL,NULL,NULL,NULL,'2026-02-26 00:58:10','2026-02-26 00:58:10'),(28,'AFB Fast Bacilli Stain Hot Method for TB Microscopy','Kit',2890.00,'National Tuberculosis Control Program',NULL,NULL,NULL,NULL,NULL,NULL,'2026-02-26 00:58:10','2026-02-26 00:58:10'),(29,'Albendazole 400mg Tablet','Tablet',0.99,'Integrated Helminth Control Program',NULL,NULL,NULL,NULL,NULL,NULL,'2026-02-26 00:58:10','2026-02-26 00:58:10'),(30,'Alcohol 500mL','Bottles',156.00,'Leprosy Control Program',NULL,NULL,NULL,NULL,NULL,NULL,'2026-02-26 00:58:10','2026-02-26 00:58:10'),(31,'Alcohol 70% 1L','Bottles',372.00,'Emerging and Re-emerging Infectious Disease Program',NULL,NULL,NULL,NULL,NULL,NULL,'2026-02-26 00:58:10','2026-02-26 00:58:10'),(32,'Ambroxol 6mg/ml Drops','Bottles',0.00,'General Consumption',NULL,NULL,NULL,NULL,NULL,NULL,'2026-02-26 00:58:10','2026-02-26 00:58:10'),(33,'Amlodipine 10 mg Tablet','Tablet',0.49,'Integrated Non-Communicable Disease Prevention and Control',NULL,NULL,NULL,NULL,NULL,NULL,'2026-02-26 00:58:10','2026-02-26 00:58:10'),(34,'Amlodipine 5 mg Tablet','Tablet',0.37,'Integrated Non-Communicable Disease Prevention and Control',NULL,NULL,NULL,NULL,NULL,NULL,'2026-02-26 00:58:10','2026-02-26 00:58:10'),(35,'Amoxicillin 100 mg/mL 10 mL Oral Drops','Bottles',0.00,'General Consumption',NULL,NULL,NULL,NULL,NULL,NULL,'2026-02-26 00:58:10','2026-02-26 00:58:10'),(36,'Amoxicillin 250 mg Capsule','Capsule',0.00,'General Consumption',NULL,NULL,NULL,NULL,NULL,NULL,'2026-02-26 00:58:10','2026-02-26 00:58:10'),(37,'Amoxicillin 250mg/5mL Oral Suspension','Bottles',0.00,'General Consumption',NULL,NULL,NULL,NULL,NULL,NULL,'2026-02-26 00:58:10','2026-02-26 00:58:10'),(38,'Amoxicillin 500 mg Capsule','Capsule',0.00,'General Consumption',NULL,NULL,NULL,NULL,NULL,NULL,'2026-02-26 00:58:10','2026-02-26 00:58:10');
+INSERT INTO `products` VALUES (1,'Influenza Vaccine (Flu) Vaccine 10 Doses per Vial','Vial',1931.00,'National Immunization Program','CHD4M-PTR-2025-01-00017','PHO Palawan','DOH','2025-01-20','Full','None','2026-03-13 01:00:24','2026-03-13 01:00:24');
 /*!40000 ALTER TABLE `products` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -166,7 +208,7 @@ CREATE TABLE `recipients` (
   `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`recipient_id`),
   UNIQUE KEY `recipient_name` (`recipient_name`)
-) ENGINE=InnoDB AUTO_INCREMENT=45 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=51 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -177,6 +219,47 @@ LOCK TABLES `recipients` WRITE;
 /*!40000 ALTER TABLE `recipients` DISABLE KEYS */;
 INSERT INTO `recipients` VALUES (1,'Aborlan Medicare Hospital','2026-02-26 00:58:22'),(2,'Aborlan RHU','2026-02-26 00:58:22'),(3,'Agape Clinic','2026-02-26 00:58:22'),(4,'Agutaya RHU','2026-02-26 00:58:22'),(5,'Araceli RHU','2026-02-26 00:58:22'),(6,'Araceli-Dumaran District Hospital','2026-02-26 00:58:22'),(7,'Balabac District Hospital','2026-02-26 00:58:22'),(8,'Balabac RHU','2026-02-26 00:58:22'),(9,'Bataraza District Hospital','2026-02-26 00:58:22'),(10,'Bataraza RHU','2026-02-26 00:58:22'),(11,'Brookes Point RHU','2026-02-26 00:58:22'),(12,'Busuanga RHU','2026-02-26 00:58:22'),(13,'Cagayancillo RHU','2026-02-26 00:58:22'),(14,'City Health Office','2026-02-26 00:58:22'),(15,'Coron District Hospital','2026-02-26 00:58:22'),(16,'Coron RHU','2026-02-26 00:58:22'),(17,'Culion RHU','2026-02-26 00:58:22'),(18,'Cuyo District Hospital','2026-02-26 00:58:22'),(19,'Cuyo RHU','2026-02-26 00:58:22'),(20,'Dr. Jose Rizal District Hospital','2026-02-26 00:58:22'),(21,'Dumara RHU','2026-02-26 00:58:22'),(22,'El Nido RHU','2026-02-26 00:58:22'),(23,'Iwahig Penal Colony Clinic','2026-02-26 00:58:22'),(24,'Kalayaan RHU','2026-02-26 00:58:22'),(25,'Linapacan RHU','2026-02-26 00:58:22'),(26,'Magsaysay RHU','2026-02-26 00:58:22'),(27,'Narra Municipal Hospital','2026-02-26 00:58:22'),(28,'Narra RHU','2026-02-26 00:58:22'),(29,'Northern Palawan Provincial Hospital','2026-02-26 00:58:22'),(30,'Ospital ng Palawan','2026-02-26 00:58:22'),(31,'PHO Clinic','2026-02-26 00:58:22'),(32,'PHO TB-DOTS','2026-02-26 00:58:22'),(33,'Provincial Veterinary Office','2026-02-26 00:58:22'),(34,'Quezon Medicare Hospital','2026-02-26 00:58:22'),(35,'Quezon RHU','2026-02-26 00:58:22'),(36,'Rizal RHU','2026-02-26 00:58:22'),(37,'Roxas Medicare Hospital','2026-02-26 00:58:22'),(38,'Roxas RHU','2026-02-26 00:58:22'),(39,'San Vicente District Hospital','2026-02-26 00:58:22'),(40,'San Vicente RHU','2026-02-26 00:58:22'),(41,'Sofronio Española RHU','2026-02-26 00:58:22'),(42,'Sofronio Española Provincial Hospital','2026-02-26 00:58:22'),(43,'Taytay RHU','2026-02-26 00:58:22'),(44,'Vice Governor Francsio F. Ponce De Leon Memorial Hospital','2026-02-26 00:58:22');
 /*!40000 ALTER TABLE `recipients` ENABLE KEYS */;
+UNLOCK TABLES;
+
+--
+-- Table structure for table `stock_cards`
+--
+
+DROP TABLE IF EXISTS `stock_cards`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `stock_cards` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `po_contract_no` varchar(255) DEFAULT NULL,
+  `supplier` varchar(255) DEFAULT NULL,
+  `item_description` text,
+  `dosage_form` varchar(255) DEFAULT NULL,
+  `dosage_strength` varchar(255) DEFAULT NULL,
+  `uom` varchar(100) DEFAULT NULL,
+  `sku_code` varchar(150) DEFAULT NULL,
+  `entity_name` varchar(255) DEFAULT NULL,
+  `fund_cluster` varchar(255) DEFAULT NULL,
+  `unit_cost` decimal(12,2) DEFAULT NULL,
+  `mode_of_procurement` varchar(255) DEFAULT NULL,
+  `end_user_program` varchar(255) DEFAULT NULL,
+  `batch_no` varchar(120) DEFAULT NULL,
+  `ledger_rows` longtext,
+  `item_key` varchar(400) DEFAULT NULL,
+  `source_type` varchar(30) NOT NULL DEFAULT 'manual',
+  `created_by` varchar(150) DEFAULT NULL,
+  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB AUTO_INCREMENT=13 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `stock_cards`
+--
+
+LOCK TABLES `stock_cards` WRITE;
+/*!40000 ALTER TABLE `stock_cards` DISABLE KEYS */;
+INSERT INTO `stock_cards` VALUES (7,'CHD4M-PTR-2025-07-00534','DOH','Betamethasone 1mg/g topical 5g cream tube box','Tubes',NULL,'Tubes',NULL,'PHO','PHO',32.50,NULL,NULL,'BV23004','[{\"entry_date\":\"2025-08-01\",\"received\":\"500\",\"issued\":\"0\",\"balance\":\"500.00\",\"total_cost\":\"16250.00\",\"ref_no\":\"PO CHD4M-PTR-2025-07-00534\",\"remarks\":\"DOH/Stock received via Manage Items\"},{\"entry_date\":\"2025-08-01\",\"received\":\"500\",\"issued\":\"0\",\"balance\":\"1000.00\",\"total_cost\":\"32500.00\",\"ref_no\":\"PO CHD4M-PTR-2025-07-00534\",\"remarks\":\"DOH/Stock received via Manage Items\"}]','betamethasone 1mg/g topical 5g cream tube box|tubes|bv23004','release','admin','2026-03-11 08:04:28'),(8,'CHD4M-PTR-2025-07-00471','DOH','Glass Ionomer for Atraumatic Restorative Treatment','Kit',NULL,'Kit',NULL,'PHO','PHO',3348.00,NULL,NULL,'122409-7','[{\"entry_date\":\"2025-08-01\",\"received\":\"30\",\"issued\":\"0\",\"balance\":\"30.00\",\"total_cost\":\"100440.00\",\"ref_no\":\"PO CHD4M-PTR-2025-07-00471\",\"remarks\":\"DOH/Stock received via Manage Items\"},{\"entry_date\":\"2025-08-01\",\"received\":\"30\",\"issued\":\"0\",\"balance\":\"60.00\",\"total_cost\":\"200880.00\",\"ref_no\":\"PO CHD4M-PTR-2025-07-00471\",\"remarks\":\"DOH/Stock received via Manage Items\"}]','glass ionomer for atraumatic restorative treatment|kit|122409-7','release','admin','2026-03-11 08:07:19'),(9,'CHD4M-PTR-2025-07-00471','DOH','Glass Ionomer Sealant','Kit',NULL,'Kit',NULL,'PHO','PHO',6465.00,NULL,NULL,'2412041','[{\"entry_date\":\"2025-08-01\",\"received\":\"30\",\"issued\":\"0\",\"balance\":\"30.00\",\"total_cost\":\"193950.00\",\"ref_no\":\"PO CHD4M-PTR-2025-07-00471\",\"remarks\":\"DOH/Stock received via Manage Items\"},{\"entry_date\":\"2025-08-01\",\"received\":\"30\",\"issued\":\"0\",\"balance\":\"60.00\",\"total_cost\":\"387900.00\",\"ref_no\":\"PO CHD4M-PTR-2025-07-00471\",\"remarks\":\"DOH/Stock received via Manage Items\"}]','glass ionomer sealant|kit|2412041','release','admin','2026-03-11 08:09:01'),(10,'CHD4M-PTR-2025-07-00531','DOH','Ice Pack 0.3L','Pieces',NULL,'Pieces',NULL,'PHO','PHO',0.00,NULL,NULL,'N/A','[{\"entry_date\":\"2025-08-01\",\"received\":\"10\",\"issued\":\"0\",\"balance\":\"10.00\",\"total_cost\":\"0.00\",\"ref_no\":\"PO CHD4M-PTR-2025-07-00531\",\"remarks\":\"DOH/Stock received via Manage Items\"},{\"entry_date\":\"2025-08-01\",\"received\":\"90\",\"issued\":\"0\",\"balance\":\"100.00\",\"total_cost\":\"0.00\",\"ref_no\":\"PO CHD4M-PTR-2025-07-00531\",\"remarks\":\"DOH/Stock received via Manage Items\"}]','ice pack 0.3l|pieces|n/a','release','admin','2026-03-11 08:12:38'),(11,'CHD4M-PTR-2025-07-00531','DOH','Ice Pack 0.4L','Pieces',NULL,'Pieces',NULL,'PHO','PHO',0.00,NULL,NULL,'N/A','[{\"entry_date\":\"2025-08-01\",\"received\":\"65\",\"issued\":\"0\",\"balance\":\"65.00\",\"total_cost\":\"0.00\",\"ref_no\":\"PO CHD4M-PTR-2025-07-00531\",\"remarks\":\"DOH/Stock received via Manage Items\"}]','ice pack 0.4l|pieces|n/a','release','admin','2026-03-11 08:13:06'),(12,'CHD4M-PTR-2025-01-00017','DOH','Influenza Vaccine (Flu) Vaccine 10 Doses per Vial','Vial',NULL,'Vial',NULL,'PHO','PHO',1931.00,NULL,'National Immunization Program','U8319AA','[{\"entry_date\":\"2025-01-20\",\"received\":\"500\",\"issued\":\"0\",\"balance\":\"500.00\",\"total_cost\":\"965500.00\",\"ref_no\":\"PO CHD4M-PTR-2025-01-00017\",\"remarks\":\"DOH/Stock received via Manage Items\"}]','influenza vaccine (flu) vaccine 10 doses per vial|vial|u8319aa','release','admin','2026-03-13 01:00:24');
+/*!40000 ALTER TABLE `stock_cards` ENABLE KEYS */;
 UNLOCK TABLES;
 
 --
@@ -198,7 +281,7 @@ CREATE TABLE `users` (
   PRIMARY KEY (`user_id`),
   UNIQUE KEY `username` (`username`),
   UNIQUE KEY `email` (`email`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -207,6 +290,7 @@ CREATE TABLE `users` (
 
 LOCK TABLES `users` WRITE;
 /*!40000 ALTER TABLE `users` DISABLE KEYS */;
+INSERT INTO `users` VALUES (1,'rj coloquit','admin',NULL,'$2y$10$0gvl9fzphWHEsE8./WBTn.XCnLBh7jTEi4Uo3i81s7oaCA9zG7142','Encoder','Active','2026-02-27 02:35:55'),(2,'Richard Roy','restetutoputo@gmail.com','restetutoputo@gmail.com','$2y$10$C15i9MrLwuLWS6vXyYVbwuCW./RSbyWtCUZdK0U5OTTofB13Kp02O','Encoder','Active','2026-02-27 05:46:14');
 /*!40000 ALTER TABLE `users` ENABLE KEYS */;
 UNLOCK TABLES;
 /*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;
@@ -219,4 +303,4 @@ UNLOCK TABLES;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2026-02-26  9:00:49
+-- Dump completed on 2026-03-13  9:07:45
