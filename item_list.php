@@ -84,7 +84,11 @@ function appendReceivedStockCardEntry(
         return;
     }
 
-    $itemKey = strtolower($description) . '|' . strtolower($uom) . '|' . strtolower($batchNumber);
+    $itemKey = strtolower($description)
+        . '|' . strtolower($uom)
+        . '|' . strtolower($batchNumber)
+        . '|' . strtolower(trim($program))
+        . '|' . strtolower(trim($poNo));
     $readStmt = $pdo->prepare('
         SELECT id, ledger_rows
         FROM stock_cards
@@ -372,14 +376,40 @@ try {
 
             if (empty($errors)) {
                 if ($action === 'create') {
-                    $descriptionLookup = $pdo->prepare('
-                        SELECT id
-                        FROM products
-                        WHERE LOWER(TRIM(product_description)) = LOWER(?)
-                        ORDER BY id ASC
-                        LIMIT 1
-                    ');
-                    $descriptionLookup->execute([trim($formData['product_description'])]);
+                    if ($hasProductBatchesTable && $formData['batch_number'] !== '') {
+                        $descriptionLookup = $pdo->prepare('
+                            SELECT p.id
+                            FROM products p
+                            INNER JOIN product_batches b ON b.product_id = p.id
+                            WHERE LOWER(TRIM(p.product_description)) = LOWER(?)
+                              AND LOWER(TRIM(COALESCE(p.program, ""))) = LOWER(?)
+                              AND LOWER(TRIM(COALESCE(p.po_no, ""))) = LOWER(?)
+                              AND LOWER(TRIM(b.batch_number)) = LOWER(?)
+                            ORDER BY p.id ASC
+                            LIMIT 1
+                        ');
+                        $descriptionLookup->execute([
+                            trim($formData['product_description']),
+                            trim($formData['program']),
+                            trim($formData['po_no']),
+                            trim($formData['batch_number']),
+                        ]);
+                    } else {
+                        $descriptionLookup = $pdo->prepare('
+                            SELECT id
+                            FROM products
+                            WHERE LOWER(TRIM(product_description)) = LOWER(?)
+                              AND LOWER(TRIM(COALESCE(program, ""))) = LOWER(?)
+                              AND LOWER(TRIM(COALESCE(po_no, ""))) = LOWER(?)
+                            ORDER BY id ASC
+                            LIMIT 1
+                        ');
+                        $descriptionLookup->execute([
+                            trim($formData['product_description']),
+                            trim($formData['program']),
+                            trim($formData['po_no']),
+                        ]);
+                    }
                     $existingProduct = $descriptionLookup->fetch();
 
                     $newProductId = (int) ($existingProduct['id'] ?? 0);

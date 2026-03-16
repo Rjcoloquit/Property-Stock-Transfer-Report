@@ -119,7 +119,7 @@ try {
             try {
                 if ($releasePtrNo !== '') {
                     $pendingRowsStmt = $pdo->prepare('
-                        SELECT id, ptr_no, record_date, recipient, description, batch_number, batch_id, unit, quantity, unit_cost, program, supplier
+                        SELECT id, ptr_no, record_date, recipient, description, batch_number, batch_id, unit, quantity, unit_cost, program, po_no, supplier
                         FROM inventory_records
                         WHERE ptr_no = ? AND COALESCE(release_status, "released") = "pending"
                         ORDER BY id ASC
@@ -128,7 +128,7 @@ try {
                     $pendingRowsStmt->execute([$releasePtrNo]);
                 } else {
                     $pendingRowsStmt = $pdo->prepare('
-                        SELECT id, ptr_no, record_date, recipient, description, batch_number, batch_id, unit, quantity, unit_cost, program, supplier
+                        SELECT id, ptr_no, record_date, recipient, description, batch_number, batch_id, unit, quantity, unit_cost, program, po_no, supplier
                         FROM inventory_records
                         WHERE id = ? AND COALESCE(release_status, "released") = "pending"
                         ORDER BY id ASC
@@ -221,7 +221,11 @@ try {
 
                         $stockDeductionPlan[$batchId] = ($stockDeductionPlan[$batchId] ?? 0) + $quantity;
 
-                        $itemKey = strtolower($description) . '|' . strtolower($unitValue) . '|' . strtolower($batchNumber);
+                        $itemKey = strtolower($description)
+                            . '|' . strtolower($unitValue)
+                            . '|' . strtolower($batchNumber)
+                            . '|' . strtolower(trim((string) ($row['program'] ?? '')))
+                            . '|' . strtolower(trim((string) ($row['po_no'] ?? '')));
                         if (!isset($releaseCardRows[$itemKey])) {
                             $releaseCardRows[$itemKey] = [
                                 'item_key' => $itemKey,
@@ -229,6 +233,7 @@ try {
                                 'unit' => $unitValue,
                                 'batch_no' => $batchNumber,
                                 'program' => trim((string) ($row['program'] ?? '')),
+                                'po_no' => trim((string) ($row['po_no'] ?? '')),
                                 'supplier' => trim((string) ($row['supplier'] ?? '')),
                                 'unit_cost' => (float) ($row['unit_cost'] ?? 0),
                                 'record_date' => (string) ($row['record_date'] ?? ''),
@@ -373,7 +378,7 @@ try {
 
                             if ($cardId > 0) {
                                 $updateCardStmt->execute([
-                                    ((string) ($card['ptr_no'] ?? '')) !== '' ? ('PTR ' . (string) $card['ptr_no']) : null,
+                                    ((string) ($card['po_no'] ?? '')) !== '' ? (string) $card['po_no'] : null,
                                     ((string) ($card['supplier'] ?? '')) !== '' ? (string) $card['supplier'] : null,
                                     (string) ($card['description'] ?? ''),
                                     ((string) ($card['unit'] ?? '')) !== '' ? (string) $card['unit'] : null,
@@ -389,7 +394,7 @@ try {
                                 }
                             } else {
                                 $insertCardStmt->execute([
-                                    ((string) ($card['ptr_no'] ?? '')) !== '' ? ('PTR ' . (string) $card['ptr_no']) : null,
+                                    ((string) ($card['po_no'] ?? '')) !== '' ? (string) $card['po_no'] : null,
                                     ((string) ($card['supplier'] ?? '')) !== '' ? (string) $card['supplier'] : null,
                                     (string) ($card['description'] ?? ''),
                                     ((string) ($card['unit'] ?? '')) !== '' ? (string) $card['unit'] : null,

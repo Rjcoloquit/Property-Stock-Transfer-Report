@@ -346,6 +346,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $quantities = isset($_POST['quantity']) && is_array($_POST['quantity']) ? $_POST['quantity'] : [];
     $rowCount = max(count($descriptions), count($batchNumbers), count($units), count($programs), count($poNumbers), count($quantities));
     $stockDeductionPlan = [];
+    $itemCombinationTracker = [];
+    $batchLookupByCompositeStmt = null;
+
+    if ($hasProductBatchesTable) {
+        $batchLookupByCompositeStmt = $pdo->prepare('
+            SELECT b.id AS batch_id, b.stock_quantity
+            FROM product_batches b
+            INNER JOIN products p ON p.id = b.product_id
+            WHERE LOWER(TRIM(p.product_description)) = LOWER(?)
+              AND LOWER(TRIM(b.batch_number)) = LOWER(?)
+              AND LOWER(TRIM(COALESCE(p.program, ""))) = LOWER(?)
+              AND LOWER(TRIM(COALESCE(p.po_no, ""))) = LOWER(?)
+            ORDER BY b.id ASC
+            LIMIT 1
+        ');
+    }
 
     if ($data['record_date'] === '') {
         $errors[] = 'Record date is required.';
@@ -374,6 +390,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $item['po_no'] = $poNoRaw;
         $item['quantity'] = $quantityRaw;
         $item['batch_id'] = 0;
+
+        $combinationKey = strtolower($description)
+            . '|' . strtolower($batchNumber)
+            . '|' . strtolower($programRaw)
+            . '|' . strtolower($poNoRaw);
 
         if ($description === '') {
             $errors[] = 'Item description is required on row ' . ($i + 1) . '.';
@@ -410,6 +431,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             continue;
         }
 
+        if (isset($itemCombinationTracker[$combinationKey])) {
+            $errors[] = 'Duplicate row detected on row ' . ($i + 1) . '. Item + Batch + Program + PO Number must be unique per PTR.';
+            $data['items'][] = $item;
+            continue;
+        }
+        $itemCombinationTracker[$combinationKey] = true;
+
         $selectedProduct = $productMetaByDescription[$description];
         $item['unit'] = $unitRaw !== '' ? $unitRaw : $selectedProduct['unit'];
         $item['unit_cost'] = number_format((float) $selectedProduct['unit_cost'], 2, '.', '');
@@ -426,13 +454,26 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $data['items'][] = $item;
                 continue;
             }
-            if (!isset($batchMetaByDescription[$description][$batchNumber])) {
-                $errors[] = 'Selected batch does not exist for the item on row ' . ($i + 1) . '.';
+
+            if (!$batchLookupByCompositeStmt) {
+                $errors[] = 'Unable to validate item batch right now.';
                 $data['items'][] = $item;
                 continue;
             }
 
-            $batchMeta = $batchMetaByDescription[$description][$batchNumber];
+            $batchLookupByCompositeStmt->execute([
+                $description,
+                $batchNumber,
+                $programRaw,
+                $poNoRaw,
+            ]);
+            $batchMeta = $batchLookupByCompositeStmt->fetch();
+            if (!$batchMeta) {
+                $errors[] = 'Selected item combination (Item + Batch + Program + PO Number) does not exist on row ' . ($i + 1) . '.';
+                $data['items'][] = $item;
+                continue;
+            }
+
             $batchId = (int) ($batchMeta['batch_id'] ?? 0);
             $availableStock = (int) ($batchMeta['stock_quantity'] ?? 0);
             $requestedQty = (int) $quantityRaw;

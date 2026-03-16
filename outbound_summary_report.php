@@ -260,8 +260,8 @@ function formatMoney($value): string
                         <h1 class="h5 mb-0">Outbound Summary Report</h1>
                         <div class="d-flex align-items-center flex-wrap gap-2">
                             <span class="outbound-kpi-chip">Rows: <strong id="visibleRowsCount"><?= number_format(count($rows)) ?></strong></span>
-                            <span class="outbound-kpi-chip">Qty: <strong><?= number_format($totalReleasedQty) ?></strong></span>
-                            <span class="outbound-kpi-chip">Amount: <strong><?= formatMoney($totalReleasedAmount) ?></strong></span>
+                            <span class="outbound-kpi-chip">Qty: <strong id="visibleQtyTotal"><?= number_format($totalReleasedQty) ?></strong></span>
+                            <span class="outbound-kpi-chip">Amount: <strong id="visibleAmountTotal"><?= formatMoney($totalReleasedAmount) ?></strong></span>
                             <button type="button" class="btn btn-primary btn-sm" onclick="window.print();">Print</button>
                         </div>
                     </div>
@@ -282,6 +282,10 @@ function formatMoney($value): string
                                 <div class="col-md-3">
                                     <label for="filterDescription" class="form-label form-label-sm">Item Description</label>
                                     <input type="text" class="form-control" id="filterDescription" placeholder="Search item...">
+                                </div>
+                                <div class="col-md-2">
+                                    <label for="filterRecipient" class="form-label form-label-sm">Recipient</label>
+                                    <input type="text" class="form-control" id="filterRecipient" placeholder="Search recipient...">
                                 </div>
                                 <div class="col-md-2">
                                     <label for="filterDateFrom" class="form-label form-label-sm">Date From</label>
@@ -331,7 +335,7 @@ function formatMoney($value): string
                                     </tr>
                                 <?php else: ?>
                                     <?php foreach ($rows as $row): ?>
-                                        <tr data-record-row="true" data-program="<?= htmlspecialchars((string) ($row['program'] ?? '')) ?>" data-description="<?= htmlspecialchars((string) ($row['description'] ?? '')) ?>" data-date="<?= htmlspecialchars((string) ($row['date_released'] ?? '')) ?>">
+                                        <tr data-record-row="true" data-program="<?= htmlspecialchars((string) ($row['program'] ?? '')) ?>" data-description="<?= htmlspecialchars((string) ($row['description'] ?? '')) ?>" data-recipient="<?= htmlspecialchars((string) ($row['recipient'] ?? '')) ?>" data-date="<?= htmlspecialchars((string) ($row['date_released'] ?? '')) ?>" data-qty="<?= (int) ($row['quantity'] ?? 0) ?>" data-total-cost="<?= number_format((float) ($row['total_cost'] ?? 0), 2, '.', '') ?>">
                                             <td><?= htmlspecialchars((string) ($row['program'] ?? '-')) ?></td>
                                             <td><?= htmlspecialchars((string) ($row['po_no'] ?? '-')) ?></td>
                                             <td><?= htmlspecialchars((string) ($row['date_released'] ?? '-')) ?></td>
@@ -347,6 +351,13 @@ function formatMoney($value): string
                                     <?php endforeach; ?>
                                 <?php endif; ?>
                             </tbody>
+                            <tfoot>
+                                <tr>
+                                    <td colspan="8" class="text-end"><strong>Grand Total (Filtered):</strong></td>
+                                    <td class="text-end"><strong id="filteredGrandTotal"><?= formatMoney($totalReleasedAmount) ?></strong></td>
+                                    <td colspan="2"></td>
+                                </tr>
+                            </tfoot>
                         </table>
                     </div>
                 </div>
@@ -361,25 +372,42 @@ function formatMoney($value): string
 
             const filterProgramInput = document.getElementById('filterProgram');
             const filterDescriptionInput = document.getElementById('filterDescription');
+            const filterRecipientInput = document.getElementById('filterRecipient');
             const filterDateFromInput = document.getElementById('filterDateFrom');
             const filterDateToInput = document.getElementById('filterDateTo');
             const clearFilterBtn = document.getElementById('clearFilterBtn');
             const visibleRowsCount = document.getElementById('visibleRowsCount');
             const visibleRowsCount2 = document.getElementById('visibleRowsCount2');
+            const visibleQtyTotal = document.getElementById('visibleQtyTotal');
+            const visibleAmountTotal = document.getElementById('visibleAmountTotal');
+            const filteredGrandTotal = document.getElementById('filteredGrandTotal');
             const table = document.getElementById('outboundTable');
             const rows = table.querySelectorAll('tbody tr[data-record-row="true"]');
+
+            function formatMoney(value) {
+                return Number(value || 0).toLocaleString('en-US', {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2
+                });
+            }
 
             function applyFilters() {
                 const programFilter = filterProgramInput.value.toLowerCase();
                 const descriptionFilter = filterDescriptionInput.value.toLowerCase();
+                const recipientFilter = filterRecipientInput.value.toLowerCase();
                 const dateFromFilter = filterDateFromInput.value;
                 const dateToFilter = filterDateToInput.value;
                 let visibleCount = 0;
+                let filteredQty = 0;
+                let filteredAmount = 0;
 
                 rows.forEach(row => {
                     const programText = (row.getAttribute('data-program') || '').toLowerCase();
                     const descriptionText = (row.getAttribute('data-description') || '').toLowerCase();
+                    const recipientText = (row.getAttribute('data-recipient') || '').toLowerCase();
                     const dateText = row.getAttribute('data-date') || '';
+                    const qtyValue = Number(row.getAttribute('data-qty') || 0);
+                    const totalCostValue = Number(row.getAttribute('data-total-cost') || 0);
 
                     let showRow = true;
 
@@ -390,6 +418,11 @@ function formatMoney($value): string
 
                     // Filter by description
                     if (descriptionFilter && !descriptionText.includes(descriptionFilter)) {
+                        showRow = false;
+                    }
+
+                    // Filter by recipient
+                    if (recipientFilter && !recipientText.includes(recipientFilter)) {
                         showRow = false;
                     }
 
@@ -404,6 +437,8 @@ function formatMoney($value): string
                     row.style.display = showRow ? '' : 'none';
                     if (showRow) {
                         visibleCount++;
+                        filteredQty += Number.isFinite(qtyValue) ? qtyValue : 0;
+                        filteredAmount += Number.isFinite(totalCostValue) ? totalCostValue : 0;
                     }
                 });
 
@@ -413,11 +448,21 @@ function formatMoney($value): string
                 if (visibleRowsCount2) {
                     visibleRowsCount2.textContent = visibleCount.toLocaleString();
                 }
+                if (visibleQtyTotal) {
+                    visibleQtyTotal.textContent = filteredQty.toLocaleString();
+                }
+                if (visibleAmountTotal) {
+                    visibleAmountTotal.textContent = formatMoney(filteredAmount);
+                }
+                if (filteredGrandTotal) {
+                    filteredGrandTotal.textContent = formatMoney(filteredAmount);
+                }
             }
 
             function clearFilters() {
                 filterProgramInput.value = '';
                 filterDescriptionInput.value = '';
+                filterRecipientInput.value = '';
                 filterDateFromInput.value = '';
                 filterDateToInput.value = '';
                 applyFilters();
@@ -425,6 +470,7 @@ function formatMoney($value): string
 
             filterProgramInput.addEventListener('input', applyFilters);
             filterDescriptionInput.addEventListener('input', applyFilters);
+            filterRecipientInput.addEventListener('input', applyFilters);
             filterDateFromInput.addEventListener('change', applyFilters);
             filterDateToInput.addEventListener('change', applyFilters);
             clearFilterBtn.addEventListener('click', clearFilters);
