@@ -64,6 +64,43 @@ function buildItemListUrl(string $search, string $sort, string $message = '', in
     return 'item_list.php' . (!empty($params) ? '?' . http_build_query($params) : '');
 }
 
+function formatDateForDisplayInput($dateValue): string
+{
+    $dateValue = trim((string) $dateValue);
+    if ($dateValue === '') {
+        return '';
+    }
+
+    $isoDate = DateTime::createFromFormat('Y-m-d', $dateValue);
+    if ($isoDate && $isoDate->format('Y-m-d') === $dateValue) {
+        return $isoDate->format('m/d/Y');
+    }
+
+    return $dateValue;
+}
+
+function normalizeDateInputToIso(string $rawDate, string $fieldLabel, array &$errors): ?string
+{
+    $rawDate = trim($rawDate);
+    if ($rawDate === '') {
+        return null;
+    }
+
+    $usDate = DateTime::createFromFormat('m/d/Y', $rawDate);
+    if ($usDate && $usDate->format('m/d/Y') === $rawDate) {
+        return $usDate->format('Y-m-d');
+    }
+
+    // Keep support for ISO values to avoid breaking pre-filled/browser-autofilled dates.
+    $isoDate = DateTime::createFromFormat('Y-m-d', $rawDate);
+    if ($isoDate && $isoDate->format('Y-m-d') === $rawDate) {
+        return $isoDate->format('Y-m-d');
+    }
+
+    $errors[] = $fieldLabel . ' must be a valid date in mm/dd/yyyy format.';
+    return null;
+}
+
 function appendReceivedStockCardEntry(
     PDO $pdo,
     string $username,
@@ -351,6 +388,8 @@ try {
             $formData['date_of_delivery'] = trim($_POST['date_of_delivery'] ?? '');
             $formData['delivery_term'] = trim($_POST['delivery_term'] ?? '');
             $formData['payment_term'] = trim($_POST['payment_term'] ?? '');
+            $normalizedExpiryDate = null;
+            $normalizedDateOfDelivery = null;
 
             if ($formData['product_description'] === '') {
                 $errors[] = 'Description is required.';
@@ -367,11 +406,12 @@ try {
             if ($hasProductBatchesTable && ($formData['stock'] === '' || !ctype_digit($formData['stock']) || (int) $formData['stock'] <= 0)) {
                 $errors[] = 'Stock must be a valid positive whole number (greater than 0).';
             }
-            if ($hasProductsExpiryDate && $formData['expiry_date'] !== '' && !preg_match('/^\d{4}-\d{2}-\d{2}$/', $formData['expiry_date'])) {
-                $errors[] = 'Expiry date must be a valid date.';
+            if ($hasProductsExpiryDate) {
+                $normalizedExpiryDate = normalizeDateInputToIso($formData['expiry_date'], 'Expiry date', $errors);
             }
-            if ($formData['date_of_delivery'] !== '' && !preg_match('/^\d{4}-\d{2}-\d{2}$/', $formData['date_of_delivery'])) {
-                $errors[] = 'Date of delivery must be a valid date.';
+            $normalizedDateOfDelivery = normalizeDateInputToIso($formData['date_of_delivery'], 'Date of delivery', $errors);
+            if ($normalizedDateOfDelivery !== null && $normalizedDateOfDelivery > date('Y-m-d')) {
+                $errors[] = 'Date of delivery cannot be in the future.';
             }
 
             if (empty($errors)) {
@@ -435,12 +475,12 @@ try {
                             $updateExistingStmt->execute([
                                 $formData['uom'],
                                 (float) $formData['cost_per_unit'],
-                                $formData['expiry_date'] !== '' ? $formData['expiry_date'] : null,
+                                $normalizedExpiryDate,
                                 $formData['program'] !== '' ? $formData['program'] : null,
                                 $formData['po_no'] !== '' ? $formData['po_no'] : null,
                                 $formData['supplier'] !== '' ? $formData['supplier'] : null,
                                 $formData['place_of_delivery'] !== '' ? $formData['place_of_delivery'] : null,
-                                $formData['date_of_delivery'] !== '' ? $formData['date_of_delivery'] : null,
+                                $normalizedDateOfDelivery,
                                 $formData['delivery_term'] !== '' ? $formData['delivery_term'] : null,
                                 $formData['payment_term'] !== '' ? $formData['payment_term'] : null,
                                 $newProductId,
@@ -466,7 +506,7 @@ try {
                                 $formData['po_no'] !== '' ? $formData['po_no'] : null,
                                 $formData['supplier'] !== '' ? $formData['supplier'] : null,
                                 $formData['place_of_delivery'] !== '' ? $formData['place_of_delivery'] : null,
-                                $formData['date_of_delivery'] !== '' ? $formData['date_of_delivery'] : null,
+                                $normalizedDateOfDelivery,
                                 $formData['delivery_term'] !== '' ? $formData['delivery_term'] : null,
                                 $formData['payment_term'] !== '' ? $formData['payment_term'] : null,
                                 $newProductId,
@@ -494,12 +534,12 @@ try {
                                 $formData['product_description'],
                                 $formData['uom'],
                                 (float) $formData['cost_per_unit'],
-                                $formData['expiry_date'] !== '' ? $formData['expiry_date'] : null,
+                                $normalizedExpiryDate,
                                 $formData['program'] !== '' ? $formData['program'] : null,
                                 $formData['po_no'] !== '' ? $formData['po_no'] : null,
                                 $formData['supplier'] !== '' ? $formData['supplier'] : null,
                                 $formData['place_of_delivery'] !== '' ? $formData['place_of_delivery'] : null,
-                                $formData['date_of_delivery'] !== '' ? $formData['date_of_delivery'] : null,
+                                $normalizedDateOfDelivery,
                                 $formData['delivery_term'] !== '' ? $formData['delivery_term'] : null,
                                 $formData['payment_term'] !== '' ? $formData['payment_term'] : null,
                             ]);
@@ -528,7 +568,7 @@ try {
                                 $formData['po_no'] !== '' ? $formData['po_no'] : null,
                                 $formData['supplier'] !== '' ? $formData['supplier'] : null,
                                 $formData['place_of_delivery'] !== '' ? $formData['place_of_delivery'] : null,
-                                $formData['date_of_delivery'] !== '' ? $formData['date_of_delivery'] : null,
+                                $normalizedDateOfDelivery,
                                 $formData['delivery_term'] !== '' ? $formData['delivery_term'] : null,
                                 $formData['payment_term'] !== '' ? $formData['payment_term'] : null,
                             ]);
@@ -548,7 +588,7 @@ try {
                             $newProductId,
                             $formData['batch_number'],
                             (int) $formData['stock'],
-                            $formData['expiry_date'] !== '' ? $formData['expiry_date'] : null,
+                                $normalizedExpiryDate,
                         ]);
                         appendReceivedStockCardEntry(
                             $pdo,
@@ -561,7 +601,7 @@ try {
                             $formData['po_no'],
                             $formData['supplier'],
                             (int) $formData['stock'],
-                            $formData['date_of_delivery']
+                            $normalizedDateOfDelivery ?? ''
                         );
                         $didIncreaseStock = true;
                     }
@@ -590,12 +630,12 @@ try {
                         $formData['product_description'],
                         $formData['uom'],
                         (float) $formData['cost_per_unit'],
-                        $formData['expiry_date'] !== '' ? $formData['expiry_date'] : null,
+                        $normalizedExpiryDate,
                         $formData['program'] !== '' ? $formData['program'] : null,
                         $formData['po_no'] !== '' ? $formData['po_no'] : null,
                         $formData['supplier'] !== '' ? $formData['supplier'] : null,
                         $formData['place_of_delivery'] !== '' ? $formData['place_of_delivery'] : null,
-                        $formData['date_of_delivery'] !== '' ? $formData['date_of_delivery'] : null,
+                        $normalizedDateOfDelivery,
                         $formData['delivery_term'] !== '' ? $formData['delivery_term'] : null,
                         $formData['payment_term'] !== '' ? $formData['payment_term'] : null,
                         $username,
@@ -647,12 +687,12 @@ try {
                             $formData['product_description'],
                             $formData['uom'],
                             (float) $formData['cost_per_unit'],
-                            $formData['expiry_date'] !== '' ? $formData['expiry_date'] : null,
+                            $normalizedExpiryDate,
                             $formData['program'] !== '' ? $formData['program'] : null,
                             $formData['po_no'] !== '' ? $formData['po_no'] : null,
                             $formData['supplier'] !== '' ? $formData['supplier'] : null,
                             $formData['place_of_delivery'] !== '' ? $formData['place_of_delivery'] : null,
-                            $formData['date_of_delivery'] !== '' ? $formData['date_of_delivery'] : null,
+                            $normalizedDateOfDelivery,
                             $formData['delivery_term'] !== '' ? $formData['delivery_term'] : null,
                             $formData['payment_term'] !== '' ? $formData['payment_term'] : null,
                             $updateId,
@@ -680,7 +720,7 @@ try {
                             $formData['po_no'] !== '' ? $formData['po_no'] : null,
                             $formData['supplier'] !== '' ? $formData['supplier'] : null,
                             $formData['place_of_delivery'] !== '' ? $formData['place_of_delivery'] : null,
-                            $formData['date_of_delivery'] !== '' ? $formData['date_of_delivery'] : null,
+                            $normalizedDateOfDelivery,
                             $formData['delivery_term'] !== '' ? $formData['delivery_term'] : null,
                             $formData['payment_term'] !== '' ? $formData['payment_term'] : null,
                             $updateId,
@@ -696,7 +736,7 @@ try {
                             $batchUpdateStmt->execute([
                                 $formData['batch_number'],
                                 (int) $formData['stock'],
-                                $formData['expiry_date'] !== '' ? $formData['expiry_date'] : null,
+                                $normalizedExpiryDate,
                                 $updateId,
                                 $originalBatchNumber,
                             ]);
@@ -712,7 +752,7 @@ try {
                                 $updateId,
                                 $formData['batch_number'],
                                 (int) $formData['stock'],
-                                $formData['expiry_date'] !== '' ? $formData['expiry_date'] : null,
+                                $normalizedExpiryDate,
                             ]);
                         }
                         $newStockQty = (int) $formData['stock'];
@@ -729,7 +769,7 @@ try {
                                 $formData['po_no'],
                                 $formData['supplier'],
                                 $receivedDelta,
-                                $formData['date_of_delivery']
+                                $normalizedDateOfDelivery ?? ''
                             );
                         }
                     }
@@ -812,12 +852,12 @@ try {
                     'uom' => (string) ($editingItem['uom'] ?? ''),
                     'stock' => (string) ($editingItem['stock'] ?? '0'),
                     'cost_per_unit' => (string) ($editingItem['cost_per_unit'] ?? ''),
-                    'expiry_date' => (string) ($editingItem['expiry_date'] ?? ''),
+                    'expiry_date' => formatDateForDisplayInput((string) ($editingItem['expiry_date'] ?? '')),
                     'program' => (string) ($editingItem['program'] ?? ''),
                     'po_no' => (string) ($editingItem['po_no'] ?? ''),
                     'supplier' => (string) ($editingItem['supplier'] ?? ''),
                     'place_of_delivery' => (string) ($editingItem['place_of_delivery'] ?? ''),
-                    'date_of_delivery' => (string) ($editingItem['date_of_delivery'] ?? ''),
+                    'date_of_delivery' => formatDateForDisplayInput((string) ($editingItem['date_of_delivery'] ?? '')),
                     'delivery_term' => (string) ($editingItem['delivery_term'] ?? ''),
                     'payment_term' => (string) ($editingItem['payment_term'] ?? ''),
                 ];
@@ -1269,10 +1309,12 @@ try {
                                 <div class="col-sm-6 col-md-4">
                                     <label for="expiry_date" class="form-label item-form-label">Expiry date</label>
                                     <input
-                                        type="date"
+                                        type="text"
                                         id="expiry_date"
                                         name="expiry_date"
                                         class="form-control item-form-input"
+                                        placeholder="mm/dd/yyyy"
+                                        inputmode="numeric"
                                         value="<?= htmlspecialchars($formData['expiry_date']) ?>"
                                     >
                                 </div>
@@ -1330,12 +1372,13 @@ try {
                                 <div class="col-sm-6 col-md-3">
                                     <label for="date_of_delivery" class="form-label item-form-label">Date of delivery</label>
                                     <input
-                                        type="date"
+                                        type="text"
                                         id="date_of_delivery"
                                         name="date_of_delivery"
                                         class="form-control item-form-input"
+                                        placeholder="mm/dd/yyyy"
+                                        inputmode="numeric"
                                         value="<?= htmlspecialchars($formData['date_of_delivery']) ?>"
-                                        max="<?= date('Y-m-d') ?>"
                                     >
                                 </div>
                                 <div class="col-sm-6 col-md-3">
