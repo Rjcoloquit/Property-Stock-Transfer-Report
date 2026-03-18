@@ -273,6 +273,9 @@ try {
     $expiryColumnStmt = $pdo->query("SHOW COLUMNS FROM products LIKE 'expiry_date'");
     if ($expiryColumnStmt && $expiryColumnStmt->fetch()) {
         $hasProductsExpiryDate = true;
+    } else {
+        $pdo->exec('ALTER TABLE products ADD COLUMN expiry_date DATE DEFAULT NULL AFTER cost_per_unit');
+        $hasProductsExpiryDate = true;
     }
     $poNoColumnStmt = $pdo->query("SHOW COLUMNS FROM products LIKE 'po_no'");
     if (!$poNoColumnStmt || !$poNoColumnStmt->fetch()) {
@@ -374,6 +377,27 @@ try {
                 exit;
             }
             $errors[] = 'Invalid item selected for delete.';
+        } elseif ($action === 'full_reset') {
+            try {
+                // Reset child tables first, then parent tables.
+                if ($hasProductBatchesTable) {
+                    $pdo->exec('DELETE FROM product_batches');
+                    $pdo->exec('ALTER TABLE product_batches AUTO_INCREMENT = 1');
+                }
+
+                $pdo->exec('DELETE FROM item_add_history');
+                $pdo->exec('ALTER TABLE item_add_history AUTO_INCREMENT = 1');
+
+                $pdo->exec('DELETE FROM products');
+                $pdo->exec('ALTER TABLE products AUTO_INCREMENT = 1');
+
+                // Remove stock cards generated from Manage Items receipts only.
+                $pdo->exec('DELETE FROM stock_cards WHERE source_type = "release"');
+                header('Location: ' . buildItemListUrl('', 'asc', 'Full reset completed. Item data and history were cleared, and IDs were reset.'));
+                exit;
+            } catch (Throwable $resetError) {
+                $errors[] = 'Full reset failed. Please try again.';
+            }
         } elseif ($action === 'create' || $action === 'update') {
             $formData['product_description'] = trim($_POST['product_description'] ?? '');
             $formData['batch_number'] = trim($_POST['batch_number'] ?? '');
@@ -406,9 +430,7 @@ try {
             if ($hasProductBatchesTable && ($formData['stock'] === '' || !ctype_digit($formData['stock']) || (int) $formData['stock'] <= 0)) {
                 $errors[] = 'Stock must be a valid positive whole number (greater than 0).';
             }
-            if ($hasProductsExpiryDate) {
-                $normalizedExpiryDate = normalizeDateInputToIso($formData['expiry_date'], 'Expiry date', $errors);
-            }
+            $normalizedExpiryDate = normalizeDateInputToIso($formData['expiry_date'], 'Expiry date', $errors);
             $normalizedDateOfDelivery = normalizeDateInputToIso($formData['date_of_delivery'], 'Date of delivery', $errors);
             if ($normalizedDateOfDelivery !== null && $normalizedDateOfDelivery > date('Y-m-d')) {
                 $errors[] = 'Date of delivery cannot be in the future.';
@@ -852,12 +874,12 @@ try {
                     'uom' => (string) ($editingItem['uom'] ?? ''),
                     'stock' => (string) ($editingItem['stock'] ?? '0'),
                     'cost_per_unit' => (string) ($editingItem['cost_per_unit'] ?? ''),
-                    'expiry_date' => formatDateForDisplayInput((string) ($editingItem['expiry_date'] ?? '')),
+                    'expiry_date' => (string) ($editingItem['expiry_date'] ?? ''),
                     'program' => (string) ($editingItem['program'] ?? ''),
                     'po_no' => (string) ($editingItem['po_no'] ?? ''),
                     'supplier' => (string) ($editingItem['supplier'] ?? ''),
                     'place_of_delivery' => (string) ($editingItem['place_of_delivery'] ?? ''),
-                    'date_of_delivery' => formatDateForDisplayInput((string) ($editingItem['date_of_delivery'] ?? '')),
+                    'date_of_delivery' => (string) ($editingItem['date_of_delivery'] ?? ''),
                     'delivery_term' => (string) ($editingItem['delivery_term'] ?? ''),
                     'payment_term' => (string) ($editingItem['payment_term'] ?? ''),
                 ];
@@ -1022,9 +1044,15 @@ try {
                 <div class="card-body">
                     <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
                         <h1 class="h5 mb-0">Item List</h1>
-                        <button type="button" class="inventory-add-btn" data-bs-toggle="modal" data-bs-target="#itemFormModal">
-                            + Add Item
-                        </button>
+                        <div class="d-flex align-items-center gap-2">
+                            <button type="button" class="inventory-add-btn" data-bs-toggle="modal" data-bs-target="#itemFormModal">
+                                + Add Item
+                            </button>
+                            <form method="post" action="item_list.php" onsubmit="return confirm('This will permanently remove all items and item add history, then reset IDs to 1. Continue?');" class="m-0">
+                                <input type="hidden" name="action" value="full_reset">
+                                <button type="submit" class="btn btn-outline-danger btn-sm">Full Reset</button>
+                            </form>
+                        </div>
                     </div>
 
                     <form method="get" action="item_list.php" class="row g-2 mb-3">
@@ -1312,9 +1340,8 @@ try {
                                         type="text"
                                         id="expiry_date"
                                         name="expiry_date"
-                                        class="form-control item-form-input"
+                                        class="form-control item-form-input js-flatpickr-date"
                                         placeholder="mm/dd/yyyy"
-                                        inputmode="numeric"
                                         value="<?= htmlspecialchars($formData['expiry_date']) ?>"
                                     >
                                 </div>
@@ -1375,10 +1402,10 @@ try {
                                         type="text"
                                         id="date_of_delivery"
                                         name="date_of_delivery"
-                                        class="form-control item-form-input"
+                                        class="form-control item-form-input js-flatpickr-date"
                                         placeholder="mm/dd/yyyy"
-                                        inputmode="numeric"
                                         value="<?= htmlspecialchars($formData['date_of_delivery']) ?>"
+                                        data-max-date="<?= date('Y-m-d') ?>"
                                     >
                                 </div>
                                 <div class="col-sm-6 col-md-3">
@@ -1495,12 +1522,138 @@ try {
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
     <script>
         window.itemListConfig = {
             showFormModal: <?= $showFormModal ? 'true' : 'false' ?>,
             productDescriptionOptions: <?= json_encode(array_values($productDescriptionOptions), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>,
             productAttributesMap: <?= json_encode($productAttributesMap, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>
         };
+
+        document.addEventListener('DOMContentLoaded', function () {
+            if (typeof flatpickr !== 'function') {
+                return;
+            }
+
+            function formatDigitsToUsDate(value) {
+                var digits = String(value || '').replace(/\D/g, '').slice(0, 8);
+                if (digits.length <= 2) {
+                    return digits;
+                }
+                if (digits.length <= 4) {
+                    return digits.slice(0, 2) + '/' + digits.slice(2);
+                }
+                return digits.slice(0, 2) + '/' + digits.slice(2, 4) + '/' + digits.slice(4);
+            }
+
+            function parseUsDateToIso(rawValue) {
+                var value = String(rawValue || '').trim();
+                if (value === '') {
+                    return null;
+                }
+
+                var month;
+                var day;
+                var year;
+                var parts = value.split('/');
+
+                if (parts.length === 3) {
+                    month = parseInt(parts[0], 10);
+                    day = parseInt(parts[1], 10);
+                    year = parseInt(parts[2], 10);
+                    if (parts[2].length !== 4) {
+                        return null;
+                    }
+                } else {
+                    var digits = value.replace(/\D/g, '');
+                    if (digits.length !== 8) {
+                        return null;
+                    }
+                    month = parseInt(digits.slice(0, 2), 10);
+                    day = parseInt(digits.slice(2, 4), 10);
+                    year = parseInt(digits.slice(4, 8), 10);
+                }
+
+                if (!month || !day || !year || month < 1 || month > 12 || day < 1 || day > 31) {
+                    return null;
+                }
+
+                var checkDate = new Date(year, month - 1, day);
+                if (
+                    checkDate.getFullYear() !== year
+                    || checkDate.getMonth() !== month - 1
+                    || checkDate.getDate() !== day
+                ) {
+                    return null;
+                }
+
+                var mm = String(month).padStart(2, '0');
+                var dd = String(day).padStart(2, '0');
+                return year + '-' + mm + '-' + dd;
+            }
+
+            function enforceMaxDate(isoDate, maxDateIso) {
+                if (!isoDate || !maxDateIso) {
+                    return isoDate;
+                }
+                return isoDate > maxDateIso ? null : isoDate;
+            }
+
+            document.querySelectorAll('.js-flatpickr-date').forEach(function (input) {
+                flatpickr(input, {
+                    dateFormat: 'Y-m-d',
+                    altInput: true,
+                    altFormat: 'm/d/Y',
+                    allowInput: true,
+                    disableMobile: true,
+                    maxDate: input.dataset.maxDate || null,
+                    onReady: function (_, __, instance) {
+                        var visibleInput = instance.altInput || instance.input;
+                        visibleInput.setAttribute('placeholder', 'mm/dd/yyyy');
+                        visibleInput.setAttribute('inputmode', 'numeric');
+                        visibleInput.setAttribute('autocomplete', 'off');
+
+                        visibleInput.addEventListener('input', function () {
+                            var masked = formatDigitsToUsDate(visibleInput.value);
+                            if (visibleInput.value !== masked) {
+                                visibleInput.value = masked;
+                            }
+                            visibleInput.setCustomValidity('');
+                        });
+
+                        var commitTypedDate = function () {
+                            var typedIso = parseUsDateToIso(visibleInput.value);
+                            typedIso = enforceMaxDate(typedIso, input.dataset.maxDate || '');
+                            if (visibleInput.value.trim() === '') {
+                                instance.clear();
+                                visibleInput.setCustomValidity('');
+                                return;
+                            }
+                            if (!typedIso) {
+                                visibleInput.setCustomValidity('Enter date as mm/dd/yyyy.');
+                                return;
+                            }
+                            visibleInput.setCustomValidity('');
+                            instance.setDate(typedIso, true, 'Y-m-d');
+                        };
+
+                        visibleInput.addEventListener('blur', commitTypedDate);
+                        visibleInput.addEventListener('keydown', function (event) {
+                            if (event.key === 'Enter') {
+                                event.preventDefault();
+                                commitTypedDate();
+                                instance.close();
+                            }
+                        });
+                    },
+                    onChange: function (_, __, instance) {
+                        var visibleInput = instance.altInput || instance.input;
+                        visibleInput.setCustomValidity('');
+                    }
+                });
+            });
+        });
     </script>
     <script src="assets/js/item_list.js"></script>
 </body>
