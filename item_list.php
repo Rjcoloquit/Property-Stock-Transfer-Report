@@ -432,6 +432,9 @@ try {
             }
             $normalizedExpiryDate = normalizeDateInputToIso($formData['expiry_date'], 'Expiry date', $errors);
             $normalizedDateOfDelivery = normalizeDateInputToIso($formData['date_of_delivery'], 'Date of delivery', $errors);
+            if ($action === 'create' && $normalizedExpiryDate !== null && $normalizedExpiryDate < date('Y-m-d')) {
+                $errors[] = 'Expired items are not allowed in Add Item.';
+            }
             if ($normalizedDateOfDelivery !== null && $normalizedDateOfDelivery > date('Y-m-d')) {
                 $errors[] = 'Date of delivery cannot be in the future.';
             }

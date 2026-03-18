@@ -5,6 +5,9 @@
     var productMetaByDescription = config.productMetaByDescription || {};
     var batchNumbersByDescription = config.batchNumbersByDescription || {};
     var batchMetaByDescription = config.batchMetaByDescription || {};
+    var unitOptionsByDescription = config.unitOptionsByDescription || {};
+    var programOptionsByDescription = config.programOptionsByDescription || {};
+    var poOptionsByDescription = config.poOptionsByDescription || {};
     var hasProductBatches = !!config.hasProductBatches;
     var previewLineRows = Number.isFinite(Number(config.previewLineRows)) ? Number(config.previewLineRows) : 0;
 
@@ -18,6 +21,18 @@
     }, {});
     var batchMetaByDescriptionLower = Object.keys(batchMetaByDescription).reduce(function (acc, key) {
         acc[String(key).trim().toLowerCase()] = batchMetaByDescription[key];
+        return acc;
+    }, {});
+    var unitOptionsByDescriptionLower = Object.keys(unitOptionsByDescription).reduce(function (acc, key) {
+        acc[String(key).trim().toLowerCase()] = unitOptionsByDescription[key];
+        return acc;
+    }, {});
+    var programOptionsByDescriptionLower = Object.keys(programOptionsByDescription).reduce(function (acc, key) {
+        acc[String(key).trim().toLowerCase()] = programOptionsByDescription[key];
+        return acc;
+    }, {});
+    var poOptionsByDescriptionLower = Object.keys(poOptionsByDescription).reduce(function (acc, key) {
+        acc[String(key).trim().toLowerCase()] = poOptionsByDescription[key];
         return acc;
     }, {});
 
@@ -52,7 +67,7 @@
     }
 
     var previewModal = new window.bootstrap.Modal(previewModalElement);
-    var batchListCounter = itemRowsBody.querySelectorAll('.item-row').length;
+    var suggestionListCounter = itemRowsBody.querySelectorAll('.item-row').length;
 
     function textOrDash(value) {
         var clean = String(value || '').trim();
@@ -95,6 +110,46 @@
         };
     }
 
+    function getOptionsByDescription(optionsMap, optionsMapLower, descriptionValue) {
+        var key = String(descriptionValue || '').trim();
+        if (key === '') {
+            return [];
+        }
+        if (Array.isArray(optionsMap[key])) {
+            return optionsMap[key];
+        }
+        var lowerKey = key.toLowerCase();
+        return Array.isArray(optionsMapLower[lowerKey]) ? optionsMapLower[lowerKey] : [];
+    }
+
+    function setInputSuggestions(inputEl, options) {
+        if (!inputEl) {
+            return;
+        }
+        var datalistId = inputEl.getAttribute('list');
+        if (!datalistId) {
+            return;
+        }
+        var datalistEl = document.getElementById(datalistId);
+        if (!datalistEl) {
+            return;
+        }
+        var currentValue = String(inputEl.value || '').trim();
+        var optionValues = Array.isArray(options) ? options : [];
+        var html = '';
+        optionValues.forEach(function (optionValue) {
+            var value = String(optionValue || '').trim();
+            if (value === '') {
+                return;
+            }
+            html += '<option value="' + escapeHtml(value) + '"></option>';
+        });
+        datalistEl.innerHTML = html;
+        if (currentValue !== '' && !optionValues.includes(currentValue)) {
+            inputEl.value = '';
+        }
+    }
+
     function escapeHtml(value) {
         return String(value)
             .replace(/&/g, '&amp;')
@@ -134,44 +189,54 @@
         var descriptionValue = descriptionSelect.value.trim();
         var batchInput = row.querySelector('.item-batch-number');
         var batchValue = batchInput.value.trim();
-        var batchListId = batchInput.getAttribute('list');
-        var batchDatalist = batchListId ? document.getElementById(batchListId) : null;
         var unitInput = row.querySelector('.item-unit');
         var unitCostInput = row.querySelector('.item-unit-cost');
         var expirationInput = row.querySelector('.item-expiration');
         var poNoInput = row.querySelector('.item-po-number');
+        var programInput = row.querySelector('.item-program');
         var meta = getDescriptionMeta(descriptionValue);
         var selectedProduct = meta.selectedProduct;
         var batchOptions = meta.batchOptions;
-        var batchMeta = meta.batchMeta;
+        var unitOptions = getOptionsByDescription(unitOptionsByDescription, unitOptionsByDescriptionLower, descriptionValue);
+        var programOptions = getOptionsByDescription(programOptionsByDescription, programOptionsByDescriptionLower, descriptionValue);
+        var poOptions = getOptionsByDescription(poOptionsByDescription, poOptionsByDescriptionLower, descriptionValue);
 
-        if (batchDatalist) {
-            batchDatalist.innerHTML = batchOptions
-                .map(function (batchNo) { return '<option value="' + escapeHtml(batchNo) + '"></option>'; })
-                .join('');
+        var normalizedProgramOptions = Array.isArray(programOptions) ? programOptions.slice() : [];
+        var selectedProgram = String((selectedProduct && selectedProduct.program) || '').trim();
+        if (selectedProgram !== '' && !normalizedProgramOptions.includes(selectedProgram)) {
+            normalizedProgramOptions.push(selectedProgram);
         }
+
+        setInputSuggestions(batchInput, batchOptions);
+        setInputSuggestions(unitInput, unitOptions);
+        setInputSuggestions(programInput, normalizedProgramOptions);
+        setInputSuggestions(poNoInput, poOptions);
 
         if (!selectedProduct) {
             unitInput.value = '';
-            unitInput.dataset.autoFilled = '0';
             unitCostInput.value = '';
             expirationInput.value = '';
-            if (poNoInput) {
-                poNoInput.value = '';
-                poNoInput.dataset.autoFilled = '0';
-            }
+            poNoInput.value = '';
+            programInput.value = '';
             calculateRowAmount(row);
             updateGrandTotal();
             return;
         }
 
-        if (unitInput.value.trim() === '' || unitInput.dataset.autoFilled === '1') {
-            unitInput.value = selectedProduct.unit || '';
-            unitInput.dataset.autoFilled = '1';
+        if (unitInput.value.trim() === '' && unitOptions.length > 0) {
+            unitInput.value = unitOptions[0];
         }
-        if (poNoInput && (poNoInput.value.trim() === '' || poNoInput.dataset.autoFilled === '1')) {
-            poNoInput.value = selectedProduct.po_no || '';
-            poNoInput.dataset.autoFilled = '1';
+        if (unitInput.value.trim() === '') {
+            unitInput.value = selectedProduct.unit || '';
+        }
+        if (programInput.value.trim() === '' && normalizedProgramOptions.length > 0) {
+            programInput.value = normalizedProgramOptions[0];
+        }
+        if (programInput.value.trim() === '') {
+            programInput.value = selectedProgram;
+        }
+        if (poNoInput.value.trim() === '' && poOptions.length > 0) {
+            poNoInput.value = poOptions[0];
         }
         var parsedUnitCost = Number(selectedProduct.unit_cost);
         unitCostInput.value = Number.isFinite(parsedUnitCost) ? parsedUnitCost.toFixed(2) : '';
@@ -273,21 +338,25 @@
         var data = itemData || {};
         var tr = document.createElement('tr');
         tr.className = 'item-row';
+        var rowId = suggestionListCounter++;
         var descriptionValue = data.description || '';
-        var batchListId = 'batchOptionsList_dynamic_' + batchListCounter++;
+        var batchListId = 'rowBatchOptionsList_dynamic_' + rowId;
+        var unitListId = 'rowUnitOptionsList_dynamic_' + rowId;
+        var programListId = 'rowProgramOptionsList_dynamic_' + rowId;
+        var poListId = 'rowPoOptionsList_dynamic_' + rowId;
         var batchOptions = batchNumbersByDescription[descriptionValue] || [];
         var batchOptionsHtml = batchOptions
             .map(function (batchNo) { return '<option value="' + escapeHtml(batchNo) + '"></option>'; })
             .join('');
         tr.innerHTML =
-            '<td><input type="text" name="description[]" class="form-control item-description" list="descriptionOptionsList" value="' + escapeHtml(data.description || '') + '" placeholder="Type or select item description"></td>' +
-            '<td><input type="text" name="batch_number[]" class="form-control item-batch-number" list="' + batchListId + '" value="' + escapeHtml(data.batch_number || '') + '" placeholder="Batch no."><datalist id="' + batchListId + '" class="item-batch-options">' + batchOptionsHtml + '</datalist></td>' +
-            '<td><input type="text" name="quantity[]" class="form-control item-quantity" inputmode="numeric" pattern="[0-9]*" autocomplete="off" value="' + escapeHtml(data.quantity || '') + '"><div class="form-text item-stock-hint"></div></td>' +
-            '<td><input type="text" name="unit[]" class="form-control item-unit" list="unitOptionsList" value="' + escapeHtml(data.unit || '') + '" placeholder="Type or select unit"></td>' +
+            '<td><input type="text" name="description[]" class="form-control item-description" list="descriptionOptionsList" value="' + escapeHtml(data.description || '') + '" placeholder="Type or select item description" required></td>' +
+            '<td><input type="text" name="batch_number[]" class="form-control item-batch-number" list="' + batchListId + '" value="' + escapeHtml(data.batch_number || '') + '" placeholder="Type or select batch number" required><datalist id="' + batchListId + '" class="item-batch-options">' + batchOptionsHtml + '</datalist></td>' +
+            '<td><input type="number" name="quantity[]" class="form-control item-quantity" min="1" step="1" autocomplete="off" value="' + escapeHtml(data.quantity || '') + '" required><div class="form-text item-stock-hint"></div></td>' +
+            '<td><input type="text" name="unit[]" class="form-control item-unit" list="' + unitListId + '" value="' + escapeHtml(data.unit || '') + '" placeholder="Type or select unit" required><datalist id="' + unitListId + '" class="item-unit-options"></datalist></td>' +
             '<td><input type="text" class="form-control item-unit-cost" value="' + escapeHtml(data.unit_cost || '') + '" readonly></td>' +
             '<td><input type="text" class="form-control item-amount" value="" readonly></td>' +
-            '<td><input type="text" name="program[]" class="form-control item-program" list="programOptionsList" value="' + escapeHtml(data.program || '') + '" placeholder="Type or select program"></td>' +
-            '<td><input type="text" name="po_number[]" class="form-control item-po-number" value="' + escapeHtml(data.po_no || '') + '" placeholder="PO Number"></td>' +
+            '<td><input type="text" name="program[]" class="form-control item-program" list="' + programListId + '" value="' + escapeHtml(data.program || '') + '" placeholder="Type or select program" required><datalist id="' + programListId + '" class="item-program-options"></datalist></td>' +
+            '<td><input type="text" name="po_number[]" class="form-control item-po-number" list="' + poListId + '" value="' + escapeHtml(data.po_no || '') + '" placeholder="Type or select PO number" required><datalist id="' + poListId + '" class="item-po-options"></datalist></td>' +
             '<td><input type="date" class="form-control item-expiration" value="' + escapeHtml(data.expiration_date || '') + '" readonly></td>' +
             '<td class="text-center"><button type="button" class="btn btn-outline-danger btn-sm remove-item-btn">Remove</button></td>';
         return tr;
@@ -357,7 +426,9 @@
         var descriptionInput = row.querySelector('.item-description');
         var batchInput = row.querySelector('.item-batch-number');
         var quantityInput = row.querySelector('.item-quantity');
+        var unitInput = row.querySelector('.item-unit');
         var programInput = row.querySelector('.item-program');
+        var poInput = row.querySelector('.item-po-number');
 
         var description = descriptionInput.value.trim();
         var batchNumber = batchInput.value.trim();
@@ -366,7 +437,11 @@
         var isActiveRow = description !== '' || batchNumber !== '' || quantity !== '' || program !== '';
 
         descriptionInput.required = isActiveRow;
+        batchInput.required = isActiveRow;
+        quantityInput.required = isActiveRow;
+        unitInput.required = isActiveRow;
         programInput.required = isActiveRow;
+        poInput.required = isActiveRow;
         descriptionInput.setCustomValidity('');
         programInput.setCustomValidity('');
 
@@ -455,14 +530,6 @@
         }
         if (event.target.classList.contains('item-program')) {
             syncRowRequiredState(event.target.closest('.item-row'));
-            return;
-        }
-        if (event.target.classList.contains('item-unit')) {
-            event.target.dataset.autoFilled = '0';
-            return;
-        }
-        if (event.target.classList.contains('item-po-number')) {
-            event.target.dataset.autoFilled = '0';
             return;
         }
         if (event.target.classList.contains('item-batch-number')) {

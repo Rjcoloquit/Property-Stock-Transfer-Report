@@ -20,7 +20,7 @@ $formData = [
     'po_contract_no' => '',
     'supplier' => '',
     'item_description' => '',
-    'dosage_form' => '',
+    'expiry_date' => '',
     'dosage_strength' => '',
     'uom' => '',
     'sku_code' => '',
@@ -66,6 +66,18 @@ try {
     $sourceTypeColumnStmt = $pdo->query("SHOW COLUMNS FROM stock_cards LIKE 'source_type'");
     if (!$sourceTypeColumnStmt || !$sourceTypeColumnStmt->fetch()) {
         $pdo->exec('ALTER TABLE stock_cards ADD COLUMN source_type VARCHAR(30) NOT NULL DEFAULT "manual" AFTER item_key');
+    }
+
+    $hasProductBatchesTable = false;
+    $productBatchesStmt = $pdo->query("SHOW TABLES LIKE 'product_batches'");
+    if ($productBatchesStmt && $productBatchesStmt->fetch()) {
+        $hasProductBatchesTable = true;
+    }
+
+    $hasProductsExpiryDate = false;
+    $productsExpiryColumnStmt = $pdo->query("SHOW COLUMNS FROM products LIKE 'expiry_date'");
+    if ($productsExpiryColumnStmt && $productsExpiryColumnStmt->fetch()) {
+        $hasProductsExpiryDate = true;
     }
 
     $params = [];
@@ -148,8 +160,35 @@ try {
             foreach ($formData as $key => $value) {
                 $formData[$key] = (string) ($selectedCard[$key] ?? '');
             }
-            if (trim($formData['dosage_form']) === '') {
-                $formData['dosage_form'] = $formData['uom'];
+
+            $itemDescription = trim($formData['item_description']);
+            $batchNo = trim($formData['batch_no']);
+            if ($hasProductBatchesTable && $itemDescription !== '' && $batchNo !== '') {
+                $expiryLookupStmt = $pdo->prepare('SELECT b.expiry_date
+                    FROM product_batches b
+                    INNER JOIN products p ON p.id = b.product_id
+                    WHERE LOWER(TRIM(p.product_description)) = LOWER(?)
+                      AND LOWER(TRIM(b.batch_number)) = LOWER(?)
+                    ORDER BY b.id ASC
+                    LIMIT 1');
+                $expiryLookupStmt->execute([$itemDescription, $batchNo]);
+                $batchExpiry = $expiryLookupStmt->fetchColumn();
+                if ($batchExpiry !== false && $batchExpiry !== null) {
+                    $formData['expiry_date'] = (string) $batchExpiry;
+                }
+            }
+            if ($formData['expiry_date'] === '' && $hasProductsExpiryDate && $itemDescription !== '') {
+                $productExpiryStmt = $pdo->prepare('SELECT expiry_date
+                    FROM products
+                    WHERE LOWER(TRIM(product_description)) = LOWER(?)
+                      AND expiry_date IS NOT NULL
+                    ORDER BY id ASC
+                    LIMIT 1');
+                $productExpiryStmt->execute([$itemDescription]);
+                $productExpiry = $productExpiryStmt->fetchColumn();
+                if ($productExpiry !== false && $productExpiry !== null) {
+                    $formData['expiry_date'] = (string) $productExpiry;
+                }
             }
             if (trim($formData['entity_name']) === '') {
                 $formData['entity_name'] = 'PHO';
@@ -333,8 +372,8 @@ while (count($ledgerRows) < 18) {
                                         <td><input type="text" class="stock-card-line-input text-end" value="<?= htmlspecialchars($formData['unit_cost']) ?>" readonly></td>
                                     </tr>
                                     <tr>
-                                        <th class="stock-card-label-cell">Dosage Form:</th>
-                                        <td><input type="text" class="stock-card-line-input" value="<?= htmlspecialchars($formData['dosage_form']) ?>" readonly></td>
+                                        <th class="stock-card-label-cell">Expiry Date:</th>
+                                        <td><input type="text" class="stock-card-line-input" value="<?= htmlspecialchars($formData['expiry_date']) ?>" readonly></td>
                                         <th class="stock-card-label-cell">Mode of Procurement:</th>
                                         <td><input type="text" class="stock-card-line-input" value="<?= htmlspecialchars($formData['mode_of_procurement']) ?>" readonly></td>
                                     </tr>

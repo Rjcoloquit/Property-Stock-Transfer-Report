@@ -94,3 +94,24 @@ restriction - cant be confirmed until no attached scanned picture
 
 
 ----------------------------------------------------------------------------------------------------
+
+
+pending transactions 
+- add delete button
+
+outbound summary report
+- fix format on the table below
+- fix the print preview of the outbound summary report, include the recipient
+
+in property stock transfer report
+- the program input isn't automated, fix it to have a suggestion dropdown that is fixed on the input 
+
+in the outbound summary report
+- fix the format of the table in the total records
+- the table looks chopped and messy
+- make it look neat and professional
+- it should show all the details of the data
+
+
+in the released ptr stock cards
+- in the stock card format, delete the dosage form, replace it with expiry date

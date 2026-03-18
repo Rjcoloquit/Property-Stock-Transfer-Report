@@ -16,6 +16,9 @@ $unitOptions = [];
 $productMetaByDescription = [];
 $batchNumbersByDescription = [];
 $batchMetaByDescription = [];
+$unitOptionsByDescription = [];
+$programOptionsByDescription = [];
+$poOptionsByDescription = [];
 $hasProductBatchesTable = false;
 
 // Default values for sticky form
@@ -185,6 +188,51 @@ try {
             'supplier'         => isset($row['supplier']) && $row['supplier'] !== null ? (string)$row['supplier'] : '',
             'expiration_date'  => isset($row['expiry_date']) && $row['expiry_date'] !== null ? (string)$row['expiry_date'] : '',
         ];
+    }
+
+    foreach ($productRows as $row) {
+        $description = trim((string) ($row['product_description'] ?? ''));
+        if ($description === '') {
+            continue;
+        }
+
+        if (!isset($unitOptionsByDescription[$description])) {
+            $unitOptionsByDescription[$description] = [];
+        }
+        if (!isset($programOptionsByDescription[$description])) {
+            $programOptionsByDescription[$description] = [];
+        }
+        if (!isset($poOptionsByDescription[$description])) {
+            $poOptionsByDescription[$description] = [];
+        }
+
+        $unit = trim((string) ($row['uom'] ?? ''));
+        if ($unit !== '' && !in_array($unit, $unitOptionsByDescription[$description], true)) {
+            $unitOptionsByDescription[$description][] = $unit;
+        }
+
+        $program = trim((string) ($row['program'] ?? ''));
+        if ($program !== '' && !in_array($program, $programOptionsByDescription[$description], true)) {
+            $programOptionsByDescription[$description][] = $program;
+        }
+
+        $poNo = trim((string) ($row['po_no'] ?? ''));
+        if ($poNo !== '' && !in_array($poNo, $poOptionsByDescription[$description], true)) {
+            $poOptionsByDescription[$description][] = $poNo;
+        }
+    }
+
+    foreach ($unitOptionsByDescription as $description => $options) {
+        sort($options, SORT_NATURAL | SORT_FLAG_CASE);
+        $unitOptionsByDescription[$description] = $options;
+    }
+    foreach ($programOptionsByDescription as $description => $options) {
+        sort($options, SORT_NATURAL | SORT_FLAG_CASE);
+        $programOptionsByDescription[$description] = $options;
+    }
+    foreach ($poOptionsByDescription as $description => $options) {
+        sort($options, SORT_NATURAL | SORT_FLAG_CASE);
+        $poOptionsByDescription[$description] = $options;
     }
 
     $descriptionOptions = array_keys($productMetaByDescription);
@@ -368,6 +416,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
     if ($data['recipient'] === '') {
         $errors[] = 'Recipient is required.';
+    } elseif (!in_array($data['recipient'], $recipientOptions, true)) {
+        $errors[] = 'Please select a valid recipient from the list.';
     }
 
     for ($i = 0; $i < $rowCount; $i++) {
@@ -401,13 +451,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $data['items'][] = $item;
             continue;
         }
+        if ($batchNumber === '') {
+            $errors[] = 'Batch number is required on row ' . ($i + 1) . '.';
+            $data['items'][] = $item;
+            continue;
+        }
+        if ($unitRaw === '') {
+            $errors[] = 'Unit is required on row ' . ($i + 1) . '.';
+            $data['items'][] = $item;
+            continue;
+        }
         if (!isset($productMetaByDescription[$description])) {
             $errors[] = 'Please select a valid item description on row ' . ($i + 1) . '.';
             $data['items'][] = $item;
             continue;
         }
         if ($programRaw === '') {
-            $errors[] = 'program is required before entering';
+            $errors[] = 'Program is required on row ' . ($i + 1) . '.';
             $selectedProduct = $productMetaByDescription[$description];
             $item['unit'] = $unitRaw !== '' ? $unitRaw : $selectedProduct['unit'];
             $item['unit_cost'] = number_format((float) $selectedProduct['unit_cost'], 2, '.', '');
@@ -417,6 +477,35 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
             $item['expiration_date'] = $batchExpiration !== '' ? $batchExpiration : $selectedProduct['expiration_date'];
             $item['supplier'] = $selectedProduct['supplier'] ?? '';
+            $data['items'][] = $item;
+            continue;
+        }
+        if ($poNoRaw === '') {
+            $errors[] = 'PO number is required on row ' . ($i + 1) . '.';
+            $data['items'][] = $item;
+            continue;
+        }
+        if (isset($unitOptionsByDescription[$description])
+            && !empty($unitOptionsByDescription[$description])
+            && !in_array($unitRaw, $unitOptionsByDescription[$description], true)
+        ) {
+            $errors[] = 'Please select a valid unit for the selected item on row ' . ($i + 1) . '.';
+            $data['items'][] = $item;
+            continue;
+        }
+        if (isset($programOptionsByDescription[$description])
+            && !empty($programOptionsByDescription[$description])
+            && !in_array($programRaw, $programOptionsByDescription[$description], true)
+        ) {
+            $errors[] = 'Please select a valid program for the selected item on row ' . ($i + 1) . '.';
+            $data['items'][] = $item;
+            continue;
+        }
+        if (isset($poOptionsByDescription[$description])
+            && !empty($poOptionsByDescription[$description])
+            && !in_array($poNoRaw, $poOptionsByDescription[$description], true)
+        ) {
+            $errors[] = 'Please select a valid PO number for the selected item on row ' . ($i + 1) . '.';
             $data['items'][] = $item;
             continue;
         }
@@ -448,13 +537,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
         $item['expiration_date'] = $batchExpiration !== '' ? $batchExpiration : $selectedProduct['expiration_date'];
 
-        if ($hasProductBatchesTable) {
-            if ($batchNumber === '') {
-                $errors[] = 'Batch number is required on row ' . ($i + 1) . '.';
-                $data['items'][] = $item;
-                continue;
-            }
+        if ($item['expiration_date'] !== '' && $item['expiration_date'] < date('Y-m-d')) {
+            $errors[] = 'Cannot include expired item on row ' . ($i + 1) . '. Use Incident Report for expired releases.';
+            $data['items'][] = $item;
+            continue;
+        }
 
+        if ($hasProductBatchesTable) {
             if (!$batchLookupByCompositeStmt) {
                 $errors[] = 'Unable to validate item batch right now.';
                 $data['items'][] = $item;
@@ -532,12 +621,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             ');
 
             $pdo->beginTransaction();
-            // Allow custom recipient entries and keep suggestions updated.
-            if ($data['recipient'] !== '') {
-                $recipientInsertStmt = $pdo->prepare('INSERT IGNORE INTO recipients (recipient_name) VALUES (?)');
-                $recipientInsertStmt->execute([$data['recipient']]);
-            }
-
             if ($isDraftEditMode) {
                 if ($draftPtrNo !== '') {
                     $deleteDraftStmt = $pdo->prepare('
@@ -811,23 +894,21 @@ $previewLineRows = 10;
                         <div class="row g-3 mt-1">
                             <div class="col-md-4">
                                 <label for="recipient" class="form-label">Recipient</label>
-                                <input
-                                    type="text"
+                                <select
                                     id="recipient"
                                     name="recipient"
                                     class="form-control"
-                                    list="recipientOptionsList"
-                                    value="<?= htmlspecialchars($data['recipient']) ?>"
-                                    placeholder="Type or select recipient"
                                     required
                                 >
+                                    <option value="">Select recipient</option>
+                                    <?php foreach ($recipientOptions as $recipientName): ?>
+                                        <option value="<?= htmlspecialchars($recipientName) ?>" <?= ((string) $data['recipient'] === (string) $recipientName) ? 'selected' : '' ?>>
+                                            <?= htmlspecialchars($recipientName) ?>
+                                        </option>
+                                    <?php endforeach; ?>
+                                </select>
                             </div>
                         </div>
-                        <datalist id="recipientOptionsList">
-                            <?php foreach ($recipientOptions as $recipientName): ?>
-                                <option value="<?= htmlspecialchars($recipientName) ?>"></option>
-                            <?php endforeach; ?>
-                        </datalist>
 
                         <div class="mt-3 d-flex justify-content-between align-items-center">
                             <label class="form-label mb-0">Items</label>
@@ -852,8 +933,14 @@ $previewLineRows = 10;
                                 <tbody id="itemRowsBody">
                                     <?php foreach ($data['items'] as $index => $item): ?>
                                         <?php
-                                            $batchListId = 'batchOptionsList_' . $index;
+                                            $rowBatchListId = 'rowBatchOptionsList_' . $index;
+                                            $rowUnitListId = 'rowUnitOptionsList_' . $index;
+                                            $rowProgramListId = 'rowProgramOptionsList_' . $index;
+                                            $rowPoListId = 'rowPoOptionsList_' . $index;
                                             $rowBatches = $batchNumbersByDescription[(string) ($item['description'] ?? '')] ?? [];
+                                            $rowUnits = $unitOptionsByDescription[(string) ($item['description'] ?? '')] ?? [];
+                                            $rowPrograms = $programOptionsByDescription[(string) ($item['description'] ?? '')] ?? [];
+                                            $rowPoNumbers = $poOptionsByDescription[(string) ($item['description'] ?? '')] ?? [];
                                         ?>
                                         <tr class="item-row">
                                             <td>
@@ -864,6 +951,7 @@ $previewLineRows = 10;
                                                     list="descriptionOptionsList"
                                                     value="<?= htmlspecialchars((string) ($item['description'] ?? '')) ?>"
                                                     placeholder="Type or select item description"
+                                                    required
                                                 >
                                             </td>
                                             <td>
@@ -871,11 +959,12 @@ $previewLineRows = 10;
                                                     type="text"
                                                     name="batch_number[]"
                                                     class="form-control item-batch-number"
-                                                    list="<?= htmlspecialchars($batchListId) ?>"
+                                                    list="<?= htmlspecialchars($rowBatchListId) ?>"
                                                     value="<?= htmlspecialchars((string) ($item['batch_number'] ?? '')) ?>"
-                                                    placeholder="Batch no."
+                                                    placeholder="Type or select batch number"
+                                                    required
                                                 >
-                                                <datalist id="<?= htmlspecialchars($batchListId) ?>" class="item-batch-options">
+                                                <datalist id="<?= htmlspecialchars($rowBatchListId) ?>" class="item-batch-options">
                                                     <?php foreach ($rowBatches as $batchNumberOption): ?>
                                                         <option value="<?= htmlspecialchars($batchNumberOption) ?>"></option>
                                                     <?php endforeach; ?>
@@ -890,6 +979,7 @@ $previewLineRows = 10;
                                                     step="1"
                                                     autocomplete="off"
                                                     value="<?= htmlspecialchars((string) ($item['quantity'] ?? '')) ?>"
+                                                    required
                                                 >
                                                 <div class="form-text item-stock-hint"></div>
                                             </td>
@@ -898,10 +988,16 @@ $previewLineRows = 10;
                                                     type="text"
                                                     name="unit[]"
                                                     class="form-control item-unit"
-                                                    list="unitOptionsList"
+                                                    list="<?= htmlspecialchars($rowUnitListId) ?>"
                                                     value="<?= htmlspecialchars((string) ($item['unit'] ?? '')) ?>"
                                                     placeholder="Type or select unit"
+                                                    required
                                                 >
+                                                <datalist id="<?= htmlspecialchars($rowUnitListId) ?>" class="item-unit-options">
+                                                    <?php foreach ($rowUnits as $rowUnitOption): ?>
+                                                        <option value="<?= htmlspecialchars($rowUnitOption) ?>"></option>
+                                                    <?php endforeach; ?>
+                                                </datalist>
                                             </td>
                                             <td><input type="text" class="form-control item-unit-cost" value="<?= htmlspecialchars((string) ($item['unit_cost'] ?? '')) ?>" readonly></td>
                                             <td><input type="text" class="form-control item-amount" value="" readonly></td>
@@ -910,19 +1006,32 @@ $previewLineRows = 10;
                                                     type="text"
                                                     name="program[]"
                                                     class="form-control item-program"
-                                                    list="programOptionsList"
+                                                    list="<?= htmlspecialchars($rowProgramListId) ?>"
                                                     value="<?= htmlspecialchars((string) ($item['program'] ?? '')) ?>"
                                                     placeholder="Type or select program"
+                                                    required
                                                 >
+                                                <datalist id="<?= htmlspecialchars($rowProgramListId) ?>" class="item-program-options">
+                                                    <?php foreach ($rowPrograms as $rowProgramOption): ?>
+                                                        <option value="<?= htmlspecialchars($rowProgramOption) ?>"></option>
+                                                    <?php endforeach; ?>
+                                                </datalist>
                                             </td>
                                             <td>
                                                 <input
                                                     type="text"
                                                     name="po_number[]"
                                                     class="form-control item-po-number"
+                                                    list="<?= htmlspecialchars($rowPoListId) ?>"
                                                     value="<?= htmlspecialchars((string) ($item['po_no'] ?? '')) ?>"
-                                                    placeholder="PO Number"
+                                                    placeholder="Type or select PO number"
+                                                    required
                                                 >
+                                                <datalist id="<?= htmlspecialchars($rowPoListId) ?>" class="item-po-options">
+                                                    <?php foreach ($rowPoNumbers as $rowPoOption): ?>
+                                                        <option value="<?= htmlspecialchars($rowPoOption) ?>"></option>
+                                                    <?php endforeach; ?>
+                                                </datalist>
                                             </td>
                                             <td><input type="date" class="form-control item-expiration" value="<?= htmlspecialchars((string) ($item['expiration_date'] ?? '')) ?>" readonly></td>
                                             <td class="text-center">
@@ -938,17 +1047,6 @@ $previewLineRows = 10;
                                 <option value="<?= htmlspecialchars($descriptionOption) ?>"></option>
                             <?php endforeach; ?>
                         </datalist>
-                        <datalist id="programOptionsList">
-                            <?php foreach ($programOptions as $programOption): ?>
-                                <option value="<?= htmlspecialchars($programOption) ?>"></option>
-                            <?php endforeach; ?>
-                        </datalist>
-                        <datalist id="unitOptionsList">
-                            <?php foreach ($unitOptions as $unitOption): ?>
-                                <option value="<?= htmlspecialchars($unitOption) ?>"></option>
-                            <?php endforeach; ?>
-                        </datalist>
-
                         <div class="row g-3 mt-1">
                             <div class="col-md-4 ms-auto">
                                 <label for="grand_total" class="form-label">Grand Total</label>
@@ -1100,6 +1198,9 @@ $previewLineRows = 10;
             productMetaByDescription: <?= json_encode($productMetaByDescription, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>,
             batchNumbersByDescription: <?= json_encode($batchNumbersByDescription, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>,
             batchMetaByDescription: <?= json_encode($batchMetaByDescription, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>,
+            unitOptionsByDescription: <?= json_encode($unitOptionsByDescription, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>,
+            programOptionsByDescription: <?= json_encode($programOptionsByDescription, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>,
+            poOptionsByDescription: <?= json_encode($poOptionsByDescription, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>,
             hasProductBatches: <?= $hasProductBatchesTable ? 'true' : 'false' ?>,
             previewLineRows: <?= (int) $previewLineRows ?>,
         };

@@ -13,6 +13,7 @@ $error = '';
 $rows = [];
 $totalReleasedQty = 0;
 $totalReleasedAmount = 0.0;
+$printRecipients = [];
 
 try {
     $pdo = getConnection();
@@ -66,6 +67,10 @@ try {
     foreach ($rows as $reportRow) {
         $totalReleasedQty += (int) ($reportRow['quantity'] ?? 0);
         $totalReleasedAmount += (float) ($reportRow['total_cost'] ?? 0);
+        $recipientName = trim((string) ($reportRow['recipient'] ?? ''));
+        if ($recipientName !== '') {
+            $printRecipients[$recipientName] = true;
+        }
     }
 } catch (PDOException $e) {
     $error = 'Unable to load outbound summary report right now.';
@@ -87,51 +92,55 @@ function formatMoney($value): string
         .outbound-page .inventory-table-wrapper {
             overflow-x: auto;
             overflow-y: visible;
+            border: 1px solid #d7dee8;
+            border-radius: 8px;
         }
         .outbound-page #outboundTable {
             width: 100%;
-            min-width: 1320px;
-            table-layout: fixed;
+            min-width: 1250px;
+            table-layout: auto;
             border-collapse: collapse;
+        }
+        .outbound-page .print-only {
+            display: none;
         }
         .outbound-page #outboundTable th,
         .outbound-page #outboundTable td {
             white-space: normal;
-            word-break: break-word;
-            overflow-wrap: anywhere;
+            word-break: normal;
+            overflow-wrap: break-word;
             vertical-align: middle;
+            padding: 0.55rem 0.5rem;
+            line-height: 1.35;
         }
-        .outbound-page #outboundTable th:nth-child(1),
-        .outbound-page #outboundTable td:nth-child(1) {
-            width: 13%;
+        .outbound-page #outboundTable thead th {
+            background: #f6f8fb;
+            font-weight: 700;
+            border-bottom: 2px solid #d7dee8;
+            text-transform: uppercase;
+            letter-spacing: 0.02em;
+            font-size: 0.74rem;
         }
-        .outbound-page #outboundTable th:nth-child(4),
-        .outbound-page #outboundTable td:nth-child(4) {
-            width: 18%;
+        .outbound-page #outboundTable tbody tr:nth-child(even) {
+            background: #fbfcfe;
         }
-        .outbound-page #outboundTable th:nth-child(10),
-        .outbound-page #outboundTable td:nth-child(10) {
-            width: 13%;
+        .outbound-page #outboundTable tbody tr:hover {
+            background: #f1f6ff;
         }
-        .outbound-page #outboundTable th:nth-child(2),
         .outbound-page #outboundTable td:nth-child(2),
-        .outbound-page #outboundTable th:nth-child(3),
         .outbound-page #outboundTable td:nth-child(3),
-        .outbound-page #outboundTable th:nth-child(5),
         .outbound-page #outboundTable td:nth-child(5),
-        .outbound-page #outboundTable th:nth-child(6),
         .outbound-page #outboundTable td:nth-child(6),
-        .outbound-page #outboundTable th:nth-child(7),
         .outbound-page #outboundTable td:nth-child(7),
-        .outbound-page #outboundTable th:nth-child(8),
         .outbound-page #outboundTable td:nth-child(8),
-        .outbound-page #outboundTable th:nth-child(9),
         .outbound-page #outboundTable td:nth-child(9),
-        .outbound-page #outboundTable th:nth-child(11),
         .outbound-page #outboundTable td:nth-child(11) {
             white-space: nowrap;
-            word-break: normal;
-            overflow-wrap: normal;
+        }
+        .outbound-page #outboundTable td:nth-child(1),
+        .outbound-page #outboundTable td:nth-child(4),
+        .outbound-page #outboundTable td:nth-child(10) {
+            white-space: normal;
         }
 
         @media print {
@@ -159,6 +168,9 @@ function formatMoney($value): string
             .app-header-title small {
                 font-size: 8pt !important;
             }
+            .outbound-page .print-only {
+                display: block !important;
+            }
             .container {
                 max-width: 100%;
                 margin: 0;
@@ -179,6 +191,8 @@ function formatMoney($value): string
                 font-size: 7.5pt !important;
                 margin-bottom: 0 !important;
                 width: 100%;
+                min-width: 0 !important;
+                table-layout: auto !important;
                 border-collapse: collapse;
             }
             .table thead,
@@ -190,28 +204,8 @@ function formatMoney($value): string
                 border: 1px solid #333 !important;
                 padding: 2pt 3pt !important;
                 white-space: normal !important;
-                word-break: break-word;
-                overflow-wrap: anywhere;
-            }
-            .table th:nth-child(2),
-            .table td:nth-child(2),
-            .table th:nth-child(3),
-            .table td:nth-child(3),
-            .table th:nth-child(5),
-            .table td:nth-child(5),
-            .table th:nth-child(6),
-            .table td:nth-child(6),
-            .table th:nth-child(7),
-            .table td:nth-child(7),
-            .table th:nth-child(8),
-            .table td:nth-child(8),
-            .table th:nth-child(9),
-            .table td:nth-child(9),
-            .table th:nth-child(11),
-            .table td:nth-child(11) {
-                white-space: nowrap !important;
                 word-break: normal;
-                overflow-wrap: normal;
+                overflow-wrap: break-word;
             }
             .table thead th {
                 background-color: #f5f5f5 !important;
@@ -221,6 +215,15 @@ function formatMoney($value): string
             }
             .table tbody tr {
                 page-break-inside: avoid;
+            }
+            .outbound-print-meta {
+                border: 1px solid #333;
+                padding: 3mm;
+                margin-bottom: 3mm;
+                font-size: 8pt;
+            }
+            .outbound-print-meta strong {
+                font-weight: 700;
             }
             h1, h5 {
                 margin: 0 0 5mm 0 !important;
@@ -303,11 +306,30 @@ function formatMoney($value): string
                     </div>
 
                     <div class="inventory-table-container">
+                        <div class="outbound-print-meta print-only">
+                            <div><strong>Outbound Summary Report</strong></div>
+                            <div><strong>Total Released Quantity:</strong> <?= number_format($totalReleasedQty) ?></div>
+                            <div><strong>Total Released Amount:</strong> <?= formatMoney($totalReleasedAmount) ?></div>
+                            <div><strong>Recipients:</strong> <?= !empty($printRecipients) ? htmlspecialchars(implode(', ', array_keys($printRecipients))) : '-' ?></div>
+                        </div>
                         <div class="inventory-stats no-print">
                             Total Records: <span class="inventory-stats-value" id="visibleRowsCount2"><?= count($rows) ?></span>
                         </div>
                         <div class="inventory-table-wrapper">
                             <table class="table inventory-table" id="outboundTable">
+                            <colgroup>
+                                <col style="width:13%">
+                                <col style="width:8%">
+                                <col style="width:9%">
+                                <col style="width:18%">
+                                <col style="width:8%">
+                                <col style="width:7%">
+                                <col style="width:6%">
+                                <col style="width:8%">
+                                <col style="width:9%">
+                                <col style="width:14%">
+                                <col style="width:8%">
+                            </colgroup>
                             <thead>
                                 <tr>
                                     <th>End-user</th>

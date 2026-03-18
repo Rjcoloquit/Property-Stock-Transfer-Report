@@ -119,7 +119,7 @@ try {
             try {
                 if ($releasePtrNo !== '') {
                     $pendingRowsStmt = $pdo->prepare('
-                        SELECT id, ptr_no, record_date, recipient, description, batch_number, batch_id, unit, quantity, unit_cost, program, po_no, supplier
+                        SELECT id, ptr_no, record_date, recipient, description, batch_number, batch_id, unit, quantity, unit_cost, program, po_no, supplier, expiration_date
                         FROM inventory_records
                         WHERE ptr_no = ? AND COALESCE(release_status, "released") = "pending"
                         ORDER BY id ASC
@@ -128,7 +128,7 @@ try {
                     $pendingRowsStmt->execute([$releasePtrNo]);
                 } else {
                     $pendingRowsStmt = $pdo->prepare('
-                        SELECT id, ptr_no, record_date, recipient, description, batch_number, batch_id, unit, quantity, unit_cost, program, po_no, supplier
+                        SELECT id, ptr_no, record_date, recipient, description, batch_number, batch_id, unit, quantity, unit_cost, program, po_no, supplier, expiration_date
                         FROM inventory_records
                         WHERE id = ? AND COALESCE(release_status, "released") = "pending"
                         ORDER BY id ASC
@@ -204,8 +204,12 @@ try {
                         $rowBatchId = (int) ($row['batch_id'] ?? 0);
                         $unitValue = trim((string) ($row['unit'] ?? ''));
                         $quantity = (int) ($row['quantity'] ?? 0);
+                        $expirationDate = trim((string) ($row['expiration_date'] ?? ''));
                         if ($batchNumber === '') {
                             throw new RuntimeException('Batch number is required before release.');
+                        }
+                        if ($expirationDate !== '' && $expirationDate < date('Y-m-d')) {
+                            throw new RuntimeException('Cannot release expired item "' . $description . '" (Batch ' . $batchNumber . '). Use Incident Report for expired releases.');
                         }
                         if ($quantity <= 0) {
                             throw new RuntimeException('Pending row quantity is invalid.');
@@ -449,6 +453,34 @@ try {
                 }
                 throw $releaseError;
             }
+        } elseif ($action === 'delete') {
+            $deleteToken = trim((string) ($_POST['delete_token'] ?? ''));
+            $deletePtrNo = '';
+            $deleteId = 0;
+            if (str_starts_with($deleteToken, 'ptr:')) {
+                $deletePtrNo = trim(substr($deleteToken, 4));
+            } elseif (str_starts_with($deleteToken, 'id:')) {
+                $deleteId = (int) trim(substr($deleteToken, 3));
+            }
+
+            if ($deletePtrNo === '' && $deleteId <= 0) {
+                throw new RuntimeException('Invalid pending PTR selected for delete.');
+            }
+
+            if ($deletePtrNo !== '') {
+                $deleteStmt = $pdo->prepare('DELETE FROM inventory_records WHERE ptr_no = ? AND COALESCE(release_status, "released") = "pending"');
+                $deleteStmt->execute([$deletePtrNo]);
+            } else {
+                $deleteStmt = $pdo->prepare('DELETE FROM inventory_records WHERE id = ? AND COALESCE(release_status, "released") = "pending"');
+                $deleteStmt->execute([$deleteId]);
+            }
+
+            if ($deleteStmt->rowCount() <= 0) {
+                throw new RuntimeException('Selected pending PTR was not found or already released.');
+            }
+
+            header('Location: pending_transactions.php?msg=' . urlencode('Pending PTR deleted successfully.'));
+            exit;
         }
     }
 
@@ -563,6 +595,11 @@ try {
                                             <input type="hidden" name="action" value="release">
                                             <input type="hidden" name="release_token" value="<?= htmlspecialchars((string) $group['release_token']) ?>">
                                             <button type="submit" class="btn btn-primary btn-sm">Release</button>
+                                        </form>
+                                        <form method="post" action="pending_transactions.php" onsubmit="return confirm('Delete this pending PTR draft? This action cannot be undone.');" class="d-inline">
+                                            <input type="hidden" name="action" value="delete">
+                                            <input type="hidden" name="delete_token" value="<?= htmlspecialchars((string) $group['release_token']) ?>">
+                                            <button type="submit" class="btn btn-outline-danger btn-sm">Delete</button>
                                         </form>
                                     </div>
                                 </div>
