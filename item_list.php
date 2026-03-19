@@ -1180,7 +1180,6 @@ try {
                             <table class="table table-sm table-striped align-middle mb-0">
                                 <thead class="table-light">
                                     <tr>
-                                        <th>ID</th>
                                         <th>Product ID</th>
                                         <th>Description</th>
                                         <th>UOM</th>
@@ -1194,7 +1193,6 @@ try {
                                 <tbody>
                                     <?php foreach ($itemAddHistory as $history): ?>
                                         <tr>
-                                            <td><?= (int) ($history['id'] ?? 0) ?></td>
                                             <td><?= htmlspecialchars((string) ($history['product_id'] ?? '-')) ?></td>
                                             <td><?= htmlspecialchars((string) ($history['product_description'] ?? '')) ?></td>
                                             <td><?= htmlspecialchars((string) ($history['uom'] ?? '-')) ?></td>
