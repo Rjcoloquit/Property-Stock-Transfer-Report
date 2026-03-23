@@ -42,6 +42,8 @@ $isEditMode = false;
 $showFormModal = false;
 $hasProductsExpiryDate = false;
 $hasProductBatchesTable = false;
+$hasProductPoNumberTable = false;
+$batchSourceTable = '';
 
 function buildItemListUrl(string $search, string $sort, string $message = '', int $editId = 0, string $editBatch = ''): string
 {
@@ -270,6 +272,13 @@ try {
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci'
     );
 
+    // Some ALTER statements below use AFTER <column>. If the DB schema is older,
+    // ensure these base columns exist first to avoid "Unknown column ..." errors.
+    $costPerUnitBaseColumnStmt = $pdo->query("SHOW COLUMNS FROM products LIKE 'cost_per_unit'");
+    if (!$costPerUnitBaseColumnStmt || !$costPerUnitBaseColumnStmt->fetch()) {
+        $pdo->exec('ALTER TABLE products ADD COLUMN cost_per_unit DECIMAL(12,2) DEFAULT 0.00');
+    }
+
     $expiryColumnStmt = $pdo->query("SHOW COLUMNS FROM products LIKE 'expiry_date'");
     if ($expiryColumnStmt && $expiryColumnStmt->fetch()) {
         $hasProductsExpiryDate = true;
@@ -301,6 +310,23 @@ try {
     if (!$supplierColumnStmt || !$supplierColumnStmt->fetch()) {
         $pdo->exec('ALTER TABLE products ADD COLUMN supplier VARCHAR(255) DEFAULT NULL AFTER po_no');
     }
+
+    // Ensure columns used by the main list query exist (helps on older/partially migrated DBs)
+    $uomColumnStmt = $pdo->query("SHOW COLUMNS FROM products LIKE 'uom'");
+    if (!$uomColumnStmt || !$uomColumnStmt->fetch()) {
+        $pdo->exec('ALTER TABLE products ADD COLUMN uom VARCHAR(50) DEFAULT NULL');
+    }
+
+    $costPerUnitColumnStmt = $pdo->query("SHOW COLUMNS FROM products LIKE 'cost_per_unit'");
+    if (!$costPerUnitColumnStmt || !$costPerUnitColumnStmt->fetch()) {
+        $pdo->exec('ALTER TABLE products ADD COLUMN cost_per_unit DECIMAL(12,2) DEFAULT 0.00');
+    }
+
+    $programColumnStmt = $pdo->query("SHOW COLUMNS FROM products LIKE 'program'");
+    if (!$programColumnStmt || !$programColumnStmt->fetch()) {
+        $pdo->exec('ALTER TABLE products ADD COLUMN program VARCHAR(255) DEFAULT NULL');
+    }
+
     $historyPoNoColumnStmt = $pdo->query("SHOW COLUMNS FROM item_add_history LIKE 'po_no'");
     if (!$historyPoNoColumnStmt || !$historyPoNoColumnStmt->fetch()) {
         $pdo->exec('ALTER TABLE item_add_history ADD COLUMN po_no VARCHAR(100) DEFAULT NULL AFTER program');
@@ -327,7 +353,70 @@ try {
     }
     $productBatchesStmt = $pdo->query("SHOW TABLES LIKE 'product_batches'");
     if ($productBatchesStmt && $productBatchesStmt->fetch()) {
-        $hasProductBatchesTable = true;
+        // Only enable the join when the required columns exist
+        // (prevents SELECT failures that trigger the generic "unable to load items" message)
+        $hasRequiredProductBatchesColumns = true;
+
+        $productIdColumnStmt = $pdo->query("SHOW COLUMNS FROM product_batches LIKE 'product_id'");
+        if (!$productIdColumnStmt || !$productIdColumnStmt->fetch()) {
+            $hasRequiredProductBatchesColumns = false;
+        }
+
+        $batchNumberColumnStmt = $pdo->query("SHOW COLUMNS FROM product_batches LIKE 'batch_number'");
+        if (!$batchNumberColumnStmt || !$batchNumberColumnStmt->fetch()) {
+            $hasRequiredProductBatchesColumns = false;
+        }
+
+        $stockQuantityColumnStmt = $pdo->query("SHOW COLUMNS FROM product_batches LIKE 'stock_quantity'");
+        if (!$stockQuantityColumnStmt || !$stockQuantityColumnStmt->fetch()) {
+            $hasRequiredProductBatchesColumns = false;
+        }
+
+        $expiryDateColumnStmt = $pdo->query("SHOW COLUMNS FROM product_batches LIKE 'expiry_date'");
+        if (!$expiryDateColumnStmt || !$expiryDateColumnStmt->fetch()) {
+            $hasRequiredProductBatchesColumns = false;
+        }
+
+        if ($hasRequiredProductBatchesColumns) {
+            $hasProductBatchesTable = true;
+            $batchSourceTable = 'product_batches';
+        }
+    }
+    $productPoNumberStmt = $pdo->query("SHOW TABLES LIKE 'product_po_number'");
+    if ($productPoNumberStmt && $productPoNumberStmt->fetch()) {
+        $hasRequiredProductPoColumns = true;
+
+        $poProductIdColumnStmt = $pdo->query("SHOW COLUMNS FROM product_po_number LIKE 'product_id'");
+        if (!$poProductIdColumnStmt || !$poProductIdColumnStmt->fetch()) {
+            $hasRequiredProductPoColumns = false;
+        }
+
+        $poNoColumnStmt = $pdo->query("SHOW COLUMNS FROM product_po_number LIKE 'po_no'");
+        if (!$poNoColumnStmt || !$poNoColumnStmt->fetch()) {
+            $hasRequiredProductPoColumns = false;
+        }
+
+        $poBatchNumberColumnStmt = $pdo->query("SHOW COLUMNS FROM product_po_number LIKE 'batch_number'");
+        if (!$poBatchNumberColumnStmt || !$poBatchNumberColumnStmt->fetch()) {
+            $hasRequiredProductPoColumns = false;
+        }
+
+        $poStockColumnStmt = $pdo->query("SHOW COLUMNS FROM product_po_number LIKE 'stock_quantity'");
+        if (!$poStockColumnStmt || !$poStockColumnStmt->fetch()) {
+            $hasRequiredProductPoColumns = false;
+        }
+
+        $poCostColumnStmt = $pdo->query("SHOW COLUMNS FROM product_po_number LIKE 'cost_per_unit'");
+        if (!$poCostColumnStmt || !$poCostColumnStmt->fetch()) {
+            $hasRequiredProductPoColumns = false;
+        }
+
+        if ($hasRequiredProductPoColumns) {
+            $hasProductPoNumberTable = true;
+            if ($batchSourceTable === '') {
+                $batchSourceTable = 'product_po_number';
+            }
+        }
     }
     $pdo->exec(
         'CREATE TABLE IF NOT EXISTS stock_cards (
@@ -384,6 +473,10 @@ try {
                     $pdo->exec('DELETE FROM product_batches');
                     $pdo->exec('ALTER TABLE product_batches AUTO_INCREMENT = 1');
                 }
+                if ($hasProductPoNumberTable) {
+                    $pdo->exec('DELETE FROM product_po_number');
+                    $pdo->exec('ALTER TABLE product_po_number AUTO_INCREMENT = 1');
+                }
 
                 $pdo->exec('DELETE FROM item_add_history');
                 $pdo->exec('ALTER TABLE item_add_history AUTO_INCREMENT = 1');
@@ -424,14 +517,18 @@ try {
             if ($formData['cost_per_unit'] === '' || !is_numeric($formData['cost_per_unit']) || (float) $formData['cost_per_unit'] < 0) {
                 $errors[] = 'Cost per unit must be a valid non-negative number.';
             }
-            if ($hasProductBatchesTable && $formData['batch_number'] === '') {
-                $errors[] = 'Batch number is required.';
-            }
-            if ($hasProductBatchesTable && ($formData['stock'] === '' || !ctype_digit($formData['stock']) || (int) $formData['stock'] <= 0)) {
-                $errors[] = 'Stock must be a valid positive whole number (greater than 0).';
-            }
             $normalizedExpiryDate = normalizeDateInputToIso($formData['expiry_date'], 'Expiry date', $errors);
             $normalizedDateOfDelivery = normalizeDateInputToIso($formData['date_of_delivery'], 'Date of delivery', $errors);
+            $requiresBatchTracking = $hasProductBatchesTable || $hasProductPoNumberTable;
+            if ($requiresBatchTracking && $formData['batch_number'] === '') {
+                $errors[] = 'Batch number is required.';
+            }
+            if ($requiresBatchTracking && ($formData['stock'] === '' || !ctype_digit($formData['stock']) || (int) $formData['stock'] <= 0)) {
+                $errors[] = 'Stock must be a valid positive whole number (greater than 0).';
+            }
+            if ($hasProductPoNumberTable && trim($formData['po_no']) === '') {
+                $errors[] = 'PO Number is required.';
+            }
             if ($action === 'create' && $normalizedExpiryDate !== null && $normalizedExpiryDate < date('Y-m-d')) {
                 $errors[] = 'Expired items are not allowed in Add Item.';
             }
@@ -441,14 +538,17 @@ try {
 
             if (empty($errors)) {
                 if ($action === 'create') {
-                    if ($hasProductBatchesTable && $formData['batch_number'] !== '') {
+                    if ($batchSourceTable !== '' && $formData['batch_number'] !== '') {
+                        $poMatchExpr = $batchSourceTable === 'product_po_number'
+                            ? 'COALESCE(b.po_no, p.po_no, "")'
+                            : 'COALESCE(p.po_no, "")';
                         $descriptionLookup = $pdo->prepare('
                             SELECT p.id
                             FROM products p
-                            INNER JOIN product_batches b ON b.product_id = p.id
+                            INNER JOIN ' . $batchSourceTable . ' b ON b.product_id = p.id
                             WHERE LOWER(TRIM(p.product_description)) = LOWER(?)
                               AND LOWER(TRIM(COALESCE(p.program, ""))) = LOWER(?)
-                              AND LOWER(TRIM(COALESCE(p.po_no, ""))) = LOWER(?)
+                              AND LOWER(TRIM(' . $poMatchExpr . ')) = LOWER(?)
                               AND LOWER(TRIM(b.batch_number)) = LOWER(?)
                             ORDER BY p.id ASC
                             LIMIT 1
@@ -630,6 +730,26 @@ try {
                         );
                         $didIncreaseStock = true;
                     }
+                    if ($hasProductPoNumberTable && $newProductId > 0 && $formData['batch_number'] !== '' && $formData['po_no'] !== '') {
+                        $poInsertStmt = $pdo->prepare(
+                            'INSERT INTO product_po_number (product_id, po_no, batch_number, cost_per_unit, stock_quantity, expiry_date)
+                             VALUES (?, ?, ?, ?, ?, ?)
+                             ON DUPLICATE KEY UPDATE
+                                 product_id = VALUES(product_id),
+                                 batch_number = VALUES(batch_number),
+                                 cost_per_unit = VALUES(cost_per_unit),
+                                 stock_quantity = stock_quantity + VALUES(stock_quantity),
+                                 expiry_date = COALESCE(VALUES(expiry_date), expiry_date)'
+                        );
+                        $poInsertStmt->execute([
+                            $newProductId,
+                            $formData['po_no'],
+                            $formData['batch_number'],
+                            (float) $formData['cost_per_unit'],
+                            (int) $formData['stock'],
+                            $normalizedExpiryDate,
+                        ]);
+                    }
 
                     $historyStmt = $pdo->prepare(
                         'INSERT INTO item_add_history
@@ -680,11 +800,11 @@ try {
                 if ($updateId > 0) {
                     $originalBatchNumber = trim((string) ($_POST['original_batch_number'] ?? ''));
                     $previousStockQty = 0;
-                    if ($hasProductBatchesTable && $formData['batch_number'] !== '') {
+                    if ($batchSourceTable !== '' && $formData['batch_number'] !== '') {
                         $lookupBatch = $originalBatchNumber !== '' ? $originalBatchNumber : $formData['batch_number'];
                         $prevStockStmt = $pdo->prepare('
                             SELECT stock_quantity
-                            FROM product_batches
+                            FROM ' . $batchSourceTable . '
                             WHERE product_id = ? AND batch_number = ?
                             LIMIT 1
                         ');
@@ -798,6 +918,26 @@ try {
                             );
                         }
                     }
+                    if ($hasProductPoNumberTable && $formData['batch_number'] !== '' && $formData['po_no'] !== '') {
+                        $poUpsertStmt = $pdo->prepare(
+                            'INSERT INTO product_po_number (product_id, po_no, batch_number, cost_per_unit, stock_quantity, expiry_date)
+                             VALUES (?, ?, ?, ?, ?, ?)
+                             ON DUPLICATE KEY UPDATE
+                                 product_id = VALUES(product_id),
+                                 batch_number = VALUES(batch_number),
+                                 cost_per_unit = VALUES(cost_per_unit),
+                                 stock_quantity = VALUES(stock_quantity),
+                                 expiry_date = VALUES(expiry_date)'
+                        );
+                        $poUpsertStmt->execute([
+                            $updateId,
+                            $formData['po_no'],
+                            $formData['batch_number'],
+                            (float) $formData['cost_per_unit'],
+                            (int) $formData['stock'],
+                            $normalizedExpiryDate,
+                        ]);
+                    }
                     header('Location: ' . buildItemListUrl($returnSearch, $returnSort, 'Item updated.'));
                     exit;
                 }
@@ -816,16 +956,22 @@ try {
         $editingId = (int) $_GET['edit'];
         $editingBatchNumber = trim((string) ($_GET['edit_batch'] ?? ''));
         if ($editingId > 0) {
-            if ($hasProductBatchesTable) {
+            if ($batchSourceTable !== '') {
+                $editCostPerUnitExpr = $batchSourceTable === 'product_po_number'
+                    ? 'COALESCE(b.cost_per_unit, p.cost_per_unit)'
+                    : 'p.cost_per_unit';
+                $editPoNoExpr = $batchSourceTable === 'product_po_number'
+                    ? 'COALESCE(b.po_no, p.po_no)'
+                    : 'p.po_no';
                 $editSelect = $hasProductsExpiryDate
                     ? 'SELECT
                            p.id,
                            p.product_description,
                            p.uom,
-                           p.cost_per_unit,
+                           ' . $editCostPerUnitExpr . ' AS cost_per_unit,
                            COALESCE(b.expiry_date, p.expiry_date) AS expiry_date,
                            p.program,
-                           p.po_no,
+                           ' . $editPoNoExpr . ' AS po_no,
                            p.supplier,
                            p.place_of_delivery,
                            p.date_of_delivery,
@@ -834,7 +980,7 @@ try {
                            b.batch_number,
                            COALESCE(b.stock_quantity, 0) AS stock
                        FROM products p
-                       LEFT JOIN product_batches b ON b.product_id = p.id
+                       LEFT JOIN ' . $batchSourceTable . ' b ON b.product_id = p.id
                        WHERE p.id = ? AND (? = "" OR b.batch_number = ?)
                        ORDER BY b.batch_number ASC
                        LIMIT 1'
@@ -842,10 +988,10 @@ try {
                            p.id,
                            p.product_description,
                            p.uom,
-                           p.cost_per_unit,
+                           ' . $editCostPerUnitExpr . ' AS cost_per_unit,
                            b.expiry_date AS expiry_date,
                            p.program,
-                           p.po_no,
+                           ' . $editPoNoExpr . ' AS po_no,
                            p.supplier,
                            p.place_of_delivery,
                            p.date_of_delivery,
@@ -854,7 +1000,7 @@ try {
                            b.batch_number,
                            COALESCE(b.stock_quantity, 0) AS stock
                        FROM products p
-                       LEFT JOIN product_batches b ON b.product_id = p.id
+                       LEFT JOIN ' . $batchSourceTable . ' b ON b.product_id = p.id
                        WHERE p.id = ? AND (? = "" OR b.batch_number = ?)
                        ORDER BY b.batch_number ASC
                        LIMIT 1';
@@ -894,22 +1040,28 @@ try {
     $batchJoinSql = '';
     $batchSelectSql = 'NULL AS batch_number, 0 AS stock';
     $expirySelectSql = $hasProductsExpiryDate ? 'p.expiry_date' : 'NULL';
-    if ($hasProductBatchesTable) {
-        $batchJoinSql = 'LEFT JOIN product_batches b ON b.product_id = p.id';
+    $costPerUnitSelectSql = 'p.cost_per_unit';
+    $poNoSelectSql = 'p.po_no';
+    if ($batchSourceTable !== '') {
+        $batchJoinSql = 'LEFT JOIN ' . $batchSourceTable . ' b ON b.product_id = p.id';
         $batchSelectSql = 'b.batch_number AS batch_number, COALESCE(b.stock_quantity, 0) AS stock';
         $expirySelectSql = $hasProductsExpiryDate
             ? 'COALESCE(b.expiry_date, p.expiry_date)'
             : 'b.expiry_date';
+        if ($batchSourceTable === 'product_po_number') {
+            $costPerUnitSelectSql = 'COALESCE(b.cost_per_unit, p.cost_per_unit)';
+            $poNoSelectSql = 'COALESCE(b.po_no, p.po_no)';
+        }
     }
     $listSelect = '
         SELECT
             p.id,
             p.product_description,
             p.uom,
-            p.cost_per_unit,
+            ' . $costPerUnitSelectSql . ' AS cost_per_unit,
             ' . $expirySelectSql . ' AS expiry_date,
             p.program,
-            p.po_no,
+            ' . $poNoSelectSql . ' AS po_no,
             p.supplier,
             p.place_of_delivery,
             p.date_of_delivery,
@@ -921,11 +1073,14 @@ try {
 
     if ($search !== '') {
         $like = '%' . $search . '%';
+        $batchSearchClause = $batchSourceTable !== ''
+            ? '                OR COALESCE(b.batch_number, "") LIKE :q' . PHP_EOL
+            : '';
         $stmt = $pdo->prepare(
             $listSelect . '
              WHERE p.product_description LIKE :q
                 OR p.uom LIKE :q
-                OR COALESCE(batch_number, "") LIKE :q
+             ' . $batchSearchClause . '
              ORDER BY TRIM(LOWER(p.product_description)) ' . $orderByDirection . ',
                       COALESCE(batch_number, "") ASC,
                       p.id ASC'
@@ -942,73 +1097,95 @@ try {
 
     $items = $stmt->fetchAll();
 
-    $descriptionOptionsStmt = $pdo->query('
-        SELECT DISTINCT TRIM(product_description) AS description_name
-        FROM products
-        WHERE product_description IS NOT NULL AND TRIM(product_description) <> ""
-        ORDER BY description_name ASC
-    ');
-    $productDescriptionOptions = $descriptionOptionsStmt->fetchAll(PDO::FETCH_COLUMN);
+    try {
+        $descriptionOptionsStmt = $pdo->query('
+            SELECT DISTINCT TRIM(product_description) AS description_name
+            FROM products
+            WHERE product_description IS NOT NULL AND TRIM(product_description) <> ""
+            ORDER BY description_name ASC
+        ');
+        $productDescriptionOptions = $descriptionOptionsStmt->fetchAll(PDO::FETCH_COLUMN);
+    } catch (PDOException $e) {
+        error_log('item_list.php: descriptionOptions query failed: ' . $e->getMessage());
+        $productDescriptionOptions = [];
+    }
 
     // Fetch all products with their attributes for recommendations
-    $allProductsStmt = $pdo->query('
-        SELECT DISTINCT product_description, uom, program, po_no, supplier
-        FROM products
-        WHERE product_description IS NOT NULL AND TRIM(product_description) <> ""
-        ORDER BY product_description ASC
-    ');
-    $allProducts = $allProductsStmt->fetchAll();
-    
-    // Build a map of product descriptions to their attributes
     $productAttributesMap = [];
-    foreach ($allProducts as $product) {
-        $desc = trim($product['product_description'] ?? '');
-        if ($desc !== '') {
-            if (!isset($productAttributesMap[$desc])) {
-                $productAttributesMap[$desc] = [
-                    'uom_list' => [],
-                    'program_list' => [],
-                    'supplier_list' => [],
-                    'po_no_list' => []
-                ];
-            }
-            if (!empty($product['uom'])) {
-                $productAttributesMap[$desc]['uom_list'][] = $product['uom'];
-            }
-            if (!empty($product['program'])) {
-                $productAttributesMap[$desc]['program_list'][] = $product['program'];
-            }
-            if (!empty($product['supplier'])) {
-                $productAttributesMap[$desc]['supplier_list'][] = $product['supplier'];
-            }
-            if (!empty($product['po_no'])) {
-                $productAttributesMap[$desc]['po_no_list'][] = $product['po_no'];
+    try {
+        $allProductsStmt = $pdo->query('
+            SELECT DISTINCT product_description, uom, program, po_no, supplier
+            FROM products
+            WHERE product_description IS NOT NULL AND TRIM(product_description) <> ""
+            ORDER BY product_description ASC
+        ');
+        $allProducts = $allProductsStmt->fetchAll();
+
+        // Build a map of product descriptions to their attributes
+        foreach ($allProducts as $product) {
+            $desc = trim($product['product_description'] ?? '');
+            if ($desc !== '') {
+                if (!isset($productAttributesMap[$desc])) {
+                    $productAttributesMap[$desc] = [
+                        'uom_list' => [],
+                        'program_list' => [],
+                        'supplier_list' => [],
+                        'po_no_list' => []
+                    ];
+                }
+                if (!empty($product['uom'])) {
+                    $productAttributesMap[$desc]['uom_list'][] = $product['uom'];
+                }
+                if (!empty($product['program'])) {
+                    $productAttributesMap[$desc]['program_list'][] = $product['program'];
+                }
+                if (!empty($product['supplier'])) {
+                    $productAttributesMap[$desc]['supplier_list'][] = $product['supplier'];
+                }
+                if (!empty($product['po_no'])) {
+                    $productAttributesMap[$desc]['po_no_list'][] = $product['po_no'];
+                }
             }
         }
+
+        // Deduplicate and sort the lists
+        foreach ($productAttributesMap as &$attrs) {
+            $attrs['uom_list'] = array_values(array_unique($attrs['uom_list']));
+            $attrs['program_list'] = array_values(array_unique($attrs['program_list']));
+            $attrs['supplier_list'] = array_values(array_unique($attrs['supplier_list']));
+            $attrs['po_no_list'] = array_values(array_unique($attrs['po_no_list']));
+            sort($attrs['uom_list']);
+            sort($attrs['program_list']);
+            sort($attrs['supplier_list']);
+            sort($attrs['po_no_list']);
+        }
+        unset($attrs);
+    } catch (PDOException $e) {
+        error_log('item_list.php: recommendation products query failed: ' . $e->getMessage());
+        $productAttributesMap = [];
     }
 
-    // Deduplicate and sort the lists
-    foreach ($productAttributesMap as &$attrs) {
-        $attrs['uom_list'] = array_values(array_unique($attrs['uom_list']));
-        $attrs['program_list'] = array_values(array_unique($attrs['program_list']));
-        $attrs['supplier_list'] = array_values(array_unique($attrs['supplier_list']));
-        $attrs['po_no_list'] = array_values(array_unique($attrs['po_no_list']));
-        sort($attrs['uom_list']);
-        sort($attrs['program_list']);
-        sort($attrs['supplier_list']);
-        sort($attrs['po_no_list']);
+    // Load latest item-add history (optional; don't break the whole page)
+    try {
+        $historyStmt = $pdo->query('
+            SELECT id, product_id, product_description, uom, cost_per_unit, expiry_date, program, added_by, added_at
+            FROM item_add_history
+            ORDER BY added_at DESC, id DESC
+            LIMIT 50
+        ');
+        $itemAddHistory = $historyStmt->fetchAll();
+    } catch (PDOException $e) {
+        error_log('item_list.php: item_add_history query failed: ' . $e->getMessage());
+        $itemAddHistory = [];
     }
-    unset($attrs);
-
-    $historyStmt = $pdo->query('
-        SELECT id, product_id, product_description, uom, cost_per_unit, expiry_date, program, added_by, added_at
-        FROM item_add_history
-        ORDER BY added_at DESC, id DESC
-        LIMIT 50
-    ');
-    $itemAddHistory = $historyStmt->fetchAll();
 } catch (PDOException $e) {
+    error_log('item_list.php DB error: ' . $e->getMessage());
     $error = 'Unable to load items right now. Please check your database setup.';
+
+    // Local debugging helper. Avoid exposing raw SQL errors by default.
+    if (($_GET['debug'] ?? '') === '1') {
+        $error .= ' (' . htmlspecialchars($e->getMessage(), ENT_QUOTES) . ')';
+    }
 }
 ?>
 <!DOCTYPE html>
@@ -1099,6 +1276,7 @@ try {
                                             <tr>
                                                 <th scope="col" class="col-no">No.</th>
                                                 <th scope="col" class="col-description">Product Description</th>
+                                                <th scope="col" class="col-po-no">PO Number</th>
                                                 <th scope="col" class="col-batch">Batch Number</th>
                                                 <th scope="col" class="col-uom">UOM</th>
                                                 <th scope="col" class="col-stock">Stock</th>
@@ -1112,6 +1290,7 @@ try {
                                             <tr>
                                                 <td class="col-no"><?= $index + 1 ?></td>
                                                 <td class="col-description"><?= htmlspecialchars($item['product_description'] ?? '') ?></td>
+                                                <td class="col-po-no"><?= htmlspecialchars((string) ($item['po_no'] ?? '-')) ?></td>
                                                 <td class="col-batch"><?= htmlspecialchars((string) ($item['batch_number'] ?? '-')) ?></td>
                                                 <td class="col-uom"><?= htmlspecialchars($item['uom'] ?? '-') ?></td>
                                                 <td class="col-stock"><?= number_format((int) ($item['stock'] ?? 0)) ?></td>
@@ -1258,7 +1437,7 @@ try {
                                     <div class="form-text">If item already exists, stock quantity will be added to current stock.</div>
                                 </div>
                                 <div class="col-sm-6 col-md-4">
-                                    <label for="batch_number" class="form-label item-form-label">Batch number <?= $hasProductBatchesTable ? '<span class="text-danger">*</span>' : '' ?></label>
+                                    <label for="batch_number" class="form-label item-form-label">Batch number <?= ($hasProductBatchesTable || $hasProductPoNumberTable) ? '<span class="text-danger">*</span>' : '' ?></label>
                                     <input
                                         type="text"
                                         id="batch_number"
@@ -1266,7 +1445,7 @@ try {
                                         class="form-control item-form-input"
                                         value="<?= htmlspecialchars($formData['batch_number']) ?>"
                                         placeholder="Batch no."
-                                        <?= $hasProductBatchesTable ? 'required' : '' ?>
+                                        <?= ($hasProductBatchesTable || $hasProductPoNumberTable) ? 'required' : '' ?>
                                     >
                                     <?php if ($isEditMode): ?>
                                         <input type="hidden" name="original_batch_number" value="<?= htmlspecialchars($formData['batch_number']) ?>">
@@ -1308,7 +1487,7 @@ try {
                             <h3 class="item-form-section-title">Inventory &amp; pricing</h3>
                             <div class="row g-3">
                                 <div class="col-sm-6 col-md-4">
-                                    <label for="stock" class="form-label item-form-label">Stock quantity <?= $hasProductBatchesTable ? '<span class="text-danger">*</span>' : '' ?></label>
+                                    <label for="stock" class="form-label item-form-label">Stock quantity <?= ($hasProductBatchesTable || $hasProductPoNumberTable) ? '<span class="text-danger">*</span>' : '' ?></label>
                                     <input
                                         type="number"
                                         id="stock"
@@ -1318,7 +1497,7 @@ try {
                                         step="1"
                                         value="<?= htmlspecialchars($formData['stock']) ?>"
                                         placeholder="1"
-                                        <?= $hasProductBatchesTable ? 'required' : '' ?>
+                                        <?= ($hasProductBatchesTable || $hasProductPoNumberTable) ? 'required' : '' ?>
                                     >
                                 </div>
                                 <div class="col-sm-6 col-md-4">

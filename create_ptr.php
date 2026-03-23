@@ -19,6 +19,7 @@ $batchMetaByDescription = [];
 $unitOptionsByDescription = [];
 $programOptionsByDescription = [];
 $poOptionsByDescription = [];
+$costByDescriptionAndPo = [];
 $hasProductBatchesTable = false;
 
 // Default values for sticky form
@@ -195,6 +196,8 @@ try {
         if ($description === '') {
             continue;
         }
+        $normalizedPoNo = trim((string) ($row['po_no'] ?? ''));
+        $costByDescriptionAndPo[strtolower($description) . '|' . strtolower($normalizedPoNo)] = number_format((float) ($row['cost_per_unit'] ?? 0), 2, '.', '');
 
         if (!isset($unitOptionsByDescription[$description])) {
             $unitOptionsByDescription[$description] = [];
@@ -309,6 +312,15 @@ try {
 } catch (PDOException $e) {
     $errors[] = 'Could not load item descriptions. Please check the products table.';
 }
+
+$resolveUnitCostByDescriptionPo = static function (string $description, string $poNo, array $productMetaByDescription, array $costByDescriptionAndPo): string {
+    $mapKey = strtolower(trim($description)) . '|' . strtolower(trim($poNo));
+    if (isset($costByDescriptionAndPo[$mapKey])) {
+        return (string) $costByDescriptionAndPo[$mapKey];
+    }
+    $fallback = $productMetaByDescription[$description]['unit_cost'] ?? '0';
+    return number_format((float) $fallback, 2, '.', '');
+};
 
 if ($isDraftEditMode) {
     try {
@@ -470,7 +482,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $errors[] = 'Program is required on row ' . ($i + 1) . '.';
             $selectedProduct = $productMetaByDescription[$description];
             $item['unit'] = $unitRaw !== '' ? $unitRaw : $selectedProduct['unit'];
-            $item['unit_cost'] = number_format((float) $selectedProduct['unit_cost'], 2, '.', '');
+            $item['unit_cost'] = $resolveUnitCostByDescriptionPo($description, $poNoRaw, $productMetaByDescription, $costByDescriptionAndPo);
             $batchExpiration = '';
             if ($batchNumber !== '' && isset($batchMetaByDescription[$description][$batchNumber])) {
                 $batchExpiration = (string) ($batchMetaByDescription[$description][$batchNumber]['expiration_date'] ?? '');
@@ -513,7 +525,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $errors[] = 'Quantity must be a positive whole number on row ' . ($i + 1) . '.';
             $selectedProduct = $productMetaByDescription[$description];
             $item['unit'] = $unitRaw !== '' ? $unitRaw : $selectedProduct['unit'];
-            $item['unit_cost'] = number_format((float) $selectedProduct['unit_cost'], 2, '.', '');
+            $item['unit_cost'] = $resolveUnitCostByDescriptionPo($description, $poNoRaw, $productMetaByDescription, $costByDescriptionAndPo);
             $item['expiration_date'] = $selectedProduct['expiration_date'];
             $item['supplier'] = $selectedProduct['supplier'] ?? '';
             $data['items'][] = $item;
@@ -529,7 +541,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         $selectedProduct = $productMetaByDescription[$description];
         $item['unit'] = $unitRaw !== '' ? $unitRaw : $selectedProduct['unit'];
-        $item['unit_cost'] = number_format((float) $selectedProduct['unit_cost'], 2, '.', '');
+        $item['unit_cost'] = $resolveUnitCostByDescriptionPo($description, $poNoRaw, $productMetaByDescription, $costByDescriptionAndPo);
         $item['supplier'] = $selectedProduct['supplier'] ?? '';
         $batchExpiration = '';
         if ($batchNumber !== '' && isset($batchMetaByDescription[$description][$batchNumber])) {
@@ -1201,6 +1213,7 @@ $previewLineRows = 10;
             unitOptionsByDescription: <?= json_encode($unitOptionsByDescription, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>,
             programOptionsByDescription: <?= json_encode($programOptionsByDescription, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>,
             poOptionsByDescription: <?= json_encode($poOptionsByDescription, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>,
+            costByDescriptionAndPo: <?= json_encode($costByDescriptionAndPo, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>,
             hasProductBatches: <?= $hasProductBatchesTable ? 'true' : 'false' ?>,
             previewLineRows: <?= (int) $previewLineRows ?>,
         };

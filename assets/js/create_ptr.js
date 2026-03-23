@@ -8,6 +8,7 @@
     var unitOptionsByDescription = config.unitOptionsByDescription || {};
     var programOptionsByDescription = config.programOptionsByDescription || {};
     var poOptionsByDescription = config.poOptionsByDescription || {};
+    var costByDescriptionAndPo = config.costByDescriptionAndPo || {};
     var hasProductBatches = !!config.hasProductBatches;
     var previewLineRows = Number.isFinite(Number(config.previewLineRows)) ? Number(config.previewLineRows) : 0;
 
@@ -35,6 +36,18 @@
         acc[String(key).trim().toLowerCase()] = poOptionsByDescription[key];
         return acc;
     }, {});
+
+    function getUnitCostByDescriptionPo(descriptionValue, poNoValue, fallbackUnitCost) {
+        var description = String(descriptionValue || '').trim().toLowerCase();
+        var poNo = String(poNoValue || '').trim().toLowerCase();
+        var mapKey = description + '|' + poNo;
+        if (Object.prototype.hasOwnProperty.call(costByDescriptionAndPo, mapKey)) {
+            var mappedCost = Number(costByDescriptionAndPo[mapKey]);
+            return Number.isFinite(mappedCost) ? mappedCost.toFixed(2) : '';
+        }
+        var parsedFallback = Number(fallbackUnitCost);
+        return Number.isFinite(parsedFallback) ? parsedFallback.toFixed(2) : '';
+    }
 
     var ptrForm = document.getElementById('ptrForm');
     var nextPreviewBtn = document.getElementById('nextPreviewBtn');
@@ -238,8 +251,7 @@
         if (poNoInput.value.trim() === '' && poOptions.length > 0) {
             poNoInput.value = poOptions[0];
         }
-        var parsedUnitCost = Number(selectedProduct.unit_cost);
-        unitCostInput.value = Number.isFinite(parsedUnitCost) ? parsedUnitCost.toFixed(2) : '';
+        unitCostInput.value = getUnitCostByDescriptionPo(descriptionValue, poNoInput.value, selectedProduct.unit_cost);
         var selectedBatchMeta = getBatchMetaForSelection(descriptionValue, batchValue);
         var batchExpiration = selectedBatchMeta
             ? String(selectedBatchMeta.expiration_date || '')
@@ -514,7 +526,7 @@
     });
 
     itemRowsBody.addEventListener('change', function (event) {
-        if (event.target.classList.contains('item-description') || event.target.classList.contains('item-batch-number')) {
+        if (event.target.classList.contains('item-description') || event.target.classList.contains('item-batch-number') || event.target.classList.contains('item-po-number')) {
             applyRowMeta(event.target.closest('.item-row'));
             refreshCreateRowStockHints();
         }
@@ -536,6 +548,13 @@
             var batchRow = event.target.closest('.item-row');
             syncRowRequiredState(batchRow);
             applyRowMeta(batchRow);
+            refreshCreateRowStockHints();
+            return;
+        }
+        if (event.target.classList.contains('item-po-number')) {
+            var poRow = event.target.closest('.item-row');
+            syncRowRequiredState(poRow);
+            applyRowMeta(poRow);
             refreshCreateRowStockHints();
             return;
         }
