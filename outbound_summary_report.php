@@ -90,15 +90,16 @@ function formatMoney($value): string
     <link rel="stylesheet" href="style.css?v=20260305">
     <style>
         .outbound-page .inventory-table-wrapper {
-            overflow-x: auto;
+            overflow-x: hidden;
             overflow-y: visible;
-            border: 1px solid #d7dee8;
-            border-radius: 8px;
+            border: 1px solid #000;
+            border-radius: 0;
+            background: #fff;
         }
         .outbound-page #outboundTable {
             width: 100%;
-            min-width: 1250px;
-            table-layout: auto;
+            min-width: 0;
+            table-layout: fixed;
             border-collapse: collapse;
         }
         .outbound-page .print-only {
@@ -106,41 +107,46 @@ function formatMoney($value): string
         }
         .outbound-page #outboundTable th,
         .outbound-page #outboundTable td {
+            border: 1px solid #000;
+            color: #000;
+            background: #fff;
             white-space: normal;
-            word-break: normal;
-            overflow-wrap: break-word;
+            word-break: break-word;
+            overflow-wrap: anywhere;
             vertical-align: middle;
-            padding: 0.55rem 0.5rem;
-            line-height: 1.35;
+            padding: 0.5rem 0.45rem;
+            line-height: 1.3;
+            font-size: 0.82rem;
         }
         .outbound-page #outboundTable thead th {
-            background: #f6f8fb;
+            background: #fff;
             font-weight: 700;
-            border-bottom: 2px solid #d7dee8;
+            border-bottom: 2px solid #000;
             text-transform: uppercase;
             letter-spacing: 0.02em;
             font-size: 0.74rem;
         }
         .outbound-page #outboundTable tbody tr:nth-child(even) {
-            background: #fbfcfe;
+            background: #fff;
         }
         .outbound-page #outboundTable tbody tr:hover {
-            background: #f1f6ff;
+            background: #fff;
         }
-        .outbound-page #outboundTable td:nth-child(2),
-        .outbound-page #outboundTable td:nth-child(3),
-        .outbound-page #outboundTable td:nth-child(5),
-        .outbound-page #outboundTable td:nth-child(6),
-        .outbound-page #outboundTable td:nth-child(7),
-        .outbound-page #outboundTable td:nth-child(8),
-        .outbound-page #outboundTable td:nth-child(9),
-        .outbound-page #outboundTable td:nth-child(11) {
-            white-space: nowrap;
-        }
-        .outbound-page #outboundTable td:nth-child(1),
-        .outbound-page #outboundTable td:nth-child(4),
-        .outbound-page #outboundTable td:nth-child(10) {
+        .outbound-page #outboundTable td,
+        .outbound-page #outboundTable th {
             white-space: normal;
+        }
+        .outbound-page #outboundTable tfoot td {
+            font-weight: 700;
+            background: #fff;
+        }
+
+        @media (max-width: 1200px) {
+            .outbound-page #outboundTable th,
+            .outbound-page #outboundTable td {
+                font-size: 0.76rem;
+                padding: 0.4rem 0.3rem;
+            }
         }
 
         @media print {
@@ -159,7 +165,7 @@ function formatMoney($value): string
             .app-header {
                 position: static !important;
                 margin-bottom: 5mm;
-                border-bottom: 1px solid #333;
+                border-bottom: 1px solid #000;
                 padding-bottom: 5mm !important;
             }
             .app-header-title span {
@@ -201,23 +207,26 @@ function formatMoney($value): string
             }
             .table th,
             .table td {
-                border: 1px solid #333 !important;
+                border: 1px solid #000 !important;
                 padding: 2pt 3pt !important;
                 white-space: normal !important;
                 word-break: normal;
                 overflow-wrap: break-word;
+                color: #000 !important;
+                background: #fff !important;
             }
             .table thead th {
-                background-color: #f5f5f5 !important;
+                background-color: #fff !important;
                 font-weight: 700;
                 text-align: center;
                 vertical-align: middle;
+                border-bottom: 2px solid #000 !important;
             }
             .table tbody tr {
                 page-break-inside: avoid;
             }
             .outbound-print-meta {
-                border: 1px solid #333;
+                border: 1px solid #000;
                 padding: 3mm;
                 margin-bottom: 3mm;
                 font-size: 8pt;
@@ -318,17 +327,17 @@ function formatMoney($value): string
                         <div class="inventory-table-wrapper">
                             <table class="table inventory-table" id="outboundTable">
                             <colgroup>
-                                <col style="width:13%">
+                                <col style="width:12%">
                                 <col style="width:8%">
                                 <col style="width:9%">
                                 <col style="width:18%">
                                 <col style="width:8%">
-                                <col style="width:7%">
+                                <col style="width:6%">
                                 <col style="width:6%">
                                 <col style="width:8%">
                                 <col style="width:9%">
-                                <col style="width:14%">
-                                <col style="width:8%">
+                                <col style="width:10%">
+                                <col style="width:6%">
                             </colgroup>
                             <thead>
                                 <tr>

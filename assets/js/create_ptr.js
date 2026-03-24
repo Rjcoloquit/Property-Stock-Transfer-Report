@@ -428,6 +428,13 @@
         var poFallbackCost = selectedPoMeta ? selectedPoMeta.unit_cost : selectedProduct.unit_cost;
         unitCostInput.value = getUnitCostByDescriptionPo(descriptionValue, poNoInput.value, poFallbackCost);
 
+        if (quantityInput && quantityInput.getAttribute('data-last-po-value') === null) {
+            quantityInput.dataset.lastPoValue = poNoInput.value;
+            if (quantityInput.getAttribute('data-autofilled') === null) {
+                quantityInput.dataset.autofilled = '0';
+            }
+        }
+
         var poChanged = quantityInput && quantityInput.dataset.lastPoValue !== poNoInput.value;
         if (quantityInput && poChanged) {
             quantityInput.value = '';

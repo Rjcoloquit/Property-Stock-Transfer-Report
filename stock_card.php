@@ -196,18 +196,37 @@ try {
             if (trim($formData['fund_cluster']) === '') {
                 $formData['fund_cluster'] = 'PHO';
             }
+            $unitCostValue = is_numeric($formData['unit_cost']) ? (float) $formData['unit_cost'] : 0.0;
             $decodedRows = json_decode((string) ($selectedCard['ledger_rows'] ?? ''), true);
             if (is_array($decodedRows)) {
+                $runningBalance = null;
                 foreach ($decodedRows as $row) {
                     if (!is_array($row)) {
                         continue;
                     }
+                    $issuedRaw = (string) ($row['issued'] ?? '');
+                    $issuedNumeric = (float) str_replace(',', '', trim($issuedRaw));
+                    $receivedRaw = (string) ($row['received'] ?? '');
+                    $receivedNumeric = (float) str_replace(',', '', trim($receivedRaw));
+                    $storedBalanceRaw = (string) ($row['balance'] ?? '');
+                    $storedBalance = (float) str_replace(',', '', trim($storedBalanceRaw));
+
+                    if ($runningBalance === null) {
+                        $startingBalance = $storedBalance - $receivedNumeric + $issuedNumeric;
+                        $runningBalance = max(0, $startingBalance);
+                    }
+                    $runningBalance = max(0, $runningBalance + $receivedNumeric - $issuedNumeric);
+
+                    $storedTotalCost = (string) ($row['total_cost'] ?? '');
+                    $computedTotalCost = $issuedNumeric > 0
+                        ? number_format($issuedNumeric * $unitCostValue, 2, '.', '')
+                        : $storedTotalCost;
                     $ledgerRows[] = [
                         'entry_date' => (string) ($row['entry_date'] ?? ''),
-                        'received' => (string) ($row['received'] ?? ''),
-                        'issued' => (string) ($row['issued'] ?? ''),
-                        'balance' => (string) ($row['balance'] ?? ''),
-                        'total_cost' => (string) ($row['total_cost'] ?? ''),
+                        'received' => $receivedRaw,
+                        'issued' => $issuedRaw,
+                        'balance' => number_format($runningBalance, 2, '.', ''),
+                        'total_cost' => $computedTotalCost,
                         'ref_no' => (string) ($row['ref_no'] ?? ''),
                         'remarks' => (string) ($row['remarks'] ?? ''),
                     ];
@@ -325,7 +344,7 @@ while (count($ledgerRows) < 18) {
                                             <td><?= htmlspecialchars((string) ($card['end_user_program'] ?? '-')) ?></td>
                                             <td><?= htmlspecialchars((string) ($card['created_at'] ?? '-')) ?></td>
                                             <td class="text-center">
-                                                <a href="stock_card.php?card_id=<?= $cardId ?>" class="btn btn-outline-secondary btn-sm <?= $cardId === $selectedCardId ? 'active' : '' ?>">Open</a>
+                                                <a href="stock_card.php?card_id=<?= $cardId ?><?= $search !== '' ? '&q=' . urlencode($search) : '' ?>" class="btn btn-outline-secondary btn-sm <?= $cardId === $selectedCardId ? 'active' : '' ?>">Open</a>
                                             </td>
                                         </tr>
                                     <?php endforeach; ?>

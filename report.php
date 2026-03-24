@@ -1000,10 +1000,6 @@ try {
                         <div class="report-summary-grid mb-3">
                             <div class="report-summary-box">
                                 <div class="report-summary-label">Total Transactions</div>
-                                <div class="report-summary-value"><?= number_format(count($records)) ?></div>
-                            </div>
-                            <div class="report-summary-box">
-                                <div class="report-summary-label">Total PTR Groups</div>
                                 <div class="report-summary-value"><?= number_format(count($groupedRecords)) ?></div>
                             </div>
                             <div class="report-summary-box">

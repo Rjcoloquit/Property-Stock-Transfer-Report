@@ -151,7 +151,8 @@ function appendReceivedStockCardEntry(
     $lastBalance = 0.0;
     if (!empty($ledgerRows)) {
         $lastLedgerRow = $ledgerRows[count($ledgerRows) - 1];
-        $lastBalance = (float) ($lastLedgerRow['balance'] ?? 0);
+        $lastBalanceRaw = (string) ($lastLedgerRow['balance'] ?? '0');
+        $lastBalance = (float) str_replace(',', '', trim($lastBalanceRaw));
     }
     $newBalance = $lastBalance + $receivedQty;
     $entryDate = trim($entryDate) !== '' ? $entryDate : date('Y-m-d');
@@ -731,24 +732,56 @@ try {
                         $didIncreaseStock = true;
                     }
                     if ($hasProductPoNumberTable && $newProductId > 0 && $formData['batch_number'] !== '' && $formData['po_no'] !== '') {
-                        $poInsertStmt = $pdo->prepare(
-                            'INSERT INTO product_po_number (product_id, po_no, batch_number, cost_per_unit, stock_quantity, expiry_date)
-                             VALUES (?, ?, ?, ?, ?, ?)
-                             ON DUPLICATE KEY UPDATE
-                                 product_id = VALUES(product_id),
-                                 batch_number = VALUES(batch_number),
-                                 cost_per_unit = VALUES(cost_per_unit),
-                                 stock_quantity = stock_quantity + VALUES(stock_quantity),
-                                 expiry_date = COALESCE(VALUES(expiry_date), expiry_date)'
-                        );
-                        $poInsertStmt->execute([
+                        $poFindStmt = $pdo->prepare('
+                            SELECT id
+                            FROM product_po_number
+                            WHERE product_id = ?
+                              AND LOWER(TRIM(po_no)) = LOWER(?)
+                              AND LOWER(TRIM(batch_number)) = LOWER(?)
+                            LIMIT 1
+                        ');
+                        $poFindStmt->execute([
                             $newProductId,
                             $formData['po_no'],
                             $formData['batch_number'],
-                            (float) $formData['cost_per_unit'],
-                            (int) $formData['stock'],
-                            $normalizedExpiryDate,
                         ]);
+                        $existingPoRow = $poFindStmt->fetch();
+
+                        if ($existingPoRow) {
+                            $poUpdateStmt = $pdo->prepare('
+                                UPDATE product_po_number
+                                SET
+                                    product_id = ?,
+                                    po_no = ?,
+                                    batch_number = ?,
+                                    cost_per_unit = ?,
+                                    stock_quantity = stock_quantity + ?,
+                                    expiry_date = COALESCE(?, expiry_date)
+                                WHERE id = ?
+                            ');
+                            $poUpdateStmt->execute([
+                                $newProductId,
+                                $formData['po_no'],
+                                $formData['batch_number'],
+                                (float) $formData['cost_per_unit'],
+                                (int) $formData['stock'],
+                                $normalizedExpiryDate,
+                                (int) ($existingPoRow['id'] ?? 0),
+                            ]);
+                        } else {
+                            $poInsertStmt = $pdo->prepare(
+                                'INSERT INTO product_po_number (product_id, po_no, batch_number, cost_per_unit, stock_quantity, expiry_date)
+                                 VALUES (?, ?, ?, ?, ?, ?)'
+                            );
+                            $poInsertStmt->execute([
+                                $newProductId,
+                                $formData['po_no'],
+                                $formData['batch_number'],
+                                (float) $formData['cost_per_unit'],
+                                (int) $formData['stock'],
+                                $normalizedExpiryDate,
+                            ]);
+                        }
                     }
 
                     $historyStmt = $pdo->prepare(
@@ -919,24 +952,56 @@ try {
                         }
                     }
                     if ($hasProductPoNumberTable && $formData['batch_number'] !== '' && $formData['po_no'] !== '') {
-                        $poUpsertStmt = $pdo->prepare(
-                            'INSERT INTO product_po_number (product_id, po_no, batch_number, cost_per_unit, stock_quantity, expiry_date)
-                             VALUES (?, ?, ?, ?, ?, ?)
-                             ON DUPLICATE KEY UPDATE
-                                 product_id = VALUES(product_id),
-                                 batch_number = VALUES(batch_number),
-                                 cost_per_unit = VALUES(cost_per_unit),
-                                 stock_quantity = VALUES(stock_quantity),
-                                 expiry_date = VALUES(expiry_date)'
-                        );
-                        $poUpsertStmt->execute([
+                        $poFindStmt = $pdo->prepare('
+                            SELECT id
+                            FROM product_po_number
+                            WHERE product_id = ?
+                              AND LOWER(TRIM(po_no)) = LOWER(?)
+                              AND LOWER(TRIM(batch_number)) = LOWER(?)
+                            LIMIT 1
+                        ');
+                        $poFindStmt->execute([
                             $updateId,
                             $formData['po_no'],
                             $formData['batch_number'],
-                            (float) $formData['cost_per_unit'],
-                            (int) $formData['stock'],
-                            $normalizedExpiryDate,
                         ]);
+                        $existingPoRow = $poFindStmt->fetch();
+
+                        if ($existingPoRow) {
+                            $poUpdateStmt = $pdo->prepare('
+                                UPDATE product_po_number
+                                SET
+                                    product_id = ?,
+                                    po_no = ?,
+                                    batch_number = ?,
+                                    cost_per_unit = ?,
+                                    stock_quantity = ?,
+                                    expiry_date = ?
+                                WHERE id = ?
+                            ');
+                            $poUpdateStmt->execute([
+                                $updateId,
+                                $formData['po_no'],
+                                $formData['batch_number'],
+                                (float) $formData['cost_per_unit'],
+                                (int) $formData['stock'],
+                                $normalizedExpiryDate,
+                                (int) ($existingPoRow['id'] ?? 0),
+                            ]);
+                        } else {
+                            $poInsertStmt = $pdo->prepare(
+                                'INSERT INTO product_po_number (product_id, po_no, batch_number, cost_per_unit, stock_quantity, expiry_date)
+                                 VALUES (?, ?, ?, ?, ?, ?)'
+                            );
+                            $poInsertStmt->execute([
+                                $updateId,
+                                $formData['po_no'],
+                                $formData['batch_number'],
+                                (float) $formData['cost_per_unit'],
+                                (int) $formData['stock'],
+                                $normalizedExpiryDate,
+                            ]);
+                        }
                     }
                     header('Location: ' . buildItemListUrl($returnSearch, $returnSort, 'Item updated.'));
                     exit;
