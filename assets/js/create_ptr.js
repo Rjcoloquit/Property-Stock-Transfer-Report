@@ -9,8 +9,17 @@
     var programOptionsByDescription = config.programOptionsByDescription || {};
     var poOptionsByDescription = config.poOptionsByDescription || {};
     var costByDescriptionAndPo = config.costByDescriptionAndPo || {};
+    var productMetaByDescriptionPo = config.productMetaByDescriptionPo || {};
+    var batchNumbersByDescriptionPo = config.batchNumbersByDescriptionPo || {};
+    var batchMetaByDescriptionPo = config.batchMetaByDescriptionPo || {};
+    var quantityByDescriptionAndPo = config.quantityByDescriptionAndPo || {};
     var hasProductBatches = !!config.hasProductBatches;
     var previewLineRows = Number.isFinite(Number(config.previewLineRows)) ? Number(config.previewLineRows) : 0;
+
+    var canonicalDescriptionByLower = Object.keys(productMetaByDescription).reduce(function (acc, key) {
+        acc[String(key).trim().toLowerCase()] = String(key).trim();
+        return acc;
+    }, {});
 
     var productMetaByDescriptionLower = Object.keys(productMetaByDescription).reduce(function (acc, key) {
         acc[String(key).trim().toLowerCase()] = productMetaByDescription[key];
@@ -37,8 +46,41 @@
         return acc;
     }, {});
 
+    function getDescriptionKeyForInput(descriptionValue) {
+        var input = String(descriptionValue || '').trim();
+        if (input === '') {
+            return '';
+        }
+        if (Object.prototype.hasOwnProperty.call(productMetaByDescription, input)) {
+            return input;
+        }
+        var inputLower = input.toLowerCase();
+        if (Object.prototype.hasOwnProperty.call(canonicalDescriptionByLower, inputLower)) {
+            return canonicalDescriptionByLower[inputLower];
+        }
+
+        var bestPrefix = '';
+        Object.keys(canonicalDescriptionByLower).forEach(function (knownLower) {
+            if (knownLower.indexOf(inputLower) === 0 && bestPrefix === '') {
+                bestPrefix = canonicalDescriptionByLower[knownLower];
+            }
+        });
+        if (bestPrefix !== '') {
+            return bestPrefix;
+        }
+
+        var bestContains = '';
+        Object.keys(canonicalDescriptionByLower).forEach(function (knownLower) {
+            if (bestContains === '' && knownLower.indexOf(inputLower) !== -1) {
+                bestContains = canonicalDescriptionByLower[knownLower];
+            }
+        });
+        return bestContains;
+    }
+
     function getUnitCostByDescriptionPo(descriptionValue, poNoValue, fallbackUnitCost) {
-        var description = String(descriptionValue || '').trim().toLowerCase();
+        var descriptionKey = getDescriptionKeyForInput(descriptionValue);
+        var description = String(descriptionKey || '').trim().toLowerCase();
         var poNo = String(poNoValue || '').trim().toLowerCase();
         var mapKey = description + '|' + poNo;
         if (Object.prototype.hasOwnProperty.call(costByDescriptionAndPo, mapKey)) {
@@ -47,6 +89,17 @@
         }
         var parsedFallback = Number(fallbackUnitCost);
         return Number.isFinite(parsedFallback) ? parsedFallback.toFixed(2) : '';
+    }
+
+    function getProductMetaByDescriptionPo(descriptionValue, poNoValue) {
+        var descriptionKey = getDescriptionKeyForInput(descriptionValue);
+        var description = String(descriptionKey || '').trim().toLowerCase();
+        var poNo = String(poNoValue || '').trim().toLowerCase();
+        var mapKey = description + '|' + poNo;
+        if (Object.prototype.hasOwnProperty.call(productMetaByDescriptionPo, mapKey)) {
+            return productMetaByDescriptionPo[mapKey];
+        }
+        return null;
     }
 
     var ptrForm = document.getElementById('ptrForm');
@@ -93,7 +146,7 @@
     }
 
     function getDescriptionMeta(descriptionValue) {
-        var key = String(descriptionValue || '').trim();
+        var key = getDescriptionKeyForInput(descriptionValue);
         if (key === '') {
             return {
                 selectedProduct: null,
@@ -124,7 +177,7 @@
     }
 
     function getOptionsByDescription(optionsMap, optionsMapLower, descriptionValue) {
-        var key = String(descriptionValue || '').trim();
+        var key = getDescriptionKeyForInput(descriptionValue);
         if (key === '') {
             return [];
         }
@@ -158,9 +211,51 @@
             html += '<option value="' + escapeHtml(value) + '"></option>';
         });
         datalistEl.innerHTML = html;
-        if (currentValue !== '' && !optionValues.includes(currentValue)) {
-            inputEl.value = '';
+    }
+
+    function getBatchContextByDescriptionPo(descriptionValue, poNoValue) {
+        var descriptionKey = getDescriptionKeyForInput(descriptionValue);
+        var descriptionLower = String(descriptionKey || '').trim().toLowerCase();
+        var poLower = String(poNoValue || '').trim().toLowerCase();
+        
+        console.log('getBatchContextByDescriptionPo:', {
+            descriptionKey: descriptionKey,
+            descriptionLower: descriptionLower,
+            poLower: poLower,
+            batchNumbersByDescriptionPoKeys: Object.keys(batchNumbersByDescriptionPo)
+        });
+        
+        if (descriptionLower === '') {
+            return {
+                batchOptions: [],
+                batchMeta: {},
+                totalQuantity: 0
+            };
         }
+
+        var compositeKey = descriptionLower + '|' + poLower;
+        console.log('Looking for compositeKey:', compositeKey);
+        console.log('Available keys:', Object.keys(batchNumbersByDescriptionPo));
+        
+        if (poLower !== '' && Object.prototype.hasOwnProperty.call(batchNumbersByDescriptionPo, compositeKey)) {
+            var batchOptions = Array.isArray(batchNumbersByDescriptionPo[compositeKey]) ? batchNumbersByDescriptionPo[compositeKey] : [];
+            console.log('Found batches for', compositeKey, ':', batchOptions);
+            return {
+                batchOptions: batchOptions,
+                batchMeta: batchMetaByDescriptionPo[compositeKey] && typeof batchMetaByDescriptionPo[compositeKey] === 'object'
+                    ? batchMetaByDescriptionPo[compositeKey]
+                    : {},
+                totalQuantity: Number(quantityByDescriptionAndPo[compositeKey] || 0)
+            };
+        }
+
+        console.log('No match found, using fallback');
+        var fallbackMeta = getDescriptionMeta(descriptionKey);
+        return {
+            batchOptions: Array.isArray(fallbackMeta.batchOptions) ? fallbackMeta.batchOptions : [],
+            batchMeta: fallbackMeta.batchMeta && typeof fallbackMeta.batchMeta === 'object' ? fallbackMeta.batchMeta : {},
+            totalQuantity: Number(quantityByDescriptionAndPo[descriptionLower + '|'] || 0)
+        };
     }
 
     function escapeHtml(value) {
@@ -200,16 +295,18 @@
     function applyRowMeta(row) {
         var descriptionSelect = row.querySelector('.item-description');
         var descriptionValue = descriptionSelect.value.trim();
+        var poNoInput = row.querySelector('.item-po-number');
+        var poValue = poNoInput.value.trim();
         var batchInput = row.querySelector('.item-batch-number');
         var batchValue = batchInput.value.trim();
+        var quantityInput = row.querySelector('.item-quantity');
         var unitInput = row.querySelector('.item-unit');
         var unitCostInput = row.querySelector('.item-unit-cost');
         var expirationInput = row.querySelector('.item-expiration');
-        var poNoInput = row.querySelector('.item-po-number');
         var programInput = row.querySelector('.item-program');
         var meta = getDescriptionMeta(descriptionValue);
         var selectedProduct = meta.selectedProduct;
-        var batchOptions = meta.batchOptions;
+        var batchOptions = Array.isArray(meta.batchOptions) ? meta.batchOptions : [];
         var unitOptions = getOptionsByDescription(unitOptionsByDescription, unitOptionsByDescriptionLower, descriptionValue);
         var programOptions = getOptionsByDescription(programOptionsByDescription, programOptionsByDescriptionLower, descriptionValue);
         var poOptions = getOptionsByDescription(poOptionsByDescription, poOptionsByDescriptionLower, descriptionValue);
@@ -220,10 +317,41 @@
             normalizedProgramOptions.push(selectedProgram);
         }
 
-        setInputSuggestions(batchInput, batchOptions);
         setInputSuggestions(unitInput, unitOptions);
         setInputSuggestions(programInput, normalizedProgramOptions);
         setInputSuggestions(poNoInput, poOptions);
+
+        if (poNoInput.value.trim() !== '' && poOptions.length > 0) {
+            var currentPoLower = poNoInput.value.trim().toLowerCase();
+            var hasMatchingPo = poOptions.some(function (optionValue) {
+                return String(optionValue || '').trim().toLowerCase() === currentPoLower;
+            });
+            if (!hasMatchingPo) {
+                poNoInput.value = '';
+                poValue = '';
+            }
+        }
+
+        var selectedPoMeta = getProductMetaByDescriptionPo(descriptionValue, poNoInput.value);
+        var batchContext = getBatchContextByDescriptionPo(descriptionValue, poNoInput.value);
+        var batchOptions = Array.isArray(batchContext.batchOptions) ? batchContext.batchOptions : [];
+        console.log('applyRowMeta - batchOptions:', batchOptions, 'batchInput.value:', batchInput.value);
+        setInputSuggestions(batchInput, batchOptions);
+
+        if (batchInput.value.trim() !== '' && batchOptions.length > 0) {
+            var currentBatchLower = batchInput.value.trim().toLowerCase();
+            var hasMatchingBatch = batchOptions.some(function (optionValue) {
+                return String(optionValue || '').trim().toLowerCase() === currentBatchLower;
+            });
+            if (!hasMatchingBatch) {
+                batchInput.value = '';
+                batchValue = '';
+            }
+        } else if (batchInput.value.trim() === '' && batchOptions.length > 0) {
+            console.log('Auto-selecting first batch:', batchOptions[0]);
+            batchInput.value = batchOptions[0];
+            batchValue = batchOptions[0];
+        }
 
         if (!selectedProduct) {
             unitInput.value = '';
@@ -231,44 +359,80 @@
             expirationInput.value = '';
             poNoInput.value = '';
             programInput.value = '';
+            if (quantityInput) {
+                quantityInput.value = '';
+                quantityInput.dataset.autofilled = '0';
+                quantityInput.dataset.lastPoValue = '';
+            }
             calculateRowAmount(row);
             updateGrandTotal();
             return;
         }
 
-        if (unitInput.value.trim() === '' && unitOptions.length > 0) {
+        if (selectedPoMeta && String(selectedPoMeta.unit || '').trim() !== '') {
+            unitInput.value = String(selectedPoMeta.unit).trim();
+        } else if (unitInput.value.trim() === '' && unitOptions.length > 0) {
             unitInput.value = unitOptions[0];
-        }
-        if (unitInput.value.trim() === '') {
+        } else if (unitInput.value.trim() === '') {
             unitInput.value = selectedProduct.unit || '';
         }
-        if (programInput.value.trim() === '' && normalizedProgramOptions.length > 0) {
+
+        if (selectedPoMeta && String(selectedPoMeta.program || '').trim() !== '') {
+            programInput.value = String(selectedPoMeta.program).trim();
+        } else if (programInput.value.trim() === '' && normalizedProgramOptions.length > 0) {
             programInput.value = normalizedProgramOptions[0];
-        }
-        if (programInput.value.trim() === '') {
+        } else if (programInput.value.trim() === '') {
             programInput.value = selectedProgram;
         }
-        if (poNoInput.value.trim() === '' && poOptions.length > 0) {
-            poNoInput.value = poOptions[0];
+
+        var poFallbackCost = selectedPoMeta ? selectedPoMeta.unit_cost : selectedProduct.unit_cost;
+        unitCostInput.value = getUnitCostByDescriptionPo(descriptionValue, poNoInput.value, poFallbackCost);
+
+        var poChanged = quantityInput && quantityInput.dataset.lastPoValue !== poNoInput.value;
+        if (quantityInput && poChanged) {
+            quantityInput.value = '';
+            quantityInput.dataset.autofilled = '1';
         }
-        unitCostInput.value = getUnitCostByDescriptionPo(descriptionValue, poNoInput.value, selectedProduct.unit_cost);
-        var selectedBatchMeta = getBatchMetaForSelection(descriptionValue, batchValue);
+
+        var selectedBatchMeta = getBatchMetaForSelection(descriptionValue, batchValue, poNoInput.value);
+        var resolvedQty = selectedBatchMeta
+            ? Number(selectedBatchMeta.stock_quantity || 0)
+            : Number(batchContext.totalQuantity || 0);
+        if (quantityInput && resolvedQty > 0) {
+            var shouldAutofillQty = quantityInput.value.trim() === '' || quantityInput.dataset.autofilled === '1';
+            if (shouldAutofillQty) {
+                quantityInput.value = String(Math.max(0, Math.floor(resolvedQty)));
+                quantityInput.dataset.autofilled = '1';
+            }
+        }
+        if (quantityInput) {
+            quantityInput.dataset.lastPoValue = poNoInput.value;
+        }
+
         var batchExpiration = selectedBatchMeta
             ? String(selectedBatchMeta.expiration_date || '')
             : '';
-        expirationInput.value = batchExpiration !== '' ? batchExpiration : (selectedProduct.expiration_date || '');
+        var poExpiration = selectedPoMeta ? String(selectedPoMeta.expiration_date || '') : '';
+        expirationInput.value = batchExpiration !== ''
+            ? batchExpiration
+            : (poExpiration !== '' ? poExpiration : (selectedProduct.expiration_date || ''));
+
         calculateRowAmount(row);
         updateGrandTotal();
     }
 
-    function getBatchMetaForSelection(descriptionValue, batchValue) {
-        var description = String(descriptionValue || '').trim();
+    function getBatchMetaForSelection(descriptionValue, batchValue, poNoValue) {
+        var description = getDescriptionKeyForInput(descriptionValue);
         var batchNumber = String(batchValue || '').trim();
         if (description === '' || batchNumber === '') {
             return null;
         }
-        var meta = getDescriptionMeta(description);
-        var batchMeta = meta.batchMeta && typeof meta.batchMeta === 'object' ? meta.batchMeta : {};
+        var batchContext = getBatchContextByDescriptionPo(description, poNoValue);
+        var batchMeta = batchContext.batchMeta && typeof batchContext.batchMeta === 'object' ? batchContext.batchMeta : {};
+        if (!Object.keys(batchMeta).length) {
+            var meta = getDescriptionMeta(description);
+            batchMeta = meta.batchMeta && typeof meta.batchMeta === 'object' ? meta.batchMeta : {};
+        }
         if (batchMeta[batchNumber]) {
             return batchMeta[batchNumber];
         }
@@ -304,8 +468,10 @@
             var quantityInput = row.querySelector('.item-quantity');
             var description = descriptionInput ? descriptionInput.value.trim() : '';
             var batchNumber = batchInput ? batchInput.value.trim() : '';
+            var poInput = row.querySelector('.item-po-number');
+            var poNo = poInput ? poInput.value.trim() : '';
             var quantity = quantityInput ? (parseInt(quantityInput.value || '0', 10) || 0) : 0;
-            var selectedBatchMeta = getBatchMetaForSelection(description, batchNumber);
+            var selectedBatchMeta = getBatchMetaForSelection(description, batchNumber, poNo);
             var batchId = selectedBatchMeta ? (parseInt(selectedBatchMeta.batch_id || '0', 10) || 0) : 0;
             var availableStock = selectedBatchMeta ? (parseInt(selectedBatchMeta.stock_quantity || '0', 10) || 0) : 0;
             if (batchId > 0) {
@@ -362,13 +528,13 @@
             .join('');
         tr.innerHTML =
             '<td><input type="text" name="description[]" class="form-control item-description" list="descriptionOptionsList" value="' + escapeHtml(data.description || '') + '" placeholder="Type or select item description" required></td>' +
+            '<td><input type="text" name="po_number[]" class="form-control item-po-number" list="' + poListId + '" value="' + escapeHtml(data.po_no || '') + '" placeholder="Type or select PO number" required><datalist id="' + poListId + '" class="item-po-options"></datalist></td>' +
             '<td><input type="text" name="batch_number[]" class="form-control item-batch-number" list="' + batchListId + '" value="' + escapeHtml(data.batch_number || '') + '" placeholder="Type or select batch number" required><datalist id="' + batchListId + '" class="item-batch-options">' + batchOptionsHtml + '</datalist></td>' +
             '<td><input type="number" name="quantity[]" class="form-control item-quantity" min="1" step="1" autocomplete="off" value="' + escapeHtml(data.quantity || '') + '" required><div class="form-text item-stock-hint"></div></td>' +
             '<td><input type="text" name="unit[]" class="form-control item-unit" list="' + unitListId + '" value="' + escapeHtml(data.unit || '') + '" placeholder="Type or select unit" required><datalist id="' + unitListId + '" class="item-unit-options"></datalist></td>' +
             '<td><input type="text" class="form-control item-unit-cost" value="' + escapeHtml(data.unit_cost || '') + '" readonly></td>' +
             '<td><input type="text" class="form-control item-amount" value="" readonly></td>' +
             '<td><input type="text" name="program[]" class="form-control item-program" list="' + programListId + '" value="' + escapeHtml(data.program || '') + '" placeholder="Type or select program" required><datalist id="' + programListId + '" class="item-program-options"></datalist></td>' +
-            '<td><input type="text" name="po_number[]" class="form-control item-po-number" list="' + poListId + '" value="' + escapeHtml(data.po_no || '') + '" placeholder="Type or select PO number" required><datalist id="' + poListId + '" class="item-po-options"></datalist></td>' +
             '<td><input type="date" class="form-control item-expiration" value="' + escapeHtml(data.expiration_date || '') + '" readonly></td>' +
             '<td class="text-center"><button type="button" class="btn btn-outline-danger btn-sm remove-item-btn">Remove</button></td>';
         return tr;
@@ -526,7 +692,7 @@
     });
 
     itemRowsBody.addEventListener('change', function (event) {
-        if (event.target.classList.contains('item-description') || event.target.classList.contains('item-batch-number') || event.target.classList.contains('item-po-number')) {
+        if (event.target.classList.contains('item-description') || event.target.classList.contains('item-po-number') || event.target.classList.contains('item-batch-number')) {
             applyRowMeta(event.target.closest('.item-row'));
             refreshCreateRowStockHints();
         }
@@ -544,13 +710,6 @@
             syncRowRequiredState(event.target.closest('.item-row'));
             return;
         }
-        if (event.target.classList.contains('item-batch-number')) {
-            var batchRow = event.target.closest('.item-row');
-            syncRowRequiredState(batchRow);
-            applyRowMeta(batchRow);
-            refreshCreateRowStockHints();
-            return;
-        }
         if (event.target.classList.contains('item-po-number')) {
             var poRow = event.target.closest('.item-row');
             syncRowRequiredState(poRow);
@@ -558,8 +717,16 @@
             refreshCreateRowStockHints();
             return;
         }
+        if (event.target.classList.contains('item-batch-number')) {
+            var batchRow = event.target.closest('.item-row');
+            syncRowRequiredState(batchRow);
+            applyRowMeta(batchRow);
+            refreshCreateRowStockHints();
+            return;
+        }
         if (event.target.classList.contains('item-quantity')) {
             event.target.value = event.target.value.replace(/\D+/g, '');
+            event.target.dataset.autofilled = '0';
             var qtyRow = event.target.closest('.item-row');
             syncRowRequiredState(qtyRow);
             calculateRowAmount(qtyRow);

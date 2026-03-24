@@ -20,6 +20,10 @@ $unitOptionsByDescription = [];
 $programOptionsByDescription = [];
 $poOptionsByDescription = [];
 $costByDescriptionAndPo = [];
+$productMetaByDescriptionPo = [];
+$batchNumbersByDescriptionPo = [];
+$batchMetaByDescriptionPo = [];
+$quantityByDescriptionAndPo = [];
 $hasProductBatchesTable = false;
 
 // Default values for sticky form
@@ -191,22 +195,75 @@ try {
         ];
     }
 
+    try {
+        $poNumberStmt = $pdo->query('
+            SELECT
+                p.product_description,
+                ppn.po_no,
+                ppn.cost_per_unit,
+                ppn.stock_quantity,
+                ppn.expiry_date,
+                ppn.batch_number,
+                pr.uom,
+                pr.program,
+                pr.supplier
+            FROM product_po_number ppn
+            INNER JOIN products pr ON pr.id = ppn.product_id
+            INNER JOIN products p ON p.id = ppn.product_id
+            WHERE p.product_description IS NOT NULL AND TRIM(p.product_description) <> ""
+              AND ppn.po_no IS NOT NULL AND TRIM(ppn.po_no) <> ""
+            ORDER BY p.product_description ASC, ppn.po_no ASC
+        ');
+        $poNumberRows = $poNumberStmt->fetchAll();
+
+        foreach ($poNumberRows as $row) {
+            $description = trim((string) ($row['product_description'] ?? ''));
+            $poNo = trim((string) ($row['po_no'] ?? ''));
+            if ($description === '' || $poNo === '') {
+                continue;
+            }
+
+            if (!isset($poOptionsByDescription[$description])) {
+                $poOptionsByDescription[$description] = [];
+            }
+            if (!in_array($poNo, $poOptionsByDescription[$description], true)) {
+                $poOptionsByDescription[$description][] = $poNo;
+            }
+
+            $descriptionPoKey = strtolower($description) . '|' . strtolower($poNo);
+            $productMetaByDescriptionPo[$descriptionPoKey] = [
+                'unit' => trim((string) ($row['uom'] ?? '')),
+                'unit_cost' => number_format((float) ($row['cost_per_unit'] ?? 0), 2, '.', ''),
+                'program' => trim((string) ($row['program'] ?? '')),
+                'po_no' => $poNo,
+                'supplier' => trim((string) ($row['supplier'] ?? '')),
+                'expiration_date' => isset($row['expiry_date']) && $row['expiry_date'] !== null
+                    ? (string) $row['expiry_date']
+                    : '',
+            ];
+            $costByDescriptionAndPo[$descriptionPoKey] = number_format((float) ($row['cost_per_unit'] ?? 0), 2, '.', '');
+            $quantityByDescriptionAndPo[$descriptionPoKey] = (int) ($row['stock_quantity'] ?? 0);
+        }
+
+        foreach ($poOptionsByDescription as $description => $options) {
+            sort($options, SORT_NATURAL | SORT_FLAG_CASE);
+            $poOptionsByDescription[$description] = $options;
+        }
+    } catch (PDOException $e) {
+        $errors[] = 'Could not load PO numbers. Please check the product_po_number table.';
+    }
+
     foreach ($productRows as $row) {
         $description = trim((string) ($row['product_description'] ?? ''));
         if ($description === '') {
             continue;
         }
-        $normalizedPoNo = trim((string) ($row['po_no'] ?? ''));
-        $costByDescriptionAndPo[strtolower($description) . '|' . strtolower($normalizedPoNo)] = number_format((float) ($row['cost_per_unit'] ?? 0), 2, '.', '');
 
         if (!isset($unitOptionsByDescription[$description])) {
             $unitOptionsByDescription[$description] = [];
         }
         if (!isset($programOptionsByDescription[$description])) {
             $programOptionsByDescription[$description] = [];
-        }
-        if (!isset($poOptionsByDescription[$description])) {
-            $poOptionsByDescription[$description] = [];
         }
 
         $unit = trim((string) ($row['uom'] ?? ''));
@@ -218,11 +275,6 @@ try {
         if ($program !== '' && !in_array($program, $programOptionsByDescription[$description], true)) {
             $programOptionsByDescription[$description][] = $program;
         }
-
-        $poNo = trim((string) ($row['po_no'] ?? ''));
-        if ($poNo !== '' && !in_array($poNo, $poOptionsByDescription[$description], true)) {
-            $poOptionsByDescription[$description][] = $poNo;
-        }
     }
 
     foreach ($unitOptionsByDescription as $description => $options) {
@@ -232,10 +284,6 @@ try {
     foreach ($programOptionsByDescription as $description => $options) {
         sort($options, SORT_NATURAL | SORT_FLAG_CASE);
         $programOptionsByDescription[$description] = $options;
-    }
-    foreach ($poOptionsByDescription as $description => $options) {
-        sort($options, SORT_NATURAL | SORT_FLAG_CASE);
-        $poOptionsByDescription[$description] = $options;
     }
 
     $descriptionOptions = array_keys($productMetaByDescription);
@@ -269,22 +317,31 @@ try {
     sort($unitOptions, SORT_NATURAL | SORT_FLAG_CASE);
 
     if ($hasProductBatchesTable) {
-        $batchStmt = $pdo->query('
-            SELECT p.product_description, b.id AS batch_id, b.batch_number, b.expiry_date, b.stock_quantity
-            FROM product_batches b
-            INNER JOIN products p ON p.id = b.product_id
-            WHERE b.batch_number IS NOT NULL AND TRIM(b.batch_number) <> ""
+        $poNumberBatchStmt = $pdo->query('
+            SELECT
+                p.product_description,
+                ppn.po_no,
+                ppn.batch_number,
+                ppn.expiry_date,
+                ppn.stock_quantity,
+                ppn.id AS batch_id
+            FROM product_po_number ppn
+            INNER JOIN products p ON p.id = ppn.product_id
+            WHERE ppn.batch_number IS NOT NULL AND TRIM(ppn.batch_number) <> ""
               AND p.product_description IS NOT NULL AND TRIM(p.product_description) <> ""
-            ORDER BY p.product_description ASC, b.batch_number ASC
+            ORDER BY p.product_description ASC, ppn.batch_number ASC
         ');
-        $batchRows = $batchStmt->fetchAll();
+        $batchRows = $poNumberBatchStmt->fetchAll();
 
         foreach ($batchRows as $batchRow) {
             $desc = trim((string) ($batchRow['product_description'] ?? ''));
+            $poNo = trim((string) ($batchRow['po_no'] ?? ''));
             $batchNo = trim((string) ($batchRow['batch_number'] ?? ''));
             if ($desc === '' || $batchNo === '') {
                 continue;
             }
+
+            $descriptionPoKey = strtolower($desc) . '|' . strtolower($poNo);
             if (!isset($batchNumbersByDescription[$desc])) {
                 $batchNumbersByDescription[$desc] = [];
             }
@@ -302,11 +359,39 @@ try {
                     : '',
                 'stock_quantity' => (int) ($batchRow['stock_quantity'] ?? 0),
             ];
+
+            if (!isset($batchNumbersByDescriptionPo[$descriptionPoKey])) {
+                $batchNumbersByDescriptionPo[$descriptionPoKey] = [];
+            }
+            if (!in_array($batchNo, $batchNumbersByDescriptionPo[$descriptionPoKey], true)) {
+                $batchNumbersByDescriptionPo[$descriptionPoKey][] = $batchNo;
+            }
+
+            if (!isset($batchMetaByDescriptionPo[$descriptionPoKey])) {
+                $batchMetaByDescriptionPo[$descriptionPoKey] = [];
+            }
+            $batchMetaByDescriptionPo[$descriptionPoKey][$batchNo] = [
+                'batch_id' => (int) ($batchRow['batch_id'] ?? 0),
+                'expiration_date' => isset($batchRow['expiry_date']) && $batchRow['expiry_date'] !== null
+                    ? (string) $batchRow['expiry_date']
+                    : '',
+                'stock_quantity' => (int) ($batchRow['stock_quantity'] ?? 0),
+            ];
+
+            if (!isset($quantityByDescriptionAndPo[$descriptionPoKey])) {
+                $quantityByDescriptionAndPo[$descriptionPoKey] = 0;
+            }
+            $quantityByDescriptionAndPo[$descriptionPoKey] += (int) ($batchRow['stock_quantity'] ?? 0);
         }
 
         foreach ($batchNumbersByDescription as $desc => $batchNumbers) {
             sort($batchNumbers, SORT_NATURAL | SORT_FLAG_CASE);
             $batchNumbersByDescription[$desc] = $batchNumbers;
+        }
+
+        foreach ($batchNumbersByDescriptionPo as $descriptionPoKey => $batchNumbers) {
+            sort($batchNumbers, SORT_NATURAL | SORT_FLAG_CASE);
+            $batchNumbersByDescriptionPo[$descriptionPoKey] = $batchNumbers;
         }
     }
 } catch (PDOException $e) {
@@ -931,13 +1016,13 @@ $previewLineRows = 10;
                                 <thead class="table-light">
                                     <tr>
                                         <th class="ptr-col-desc">Description</th>
+                                        <th class="ptr-col-po">PO Number</th>
                                         <th class="ptr-col-batch">Batch Number</th>
                                         <th class="ptr-col-qty">Qty</th>
                                         <th class="ptr-col-unit">Unit</th>
                                         <th class="ptr-col-unit-cost">Unit Cost</th>
                                         <th class="ptr-col-amount">Amount</th>
                                         <th class="ptr-col-program">Program</th>
-                                        <th class="ptr-col-po">PO Number</th>
                                         <th class="ptr-col-exp">Expiration</th>
                                         <th class="ptr-col-action text-center">Action</th>
                                     </tr>
@@ -965,6 +1050,22 @@ $previewLineRows = 10;
                                                     placeholder="Type or select item description"
                                                     required
                                                 >
+                                            </td>
+                                            <td>
+                                                <input
+                                                    type="text"
+                                                    name="po_number[]"
+                                                    class="form-control item-po-number"
+                                                    list="<?= htmlspecialchars($rowPoListId) ?>"
+                                                    value="<?= htmlspecialchars((string) ($item['po_no'] ?? '')) ?>"
+                                                    placeholder="Type or select PO number"
+                                                    required
+                                                >
+                                                <datalist id="<?= htmlspecialchars($rowPoListId) ?>" class="item-po-options">
+                                                    <?php foreach ($rowPoNumbers as $rowPoOption): ?>
+                                                        <option value="<?= htmlspecialchars($rowPoOption) ?>"></option>
+                                                    <?php endforeach; ?>
+                                                </datalist>
                                             </td>
                                             <td>
                                                 <input
@@ -1026,22 +1127,6 @@ $previewLineRows = 10;
                                                 <datalist id="<?= htmlspecialchars($rowProgramListId) ?>" class="item-program-options">
                                                     <?php foreach ($rowPrograms as $rowProgramOption): ?>
                                                         <option value="<?= htmlspecialchars($rowProgramOption) ?>"></option>
-                                                    <?php endforeach; ?>
-                                                </datalist>
-                                            </td>
-                                            <td>
-                                                <input
-                                                    type="text"
-                                                    name="po_number[]"
-                                                    class="form-control item-po-number"
-                                                    list="<?= htmlspecialchars($rowPoListId) ?>"
-                                                    value="<?= htmlspecialchars((string) ($item['po_no'] ?? '')) ?>"
-                                                    placeholder="Type or select PO number"
-                                                    required
-                                                >
-                                                <datalist id="<?= htmlspecialchars($rowPoListId) ?>" class="item-po-options">
-                                                    <?php foreach ($rowPoNumbers as $rowPoOption): ?>
-                                                        <option value="<?= htmlspecialchars($rowPoOption) ?>"></option>
                                                     <?php endforeach; ?>
                                                 </datalist>
                                             </td>
@@ -1214,6 +1299,10 @@ $previewLineRows = 10;
             programOptionsByDescription: <?= json_encode($programOptionsByDescription, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>,
             poOptionsByDescription: <?= json_encode($poOptionsByDescription, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>,
             costByDescriptionAndPo: <?= json_encode($costByDescriptionAndPo, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>,
+            productMetaByDescriptionPo: <?= json_encode($productMetaByDescriptionPo, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>,
+            batchNumbersByDescriptionPo: <?= json_encode($batchNumbersByDescriptionPo, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>,
+            batchMetaByDescriptionPo: <?= json_encode($batchMetaByDescriptionPo, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>,
+            quantityByDescriptionAndPo: <?= json_encode($quantityByDescriptionAndPo, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>,
             hasProductBatches: <?= $hasProductBatchesTable ? 'true' : 'false' ?>,
             previewLineRows: <?= (int) $previewLineRows ?>,
         };
