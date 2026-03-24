@@ -116,7 +116,7 @@ CREATE TABLE `item_add_history` (
   `added_by` varchar(150) DEFAULT NULL,
   `added_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=9 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -125,42 +125,39 @@ CREATE TABLE `item_add_history` (
 
 LOCK TABLES `item_add_history` WRITE;
 /*!40000 ALTER TABLE `item_add_history` DISABLE KEYS */;
-INSERT INTO `item_add_history` VALUES (1,1,'Lau','Vial',69.69,'2027-03-31','Awit','12345','DOH','PHO','2026-03-23','Full','None','admin','2026-03-23 06:24:15');
+INSERT INTO `item_add_history` VALUES (5,1,'Influenza Vaccine (Flu) Vaccine 10 Doses per Vial','Vial',1931.00,'2025-01-28','National Immunization Program','CHD4M-PTR-2025-01-00017','DOH','PHO Palawan','2025-01-20','Full','None','admin','2026-03-13 01:00:24'),(6,1,'[BCG Diluent] Bacille Calmette-Guerin Vaccine Diluent','Ampule',1931.00,'2025-01-28','National Immunization Program','CHD4M-PTR-2025-01-00017','DOH','PHO Palawan','2025-01-20','Full','None','admin','2026-03-16 07:06:43'),(7,2,'[BCG Vaccine] Bacillus Calmette Guerin Vaccine 20-Dose','Vial',139.00,'2025-11-30','National Immunization Program','CHD4M-PTR-2024-11-01348','DOH','PHO Palawan','2025-01-20','Full','None','admin','2026-03-16 07:10:18'),(8,3,'[COC Pill] Levonorgestrel 150mcg + Ethinylestradiol 30mcg + Ferrous Fumarate 60mg Film-Coated Tablet','Cycle',627.80,'2027-04-30','Responsible Parenthood and Reproductive Health Program','CHD4M-PTR-2024-11-01348','DOH','PHO Palawan','2025-01-20','Full','None','admin','2026-03-16 07:14:52');
 /*!40000 ALTER TABLE `item_add_history` ENABLE KEYS */;
 UNLOCK TABLES;
 
 --
--- Table structure for table `product_po_number`
+-- Table structure for table `product_batches`
 --
 
-DROP TABLE IF EXISTS `product_po_number`;
+DROP TABLE IF EXISTS `product_batches`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
-CREATE TABLE `product_po_number` (
+CREATE TABLE `product_batches` (
   `id` int NOT NULL AUTO_INCREMENT,
   `product_id` int NOT NULL,
-  `po_no` varchar(100) NOT NULL,
   `batch_number` varchar(100) NOT NULL,
-  `cost_per_unit` decimal(12,2) DEFAULT '0.00',
   `stock_quantity` int DEFAULT '0',
   `expiry_date` date DEFAULT NULL,
   `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
   `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
-  UNIQUE KEY `po_no` (`po_no`),
-  KEY `fk_product` (`product_id`),
+  UNIQUE KEY `unique_batch` (`product_id`,`batch_number`),
   CONSTRAINT `fk_product` FOREIGN KEY (`product_id`) REFERENCES `products` (`id`) ON DELETE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
--- Dumping data for table `product_po_number`
+-- Dumping data for table `product_batches`
 --
 
-LOCK TABLES `product_po_number` WRITE;
-/*!40000 ALTER TABLE `product_po_number` DISABLE KEYS */;
-INSERT INTO `product_po_number` VALUES (1,1,'12345','098',69.69,2000,'2027-03-31','2026-03-23 06:24:15','2026-03-23 06:24:15'),(2,1,'67890','098',20.00,6969,'2027-03-31','2026-03-23 06:26:19','2026-03-23 06:26:19');
-/*!40000 ALTER TABLE `product_po_number` ENABLE KEYS */;
+LOCK TABLES `product_batches` WRITE;
+/*!40000 ALTER TABLE `product_batches` DISABLE KEYS */;
+INSERT INTO `product_batches` VALUES (1,1,'0704S4016',500,'2025-01-28','2026-03-16 07:06:43','2026-03-16 07:06:43'),(2,2,'0375MA079',2300,'2025-11-30','2026-03-16 07:10:18','2026-03-16 07:10:18'),(3,3,'PT-24-031',70,'2027-04-30','2026-03-16 07:14:52','2026-03-16 07:14:52');
+/*!40000 ALTER TABLE `product_batches` ENABLE KEYS */;
 UNLOCK TABLES;
 
 --
@@ -174,6 +171,7 @@ CREATE TABLE `products` (
   `id` int NOT NULL AUTO_INCREMENT,
   `product_description` text NOT NULL,
   `uom` varchar(50) NOT NULL,
+  `cost_per_unit` decimal(12,2) DEFAULT '0.00',
   `program` varchar(255) DEFAULT NULL,
   `po_no` varchar(100) DEFAULT NULL,
   `place_of_delivery` varchar(255) DEFAULT NULL,
@@ -183,10 +181,8 @@ CREATE TABLE `products` (
   `payment_term` varchar(100) DEFAULT NULL,
   `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
   `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  `cost_per_unit` decimal(12,2) DEFAULT '0.00',
-  `expiry_date` date DEFAULT NULL,
   PRIMARY KEY (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -195,7 +191,7 @@ CREATE TABLE `products` (
 
 LOCK TABLES `products` WRITE;
 /*!40000 ALTER TABLE `products` DISABLE KEYS */;
-INSERT INTO `products` VALUES (1,'Lau','Vial','Awit','67890','PHO','DOH','2026-03-23','Full','None','2026-03-23 06:24:15','2026-03-23 06:26:19',20.00,'2027-03-31');
+INSERT INTO `products` VALUES (1,'[BCG Diluent] Bacille Calmette-Guerin Vaccine Diluent','Ampule',1931.00,'National Immunization Program','CHD4M-PTR-2025-01-00017','PHO Palawan','DOH','2025-01-20','Full','None','2026-03-16 07:06:43','2026-03-16 07:06:43'),(2,'[BCG Vaccine] Bacillus Calmette Guerin Vaccine 20-Dose','Vial',139.00,'National Immunization Program','CHD4M-PTR-2024-11-01348','PHO Palawan','DOH','2025-01-20','Full','None','2026-03-16 07:10:18','2026-03-16 07:10:18'),(3,'[COC Pill] Levonorgestrel 150mcg + Ethinylestradiol 30mcg + Ferrous Fumarate 60mg Film-Coated Tablet','Cycle',627.80,'Responsible Parenthood and Reproductive Health Program','CHD4M-PTR-2024-11-01348','PHO Palawan','DOH','2025-01-20','Full','None','2026-03-16 07:14:52','2026-03-16 07:14:52');
 /*!40000 ALTER TABLE `products` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -253,7 +249,7 @@ CREATE TABLE `stock_cards` (
   `created_by` varchar(150) DEFAULT NULL,
   `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=16 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -262,6 +258,7 @@ CREATE TABLE `stock_cards` (
 
 LOCK TABLES `stock_cards` WRITE;
 /*!40000 ALTER TABLE `stock_cards` DISABLE KEYS */;
+INSERT INTO `stock_cards` VALUES (7,'CHD4M-PTR-2025-07-00534','DOH','Betamethasone 1mg/g topical 5g cream tube box','Tubes',NULL,'Tubes',NULL,'PHO','PHO',32.50,NULL,NULL,'BV23004','[{\"entry_date\":\"2025-08-01\",\"received\":\"500\",\"issued\":\"0\",\"balance\":\"500.00\",\"total_cost\":\"16250.00\",\"ref_no\":\"PO CHD4M-PTR-2025-07-00534\",\"remarks\":\"DOH/Stock received via Manage Items\"},{\"entry_date\":\"2025-08-01\",\"received\":\"500\",\"issued\":\"0\",\"balance\":\"1000.00\",\"total_cost\":\"32500.00\",\"ref_no\":\"PO CHD4M-PTR-2025-07-00534\",\"remarks\":\"DOH/Stock received via Manage Items\"}]','betamethasone 1mg/g topical 5g cream tube box|tubes|bv23004','release','admin','2026-03-11 08:04:28'),(8,'CHD4M-PTR-2025-07-00471','DOH','Glass Ionomer for Atraumatic Restorative Treatment','Kit',NULL,'Kit',NULL,'PHO','PHO',3348.00,NULL,NULL,'122409-7','[{\"entry_date\":\"2025-08-01\",\"received\":\"30\",\"issued\":\"0\",\"balance\":\"30.00\",\"total_cost\":\"100440.00\",\"ref_no\":\"PO CHD4M-PTR-2025-07-00471\",\"remarks\":\"DOH/Stock received via Manage Items\"},{\"entry_date\":\"2025-08-01\",\"received\":\"30\",\"issued\":\"0\",\"balance\":\"60.00\",\"total_cost\":\"200880.00\",\"ref_no\":\"PO CHD4M-PTR-2025-07-00471\",\"remarks\":\"DOH/Stock received via Manage Items\"}]','glass ionomer for atraumatic restorative treatment|kit|122409-7','release','admin','2026-03-11 08:07:19'),(9,'CHD4M-PTR-2025-07-00471','DOH','Glass Ionomer Sealant','Kit',NULL,'Kit',NULL,'PHO','PHO',6465.00,NULL,NULL,'2412041','[{\"entry_date\":\"2025-08-01\",\"received\":\"30\",\"issued\":\"0\",\"balance\":\"30.00\",\"total_cost\":\"193950.00\",\"ref_no\":\"PO CHD4M-PTR-2025-07-00471\",\"remarks\":\"DOH/Stock received via Manage Items\"},{\"entry_date\":\"2025-08-01\",\"received\":\"30\",\"issued\":\"0\",\"balance\":\"60.00\",\"total_cost\":\"387900.00\",\"ref_no\":\"PO CHD4M-PTR-2025-07-00471\",\"remarks\":\"DOH/Stock received via Manage Items\"}]','glass ionomer sealant|kit|2412041','release','admin','2026-03-11 08:09:01'),(10,'CHD4M-PTR-2025-07-00531','DOH','Ice Pack 0.3L','Pieces',NULL,'Pieces',NULL,'PHO','PHO',0.00,NULL,NULL,'N/A','[{\"entry_date\":\"2025-08-01\",\"received\":\"10\",\"issued\":\"0\",\"balance\":\"10.00\",\"total_cost\":\"0.00\",\"ref_no\":\"PO CHD4M-PTR-2025-07-00531\",\"remarks\":\"DOH/Stock received via Manage Items\"},{\"entry_date\":\"2025-08-01\",\"received\":\"90\",\"issued\":\"0\",\"balance\":\"100.00\",\"total_cost\":\"0.00\",\"ref_no\":\"PO CHD4M-PTR-2025-07-00531\",\"remarks\":\"DOH/Stock received via Manage Items\"}]','ice pack 0.3l|pieces|n/a','release','admin','2026-03-11 08:12:38'),(11,'CHD4M-PTR-2025-07-00531','DOH','Ice Pack 0.4L','Pieces',NULL,'Pieces',NULL,'PHO','PHO',0.00,NULL,NULL,'N/A','[{\"entry_date\":\"2025-08-01\",\"received\":\"65\",\"issued\":\"0\",\"balance\":\"65.00\",\"total_cost\":\"0.00\",\"ref_no\":\"PO CHD4M-PTR-2025-07-00531\",\"remarks\":\"DOH/Stock received via Manage Items\"}]','ice pack 0.4l|pieces|n/a','release','admin','2026-03-11 08:13:06'),(12,'CHD4M-PTR-2025-01-00017','DOH','Influenza Vaccine (Flu) Vaccine 10 Doses per Vial','Vial',NULL,'Vial',NULL,'PHO','PHO',1931.00,NULL,'National Immunization Program','U8319AA','[{\"entry_date\":\"2025-01-20\",\"received\":\"500\",\"issued\":\"0\",\"balance\":\"500.00\",\"total_cost\":\"965500.00\",\"ref_no\":\"PO CHD4M-PTR-2025-01-00017\",\"remarks\":\"DOH/Stock received via Manage Items\"}]','influenza vaccine (flu) vaccine 10 doses per vial|vial|u8319aa','release','admin','2026-03-13 01:00:24'),(13,'CHD4M-PTR-2025-01-00017','DOH','[BCG Diluent] Bacille Calmette-Guerin Vaccine Diluent','Ampule',NULL,'Ampule',NULL,'PHO','PHO',1931.00,NULL,'National Immunization Program','0704S4016','[{\"entry_date\":\"2025-01-20\",\"received\":\"500\",\"issued\":\"0\",\"balance\":\"500.00\",\"total_cost\":\"965500.00\",\"ref_no\":\"PO CHD4M-PTR-2025-01-00017\",\"remarks\":\"DOH/Stock received via Manage Items\"}]','[bcg diluent] bacille calmette-guerin vaccine diluent|ampule|0704s4016|national immunization program|chd4m-ptr-2025-01-00017','release','admin','2026-03-16 07:06:43'),(14,'CHD4M-PTR-2024-11-01348','DOH','[BCG Vaccine] Bacillus Calmette Guerin Vaccine 20-Dose','Vial',NULL,'Vial',NULL,'PHO','PHO',139.00,NULL,'National Immunization Program','0375MA079','[{\"entry_date\":\"2025-01-20\",\"received\":\"2300\",\"issued\":\"0\",\"balance\":\"2300.00\",\"total_cost\":\"319700.00\",\"ref_no\":\"PO CHD4M-PTR-2024-11-01348\",\"remarks\":\"DOH/Stock received via Manage Items\"}]','[bcg vaccine] bacillus calmette guerin vaccine 20-dose|vial|0375ma079|national immunization program|chd4m-ptr-2024-11-01348','release','admin','2026-03-16 07:10:18'),(15,'CHD4M-PTR-2024-11-01348','DOH','[COC Pill] Levonorgestrel 150mcg + Ethinylestradiol 30mcg + Ferrous Fumarate 60mg Film-Coated Tablet','Cycle',NULL,'Cycle',NULL,'PHO','PHO',627.80,NULL,'Responsible Parenthood and Reproductive Health Program','PT-24-031','[{\"entry_date\":\"2025-01-20\",\"received\":\"70\",\"issued\":\"0\",\"balance\":\"70.00\",\"total_cost\":\"43946.00\",\"ref_no\":\"PO CHD4M-PTR-2024-11-01348\",\"remarks\":\"DOH/Stock received via Manage Items\"}]','[coc pill] levonorgestrel 150mcg + ethinylestradiol 30mcg + ferrous fumarate 60mg film-coated tablet|cycle|pt-24-031|responsible parenthood and reproductive health program|chd4m-ptr-2024-11-01348','release','admin','2026-03-16 07:14:52');
 /*!40000 ALTER TABLE `stock_cards` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -306,4 +303,4 @@ UNLOCK TABLES;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2026-03-24  8:44:30
+-- Dump completed on 2026-03-16 16:07:48
