@@ -1,8 +1,8 @@
--- MySQL dump 10.13  Distrib 8.0.42, for Win64 (x86_64)
+-- MySQL dump 10.13  Distrib 8.0.36, for Win64 (x86_64)
 --
 -- Host: localhost    Database: supply
 -- ------------------------------------------------------
--- Server version	8.0.42
+-- Server version	8.0.36
 
 /*!40101 SET @OLD_CHARACTER_SET_CLIENT=@@CHARACTER_SET_CLIENT */;
 /*!40101 SET @OLD_CHARACTER_SET_RESULTS=@@CHARACTER_SET_RESULTS */;
@@ -80,7 +80,7 @@ CREATE TABLE `inventory_records` (
   `release_status` varchar(20) NOT NULL DEFAULT 'released',
   `released_at` datetime DEFAULT NULL,
   PRIMARY KEY (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=21 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=7 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -89,7 +89,6 @@ CREATE TABLE `inventory_records` (
 
 LOCK TABLES `inventory_records` WRITE;
 /*!40000 ALTER TABLE `inventory_records` DISABLE KEYS */;
-INSERT INTO `inventory_records` VALUES (7,'2027-03-31','Vial','Lau','098',NULL,100,69.69,'Awit','12345','DOH','Aborlan RHU','03/0001','2026-03-24','released','2026-03-24 10:49:50'),(8,'2027-03-31','Vial','Lau','098',NULL,90,69.69,'Awit','12345','DOH','Aborlan RHU','03/0002','2026-03-24','released','2026-03-24 10:50:58'),(9,'2028-03-31','tablet','Paracetamol 500mg, tablet','20230103',1,100,1.00,'National Immunization Program','PO-PHO-2026-04','BNK Pharma','Aborlan Medicare Hospital','03/0003','2026-03-24','released','2026-03-24 11:16:10'),(10,'2028-03-31','tablet','Paracetamol 500mg, tablet','20230103',3,1,1.00,'General Consumption','PO-PHO-2026-04','BNK Pharma','Aborlan Medicare Hospital','03/0003','2026-03-24','released','2026-03-24 11:16:10'),(11,'2028-03-31','tablet','Paracetamol 500mg, tablet','20230103',1,100,1.00,'National Immunization Program','PO-PHO-2026-04','BNK Pharma','Aborlan Medicare Hospital','03/0004','2026-03-24','released','2026-03-24 11:16:44'),(12,'2028-03-31','tablet','Paracetamol 500mg, tablet','20230103',3,1,1.00,'General Consumption','PO-PHO-2026-04','BNK Pharma','Aborlan Medicare Hospital','03/0004','2026-03-24','released','2026-03-24 11:16:44'),(14,'2027-03-31','vial','rolando','12345',4,1000,27.60,'comsci','0912A','doh','Agutaya RHU','03/0005','2026-03-24','released','2026-03-24 11:35:58'),(19,'2027-03-31','vial','rolando','12345',4,10,27.60,'comsci','0912A','doh','Rizal RHU','03/0009','2026-03-24','released','2026-03-24 11:57:25'),(20,'2027-03-31','vial','pael','1234',1,10,27.80,'educ','8080','doh','Aborlan Medicare Hospital','03/0010','2026-03-24','released','2026-03-24 13:32:32');
 /*!40000 ALTER TABLE `inventory_records` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -117,7 +116,7 @@ CREATE TABLE `item_add_history` (
   `added_by` varchar(150) DEFAULT NULL,
   `added_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=7 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -126,37 +125,8 @@ CREATE TABLE `item_add_history` (
 
 LOCK TABLES `item_add_history` WRITE;
 /*!40000 ALTER TABLE `item_add_history` DISABLE KEYS */;
-INSERT INTO `item_add_history` VALUES (1,1,'Lau','Vial',69.69,'2027-03-31','Awit','12345','DOH','PHO','2026-03-23','Full','None','admin','2026-03-23 06:24:15'),(2,2,'Paracetamol 500mg, tablet','tablet',1.00,'2028-03-31','National Immunization Program','PO-PHO-2026-04','BNK Pharma','PHO Bancao Bancao','2026-03-24','Full','Cash','restetutoputo@gmail.com','2026-03-24 03:07:00'),(3,3,'Paracetamol 500mg, tablet','tablet',2.00,'2028-03-31','National Immunization Program','PO-PHO-2026-05','BNK Pharma','PHO Bancao Bancao','2026-03-24','Full','Cash','restetutoputo@gmail.com','2026-03-24 03:08:47'),(4,4,'Paracetamol 500mg, tablet','tablet',1.00,'2028-03-31','General Consumption','PO-PHO-2026-04','BNK Pharma','PHO Bancao Bancao','2026-03-24','Full','Cash','restetutoputo@gmail.com','2026-03-24 03:13:06'),(5,5,'rolando','vial',27.60,'2027-03-31','comsci','0912A','doh','pho','2026-03-24','Full','none','admin','2026-03-24 03:35:09'),(6,6,'pael','vial',27.80,'2027-03-31','educ','8080','doh','pho','2026-03-24','Full','none','admin','2026-03-24 05:32:05');
+INSERT INTO `item_add_history` VALUES (1,1,'Lau','Vial',69.69,'2027-03-31','Awit','12345','DOH','PHO','2026-03-23','Full','None','admin','2026-03-23 06:24:15');
 /*!40000 ALTER TABLE `item_add_history` ENABLE KEYS */;
-UNLOCK TABLES;
-
---
--- Table structure for table `product_batches`
---
-
-DROP TABLE IF EXISTS `product_batches`;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
-CREATE TABLE `product_batches` (
-  `id` int NOT NULL AUTO_INCREMENT,
-  `product_id` int NOT NULL,
-  `batch_number` varchar(100) NOT NULL,
-  `stock_quantity` int DEFAULT '0',
-  `expiry_date` date DEFAULT NULL,
-  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
-  `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  PRIMARY KEY (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
-/*!40101 SET character_set_client = @saved_cs_client */;
-
---
--- Dumping data for table `product_batches`
---
-
-LOCK TABLES `product_batches` WRITE;
-/*!40000 ALTER TABLE `product_batches` DISABLE KEYS */;
-INSERT INTO `product_batches` VALUES (1,6,'1234',1000,'2027-03-31','2026-03-24 05:32:05','2026-03-24 05:32:05');
-/*!40000 ALTER TABLE `product_batches` ENABLE KEYS */;
 UNLOCK TABLES;
 
 --
@@ -180,7 +150,7 @@ CREATE TABLE `product_po_number` (
   UNIQUE KEY `po_no` (`po_no`),
   KEY `fk_product` (`product_id`),
   CONSTRAINT `fk_product` FOREIGN KEY (`product_id`) REFERENCES `products` (`id`) ON DELETE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=8 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -189,7 +159,7 @@ CREATE TABLE `product_po_number` (
 
 LOCK TABLES `product_po_number` WRITE;
 /*!40000 ALTER TABLE `product_po_number` DISABLE KEYS */;
-INSERT INTO `product_po_number` VALUES (3,4,'PO-PHO-2026-04','20230103',1.00,10098,'2028-03-31','2026-03-24 03:07:00','2026-03-24 03:16:44'),(4,3,'PO-PHO-2026-05','20230103',2.00,0,'2028-03-31','2026-03-24 03:08:47','2026-03-24 03:35:58'),(6,5,'0912A','12345',27.60,990,'2027-03-31','2026-03-24 03:35:09','2026-03-24 03:57:25'),(7,6,'8080','1234',27.80,990,'2027-03-31','2026-03-24 05:32:05','2026-03-24 05:32:32');
+INSERT INTO `product_po_number` VALUES (1,1,'12345','098',69.69,2000,'2027-03-31','2026-03-23 06:24:15','2026-03-23 06:24:15'),(2,1,'67890','098',20.00,6969,'2027-03-31','2026-03-23 06:26:19','2026-03-23 06:26:19');
 /*!40000 ALTER TABLE `product_po_number` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -216,7 +186,7 @@ CREATE TABLE `products` (
   `cost_per_unit` decimal(12,2) DEFAULT '0.00',
   `expiry_date` date DEFAULT NULL,
   PRIMARY KEY (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=7 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -225,7 +195,7 @@ CREATE TABLE `products` (
 
 LOCK TABLES `products` WRITE;
 /*!40000 ALTER TABLE `products` DISABLE KEYS */;
-INSERT INTO `products` VALUES (2,'Paracetamol 500mg, tablet','tablet','National Immunization Program','PO-PHO-2026-04','PHO Bancao Bancao','BNK Pharma','2026-03-24','Full','Cash','2026-03-24 03:07:00','2026-03-24 03:07:00',1.00,'2028-03-31'),(3,'Paracetamol 500mg, tablet','tablet','National Immunization Program','PO-PHO-2026-05','PHO Bancao Bancao','BNK Pharma','2026-03-24','Full','Cash','2026-03-24 03:08:47','2026-03-24 03:08:47',2.00,'2028-03-31'),(4,'Paracetamol 500mg, tablet','tablet','General Consumption','PO-PHO-2026-04','PHO Bancao Bancao','BNK Pharma','2026-03-24','Full','Cash','2026-03-24 03:13:06','2026-03-24 03:13:06',1.00,'2028-03-31'),(5,'rolando','vial','comsci','0912A','pho','doh','2026-03-24','Full','none','2026-03-24 03:35:09','2026-03-24 03:35:09',27.60,'2027-03-31'),(6,'pael','vial','educ','8080','pho','doh','2026-03-24','Full','none','2026-03-24 05:32:05','2026-03-24 05:32:05',27.80,'2027-03-31');
+INSERT INTO `products` VALUES (1,'Lau','Vial','Awit','67890','PHO','DOH','2026-03-23','Full','None','2026-03-23 06:24:15','2026-03-23 06:26:19',20.00,'2027-03-31');
 /*!40000 ALTER TABLE `products` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -283,7 +253,7 @@ CREATE TABLE `stock_cards` (
   `created_by` varchar(150) DEFAULT NULL,
   `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=7 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -292,7 +262,6 @@ CREATE TABLE `stock_cards` (
 
 LOCK TABLES `stock_cards` WRITE;
 /*!40000 ALTER TABLE `stock_cards` DISABLE KEYS */;
-INSERT INTO `stock_cards` VALUES (1,'12345','DOH','Lau','Vial',NULL,'Vial',NULL,'PHO','PHO',69.69,NULL,'Awit','098','[{\"entry_date\":\"2026-03-24\",\"received\":\"0\",\"issued\":\"100\",\"balance\":\"1900.00\",\"total_cost\":\"132411.00\",\"ref_no\":\"03/0001\",\"remarks\":\"Aborlan RHU / DOH\"},{\"entry_date\":\"2026-03-24\",\"received\":\"0\",\"issued\":\"90\",\"balance\":\"1810.00\",\"total_cost\":\"126138.90\",\"ref_no\":\"03/0002\",\"remarks\":\"Aborlan RHU / DOH\"}]','lau|vial|098|awit|12345','release','admin','2026-03-24 02:49:50'),(2,'PO-PHO-2026-04','BNK Pharma','Paracetamol 500mg, tablet','tablet',NULL,'tablet',NULL,'PHO','PHO',1.00,NULL,'National Immunization Program','20230103','[{\"entry_date\":\"2026-03-24\",\"received\":\"100\",\"issued\":\"0\",\"balance\":\"100.00\",\"total_cost\":\"100.00\",\"ref_no\":\"PO PO-PHO-2026-04\",\"remarks\":\"BNK Pharma/Stock received via Manage Items\"},{\"entry_date\":\"2026-03-24\",\"received\":\"0\",\"issued\":\"100\",\"balance\":\"0.00\",\"total_cost\":\"0.00\",\"ref_no\":\"03/0003\",\"remarks\":\"Aborlan Medicare Hospital / BNK Pharma\"},{\"entry_date\":\"2026-03-24\",\"received\":\"0\",\"issued\":\"100\",\"balance\":\"0.00\",\"total_cost\":\"0.00\",\"ref_no\":\"03/0004\",\"remarks\":\"Aborlan Medicare Hospital / BNK Pharma\"}]','paracetamol 500mg, tablet|tablet|20230103|national immunization program|po-pho-2026-04','release','restetutoputo@gmail.com','2026-03-24 03:07:00'),(3,'PO-PHO-2026-05','BNK Pharma','Paracetamol 500mg, tablet','tablet',NULL,'tablet',NULL,'PHO','PHO',2.00,NULL,'National Immunization Program','20230103','[{\"entry_date\":\"2026-03-24\",\"received\":\"1000\",\"issued\":\"0\",\"balance\":\"1000.00\",\"total_cost\":\"2000.00\",\"ref_no\":\"PO PO-PHO-2026-05\",\"remarks\":\"BNK Pharma/Stock received via Manage Items\"}]','paracetamol 500mg, tablet|tablet|20230103|national immunization program|po-pho-2026-05','release','restetutoputo@gmail.com','2026-03-24 03:08:47'),(4,'PO-PHO-2026-04','BNK Pharma','Paracetamol 500mg, tablet','tablet',NULL,'tablet',NULL,'PHO','PHO',1.00,NULL,'General Consumption','20230103','[{\"entry_date\":\"2026-03-24\",\"received\":\"10000\",\"issued\":\"0\",\"balance\":\"10000.00\",\"total_cost\":\"10000.00\",\"ref_no\":\"PO PO-PHO-2026-04\",\"remarks\":\"BNK Pharma/Stock received via Manage Items\"},{\"entry_date\":\"2026-03-24\",\"received\":\"0\",\"issued\":\"1\",\"balance\":\"9999.00\",\"total_cost\":\"9999.00\",\"ref_no\":\"03/0003\",\"remarks\":\"Aborlan Medicare Hospital / BNK Pharma\"},{\"entry_date\":\"2026-03-24\",\"received\":\"0\",\"issued\":\"1\",\"balance\":\"9998.00\",\"total_cost\":\"9998.00\",\"ref_no\":\"03/0004\",\"remarks\":\"Aborlan Medicare Hospital / BNK Pharma\"}]','paracetamol 500mg, tablet|tablet|20230103|general consumption|po-pho-2026-04','release','restetutoputo@gmail.com','2026-03-24 03:13:06'),(5,'0912A','doh','rolando','vial',NULL,'vial',NULL,'PHO','PHO',27.60,NULL,'comsci','12345','[{\"entry_date\":\"2026-03-24\",\"received\":\"1000\",\"issued\":\"0\",\"balance\":\"1000.00\",\"total_cost\":\"27600.00\",\"ref_no\":\"PO 0912A\",\"remarks\":\"doh/Stock received via Manage Items\"},{\"entry_date\":\"2026-03-24\",\"received\":\"0\",\"issued\":\"1000\",\"balance\":\"0.00\",\"total_cost\":\"0.00\",\"ref_no\":\"03/0005\",\"remarks\":\"Agutaya RHU / doh\"},{\"entry_date\":\"2026-03-24\",\"received\":\"0\",\"issued\":\"10\",\"balance\":\"0.00\",\"total_cost\":\"276.00\",\"ref_no\":\"03/0009\",\"remarks\":\"Rizal RHU / doh\"}]','rolando|vial|12345|comsci|0912a','release','admin','2026-03-24 03:35:09'),(6,'8080','doh','pael','vial',NULL,'vial',NULL,'PHO','PHO',27.80,NULL,'educ','1234','[{\"entry_date\":\"2026-03-24\",\"received\":\"1000\",\"issued\":\"0\",\"balance\":\"1000.00\",\"total_cost\":\"27800.00\",\"ref_no\":\"PO 8080\",\"remarks\":\"doh/Stock received via Manage Items\"},{\"entry_date\":\"2026-03-24\",\"received\":\"0\",\"issued\":\"10\",\"balance\":\"990.00\",\"total_cost\":\"278.00\",\"ref_no\":\"03/0010\",\"remarks\":\"Aborlan Medicare Hospital / doh\"}]','pael|vial|1234|educ|8080','release','admin','2026-03-24 05:32:05');
 /*!40000 ALTER TABLE `stock_cards` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -337,4 +306,4 @@ UNLOCK TABLES;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2026-03-24 13:45:31
+-- Dump completed on 2026-03-24  8:44:30
