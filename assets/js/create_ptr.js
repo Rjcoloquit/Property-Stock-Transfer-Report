@@ -217,14 +217,7 @@
         var descriptionKey = getDescriptionKeyForInput(descriptionValue);
         var descriptionLower = String(descriptionKey || '').trim().toLowerCase();
         var poLower = String(poNoValue || '').trim().toLowerCase();
-        
-        console.log('getBatchContextByDescriptionPo:', {
-            descriptionKey: descriptionKey,
-            descriptionLower: descriptionLower,
-            poLower: poLower,
-            batchNumbersByDescriptionPoKeys: Object.keys(batchNumbersByDescriptionPo)
-        });
-        
+
         if (descriptionLower === '') {
             return {
                 batchOptions: [],
@@ -234,12 +227,9 @@
         }
 
         var compositeKey = descriptionLower + '|' + poLower;
-        console.log('Looking for compositeKey:', compositeKey);
-        console.log('Available keys:', Object.keys(batchNumbersByDescriptionPo));
-        
+
         if (poLower !== '' && Object.prototype.hasOwnProperty.call(batchNumbersByDescriptionPo, compositeKey)) {
             var batchOptions = Array.isArray(batchNumbersByDescriptionPo[compositeKey]) ? batchNumbersByDescriptionPo[compositeKey] : [];
-            console.log('Found batches for', compositeKey, ':', batchOptions);
             return {
                 batchOptions: batchOptions,
                 batchMeta: batchMetaByDescriptionPo[compositeKey] && typeof batchMetaByDescriptionPo[compositeKey] === 'object'
@@ -249,7 +239,6 @@
             };
         }
 
-        console.log('No match found, using fallback');
         var fallbackMeta = getDescriptionMeta(descriptionKey);
         return {
             batchOptions: Array.isArray(fallbackMeta.batchOptions) ? fallbackMeta.batchOptions : [],
@@ -290,6 +279,53 @@
             total += calculateRowAmount(row);
         });
         grandTotalInput.value = total.toFixed(2);
+    }
+
+    function setBatchDependentFieldsState(row, hasSelectedBatch) {
+        var quantityInput = row.querySelector('.item-quantity');
+        var unitInput = row.querySelector('.item-unit');
+        var unitCostInput = row.querySelector('.item-unit-cost');
+        var amountInput = row.querySelector('.item-amount');
+        var programInput = row.querySelector('.item-program');
+        var expirationInput = row.querySelector('.item-expiration');
+
+        if (quantityInput) {
+            quantityInput.disabled = !hasSelectedBatch;
+            if (!hasSelectedBatch) {
+                quantityInput.value = '';
+                quantityInput.dataset.autofilled = '0';
+            }
+        }
+        if (unitInput) {
+            unitInput.disabled = !hasSelectedBatch;
+            if (!hasSelectedBatch) {
+                unitInput.value = '';
+            }
+        }
+        if (unitCostInput) {
+            unitCostInput.disabled = !hasSelectedBatch;
+            if (!hasSelectedBatch) {
+                unitCostInput.value = '';
+            }
+        }
+        if (amountInput) {
+            amountInput.disabled = !hasSelectedBatch;
+            if (!hasSelectedBatch) {
+                amountInput.value = '';
+            }
+        }
+        if (programInput) {
+            programInput.disabled = !hasSelectedBatch;
+            if (!hasSelectedBatch) {
+                programInput.value = '';
+            }
+        }
+        if (expirationInput) {
+            expirationInput.disabled = !hasSelectedBatch;
+            if (!hasSelectedBatch) {
+                expirationInput.value = '';
+            }
+        }
     }
 
     function applyRowMeta(row) {
@@ -335,7 +371,6 @@
         var selectedPoMeta = getProductMetaByDescriptionPo(descriptionValue, poNoInput.value);
         var batchContext = getBatchContextByDescriptionPo(descriptionValue, poNoInput.value);
         var batchOptions = Array.isArray(batchContext.batchOptions) ? batchContext.batchOptions : [];
-        console.log('applyRowMeta - batchOptions:', batchOptions, 'batchInput.value:', batchInput.value);
         setInputSuggestions(batchInput, batchOptions);
 
         if (batchInput.value.trim() !== '' && batchOptions.length > 0) {
@@ -347,11 +382,10 @@
                 batchInput.value = '';
                 batchValue = '';
             }
-        } else if (batchInput.value.trim() === '' && batchOptions.length > 0) {
-            console.log('Auto-selecting first batch:', batchOptions[0]);
-            batchInput.value = batchOptions[0];
-            batchValue = batchOptions[0];
         }
+
+        var hasSelectedBatch = batchInput.value.trim() !== '';
+        setBatchDependentFieldsState(row, hasSelectedBatch);
 
         if (!selectedProduct) {
             unitInput.value = '';
@@ -364,6 +398,12 @@
                 quantityInput.dataset.autofilled = '0';
                 quantityInput.dataset.lastPoValue = '';
             }
+            calculateRowAmount(row);
+            updateGrandTotal();
+            return;
+        }
+
+        if (!hasSelectedBatch) {
             calculateRowAmount(row);
             updateGrandTotal();
             return;
@@ -530,11 +570,11 @@
             '<td><input type="text" name="description[]" class="form-control item-description" list="descriptionOptionsList" value="' + escapeHtml(data.description || '') + '" placeholder="Type or select item description" required></td>' +
             '<td><input type="text" name="po_number[]" class="form-control item-po-number" list="' + poListId + '" value="' + escapeHtml(data.po_no || '') + '" placeholder="Type or select PO number" required><datalist id="' + poListId + '" class="item-po-options"></datalist></td>' +
             '<td><input type="text" name="batch_number[]" class="form-control item-batch-number" list="' + batchListId + '" value="' + escapeHtml(data.batch_number || '') + '" placeholder="Type or select batch number" required><datalist id="' + batchListId + '" class="item-batch-options">' + batchOptionsHtml + '</datalist></td>' +
-            '<td><input type="number" name="quantity[]" class="form-control item-quantity" min="1" step="1" autocomplete="off" value="' + escapeHtml(data.quantity || '') + '" required><div class="form-text item-stock-hint"></div></td>' +
-            '<td><input type="text" name="unit[]" class="form-control item-unit" list="' + unitListId + '" value="' + escapeHtml(data.unit || '') + '" placeholder="Type or select unit" required><datalist id="' + unitListId + '" class="item-unit-options"></datalist></td>' +
+            '<td><input type="number" name="quantity[]" class="form-control item-quantity" min="1" step="1" autocomplete="off" value="' + escapeHtml(data.quantity || '') + '"><div class="form-text item-stock-hint"></div></td>' +
+            '<td><input type="text" name="unit[]" class="form-control item-unit" list="' + unitListId + '" value="' + escapeHtml(data.unit || '') + '" placeholder="Type or select unit"><datalist id="' + unitListId + '" class="item-unit-options"></datalist></td>' +
             '<td><input type="text" class="form-control item-unit-cost" value="' + escapeHtml(data.unit_cost || '') + '" readonly></td>' +
             '<td><input type="text" class="form-control item-amount" value="" readonly></td>' +
-            '<td><input type="text" name="program[]" class="form-control item-program" list="' + programListId + '" value="' + escapeHtml(data.program || '') + '" placeholder="Type or select program" required><datalist id="' + programListId + '" class="item-program-options"></datalist></td>' +
+            '<td><input type="text" name="program[]" class="form-control item-program" list="' + programListId + '" value="' + escapeHtml(data.program || '') + '" placeholder="Type or select program"><datalist id="' + programListId + '" class="item-program-options"></datalist></td>' +
             '<td><input type="date" class="form-control item-expiration" value="' + escapeHtml(data.expiration_date || '') + '" readonly></td>' +
             '<td class="text-center"><button type="button" class="btn btn-outline-danger btn-sm remove-item-btn">Remove</button></td>';
         return tr;
@@ -613,12 +653,13 @@
         var quantity = quantityInput.value.trim();
         var program = programInput.value.trim();
         var isActiveRow = description !== '' || batchNumber !== '' || quantity !== '' || program !== '';
+        var hasSelectedBatch = batchNumber !== '';
 
         descriptionInput.required = isActiveRow;
         batchInput.required = isActiveRow;
-        quantityInput.required = isActiveRow;
-        unitInput.required = isActiveRow;
-        programInput.required = isActiveRow;
+        quantityInput.required = isActiveRow && hasSelectedBatch;
+        unitInput.required = isActiveRow && hasSelectedBatch;
+        programInput.required = isActiveRow && hasSelectedBatch;
         poInput.required = isActiveRow;
         descriptionInput.setCustomValidity('');
         programInput.setCustomValidity('');

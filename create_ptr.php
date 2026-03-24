@@ -25,6 +25,7 @@ $batchNumbersByDescriptionPo = [];
 $batchMetaByDescriptionPo = [];
 $quantityByDescriptionAndPo = [];
 $hasProductBatchesTable = false;
+$hasProductPoNumberTable = false;
 
 // Default values for sticky form
 $data = [
@@ -134,6 +135,10 @@ try {
     $productBatchesStmt = $pdo->query("SHOW TABLES LIKE 'product_batches'");
     if ($productBatchesStmt && $productBatchesStmt->fetch()) {
         $hasProductBatchesTable = true;
+    }
+    $productPoNumberStmt = $pdo->query("SHOW TABLES LIKE 'product_po_number'");
+    if ($productPoNumberStmt && $productPoNumberStmt->fetch()) {
+        $hasProductPoNumberTable = true;
     }
 
     $productsSupplierStmt = $pdo->query("SHOW COLUMNS FROM products LIKE 'supplier'");
@@ -316,7 +321,7 @@ try {
     }
     sort($unitOptions, SORT_NATURAL | SORT_FLAG_CASE);
 
-    if ($hasProductBatchesTable) {
+    if ($hasProductPoNumberTable) {
         $poNumberBatchStmt = $pdo->query('
             SELECT
                 p.product_description,
@@ -1303,7 +1308,7 @@ $previewLineRows = 10;
             batchNumbersByDescriptionPo: <?= json_encode($batchNumbersByDescriptionPo, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>,
             batchMetaByDescriptionPo: <?= json_encode($batchMetaByDescriptionPo, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>,
             quantityByDescriptionAndPo: <?= json_encode($quantityByDescriptionAndPo, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>,
-            hasProductBatches: <?= $hasProductBatchesTable ? 'true' : 'false' ?>,
+            hasProductBatches: <?= ($hasProductBatchesTable || $hasProductPoNumberTable) ? 'true' : 'false' ?>,
             previewLineRows: <?= (int) $previewLineRows ?>,
         };
     </script>
