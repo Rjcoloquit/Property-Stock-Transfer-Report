@@ -414,9 +414,7 @@ try {
 
         if ($hasRequiredProductPoColumns) {
             $hasProductPoNumberTable = true;
-            if ($batchSourceTable === '') {
-                $batchSourceTable = 'product_po_number';
-            }
+            $batchSourceTable = 'product_po_number';
         }
     }
     $pdo->exec(
@@ -1692,75 +1690,104 @@ try {
     </div>
 
     <div class="modal fade" id="itemDetailsModal" tabindex="-1" aria-labelledby="itemDetailsModalLabel" aria-hidden="true">
-        <div class="modal-dialog modal-lg modal-dialog-centered">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h2 class="modal-title h5 mb-0" id="itemDetailsModalLabel">Item Full Details</h2>
+        <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
+            <div class="modal-content item-details-modal-content">
+                <div class="modal-header border-0 pb-2">
+                    <div>
+                        <h2 class="modal-title h5 mb-1 fw-semibold" id="itemDetailsModalLabel">Item Full Details</h2>
+                        <p class="mb-0 text-muted small">Comprehensive view of item, inventory, procurement, and delivery fields.</p>
+                    </div>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
-                <div class="modal-body">
-                    <div class="table-responsive">
-                        <table class="table table-sm table-bordered align-middle mb-0">
-                            <tbody>
-                                <tr>
-                                    <th style="width: 34%">No.</th>
-                                    <td id="detail_item_no">-</td>
-                                </tr>
-                                <tr>
-                                    <th>Product Description</th>
-                                    <td id="detail_product_description">-</td>
-                                </tr>
-                                <tr>
-                                    <th>Batch Number</th>
-                                    <td id="detail_batch_number">-</td>
-                                </tr>
-                                <tr>
-                                    <th>UOM</th>
-                                    <td id="detail_uom">-</td>
-                                </tr>
-                                <tr>
-                                    <th>Stock</th>
-                                    <td id="detail_stock">-</td>
-                                </tr>
-                                <tr>
-                                    <th>Cost Per Unit</th>
-                                    <td id="detail_cost_per_unit">-</td>
-                                </tr>
-                                <tr>
-                                    <th>Expiry Date</th>
-                                    <td id="detail_expiry_date">-</td>
-                                </tr>
-                                <tr>
-                                    <th>Program</th>
-                                    <td id="detail_program">-</td>
-                                </tr>
-                                <tr>
-                                    <th>PO Number</th>
-                                    <td id="detail_po_no">-</td>
-                                </tr>
-                                <tr>
-                                    <th>Supplier</th>
-                                    <td id="detail_supplier">-</td>
-                                </tr>
-                                <tr>
-                                    <th>Place of Delivery</th>
-                                    <td id="detail_place_of_delivery">-</td>
-                                </tr>
-                                <tr>
-                                    <th>Date of Delivery</th>
-                                    <td id="detail_date_of_delivery">-</td>
-                                </tr>
-                                <tr>
-                                    <th>Delivery Term</th>
-                                    <td id="detail_delivery_term">-</td>
-                                </tr>
-                                <tr>
-                                    <th>Payment Term</th>
-                                    <td id="detail_payment_term">-</td>
-                                </tr>
-                            </tbody>
-                        </table>
+                <div class="modal-body pt-2">
+                    <div class="row g-3">
+                        <div class="col-lg-6">
+                            <section class="item-details-section">
+                                <h3 class="item-details-section-title">Item Details</h3>
+                                <table class="table table-sm align-middle mb-0 item-details-table">
+                                    <tbody>
+                                        <tr>
+                                            <th>No.</th>
+                                            <td id="detail_item_no">-</td>
+                                        </tr>
+                                        <tr>
+                                            <th>Product Description</th>
+                                            <td id="detail_product_description">-</td>
+                                        </tr>
+                                        <tr>
+                                            <th>Batch Number</th>
+                                            <td id="detail_batch_number">-</td>
+                                        </tr>
+                                        <tr>
+                                            <th>UOM</th>
+                                            <td id="detail_uom">-</td>
+                                        </tr>
+                                        <tr>
+                                            <th>Program</th>
+                                            <td id="detail_program">-</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </section>
+                        </div>
+                        <div class="col-lg-6">
+                            <section class="item-details-section">
+                                <h3 class="item-details-section-title">Inventory &amp; Procurement</h3>
+                                <table class="table table-sm align-middle mb-0 item-details-table">
+                                    <tbody>
+                                        <tr>
+                                            <th>Stock</th>
+                                            <td id="detail_stock">-</td>
+                                        </tr>
+                                        <tr>
+                                            <th>Cost Per Unit</th>
+                                            <td id="detail_cost_per_unit">-</td>
+                                        </tr>
+                                        <tr>
+                                            <th>Expiry Date</th>
+                                            <td id="detail_expiry_date">-</td>
+                                        </tr>
+                                        <tr>
+                                            <th>PO Number</th>
+                                            <td id="detail_po_no">-</td>
+                                        </tr>
+                                        <tr>
+                                            <th>Supplier</th>
+                                            <td id="detail_supplier">-</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </section>
+                        </div>
+                        <div class="col-12">
+                            <section class="item-details-section">
+                                <h3 class="item-details-section-title">Delivery</h3>
+                                <table class="table table-sm align-middle mb-0 item-details-table">
+                                    <tbody>
+                                        <tr>
+                                            <th>Place of Delivery</th>
+                                            <td id="detail_place_of_delivery">-</td>
+                                        </tr>
+                                        <tr>
+                                            <th>Date of Delivery</th>
+                                            <td id="detail_date_of_delivery">-</td>
+                                        </tr>
+                                        <tr>
+                                            <th>Delivery Term</th>
+                                            <td id="detail_delivery_term">-</td>
+                                        </tr>
+                                        <tr>
+                                            <th>Payment Term</th>
+                                            <td id="detail_payment_term">-</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </section>
+                        </div>
                     </div>
+                </div>
+                <div class="modal-footer border-top bg-light px-4 py-3">
+                    <button type="button" class="btn btn-outline-secondary item-list-uniform-btn ms-auto" data-bs-dismiss="modal">Close</button>
                 </div>
             </div>
         </div>

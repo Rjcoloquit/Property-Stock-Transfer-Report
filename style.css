@@ -371,6 +371,65 @@ a,
     border-radius: 0 0 0.75rem 0.75rem;
 }
 
+/* Item Full Details modal */
+.item-details-modal-content .modal-header {
+    padding: 1.2rem 1.4rem 0.2rem;
+}
+
+.item-details-modal-content .modal-body {
+    padding: 0.45rem 1.4rem 1rem;
+}
+
+.item-details-modal-content .modal-footer {
+    border-radius: 0 0 0.75rem 0.75rem;
+}
+
+.item-details-section {
+    border: 1px solid #d7e7de;
+    border-radius: 10px;
+    background: #fbfefd;
+    overflow: hidden;
+}
+
+.item-details-section-title {
+    margin: 0;
+    padding: 0.6rem 0.8rem;
+    font-family: "DM Sans", "Segoe UI", sans-serif;
+    font-size: 0.74rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: #24563a;
+    border-bottom: 1px solid #d7e7de;
+    background: linear-gradient(180deg, #f5fbf8 0%, #eff8f3 100%);
+}
+
+.item-details-table {
+    margin-bottom: 0;
+}
+
+.item-details-table th,
+.item-details-table td {
+    border-color: #e6f1eb;
+    padding: 0.56rem 0.78rem;
+    vertical-align: top;
+    font-size: 0.88rem;
+    line-height: 1.42;
+}
+
+.item-details-table th {
+    width: 34%;
+    background: #f8fcfa;
+    color: #2f5342;
+    font-weight: 700;
+    white-space: nowrap;
+}
+
+.item-details-table td {
+    color: #1f3b2d;
+    word-break: break-word;
+}
+
 .form-control:focus,
 .form-select:focus {
     border-color: #28804b;
@@ -824,6 +883,22 @@ a,
         min-height: 30px;
         font-size: 0.65rem;
         padding: 0.3rem 0.5rem;
+    }
+
+    .item-details-modal-content .modal-header,
+    .item-details-modal-content .modal-body {
+        padding-left: 1rem;
+        padding-right: 1rem;
+    }
+
+    .item-details-table th,
+    .item-details-table td {
+        padding: 0.5rem 0.6rem;
+        font-size: 0.82rem;
+    }
+
+    .item-details-table th {
+        width: 40%;
     }
 }
 
