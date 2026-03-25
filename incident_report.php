@@ -995,5 +995,6 @@ while (count($specRows) < 1) {
             // Print styles are in page <style> block
         })();
     </script>
+    <script src="assets/js/smooth_motion.js?v=20260325"></script>
 </body>
 </html>

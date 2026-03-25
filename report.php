@@ -1546,6 +1546,7 @@ try {
             showAddModal: <?= $showAddModal ? 'true' : 'false' ?>,
         };
     </script>
+    <script src="assets/js/smooth_motion.js?v=20260325"></script>
     <script src="assets/js/report.js"></script>
 </body>
 </html>

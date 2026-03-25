@@ -349,6 +349,7 @@ try {
             }
         };
     </script>
+    <script src="assets/js/smooth_motion.js?v=20260325"></script>
     <script src="assets/js/home.js"></script>
 </body>
 </html>

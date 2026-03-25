@@ -735,6 +735,7 @@ try {
             </div>
         </div>
     </main>
+    <script src="assets/js/smooth_motion.js?v=20260325"></script>
 </body>
 </html>
 

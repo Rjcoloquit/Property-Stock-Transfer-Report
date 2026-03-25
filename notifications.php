@@ -316,6 +316,7 @@ try {
             <?php endif; ?>
         </div>
     </main>
+    <script src="assets/js/smooth_motion.js?v=20260325"></script>
     <script src="assets/js/notifications.js"></script>
 </body>
 </html>

@@ -1312,6 +1312,7 @@ $previewLineRows = 10;
             previewLineRows: <?= (int) $previewLineRows ?>,
         };
     </script>
+    <script src="assets/js/smooth_motion.js?v=20260325"></script>
     <script src="assets/js/create_ptr.js"></script>
 </body>
 </html>

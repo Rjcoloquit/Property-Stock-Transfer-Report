@@ -19,11 +19,13 @@
     --app-shadow-sm: 0 2px 10px rgba(17, 27, 22, 0.08);
     --app-shadow-md: 0 10px 28px rgba(17, 27, 22, 0.1);
     --app-ease: 220ms cubic-bezier(0.22, 1, 0.36, 1);
+    --app-hover-duration: 240ms;
+    --app-hover-ease: ease-in-out;
 }
 
 /* App-level tweaks */
 html {
-    scroll-behavior: smooth;
+    scroll-behavior: auto;
 }
 
 body {
@@ -36,6 +38,45 @@ body {
     line-height: 1.45;
     text-rendering: optimizeLegibility;
     -webkit-font-smoothing: antialiased;
+    overflow-y: auto;
+    overflow-x: hidden;
+    overscroll-behavior-y: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
+/* Keep interactions GPU-friendly and consistent for high frame-rate feel */
+.btn,
+.app-card,
+.dashboard-nav-link,
+.inventory-action-btn,
+.inventory-add-btn,
+.inventory-table tbody tr {
+    transition-duration: var(--app-hover-duration);
+    transition-timing-function: var(--app-hover-ease);
+    backface-visibility: hidden;
+}
+
+.btn:hover,
+.app-card:hover,
+.dashboard-nav-link:hover,
+.inventory-action-btn:hover,
+.inventory-add-btn:hover {
+    will-change: transform;
+    transform: translate3d(0, -1px, 0);
+}
+
+/* Respect users who prefer less animation */
+@media (prefers-reduced-motion: reduce) {
+    html {
+        scroll-behavior: auto;
+    }
+
+    *,
+    *::before,
+    *::after {
+        animation: none !important;
+        transition: none !important;
+    }
 }
 
 /* Ensure all text elements use the formal font family */
@@ -404,7 +445,7 @@ a,
     font-size: 0.9375rem;
     padding: 0.625rem 1.5rem;
     border-radius: 8px;
-    transition: all 0.22s ease;
+    transition: transform var(--app-hover-duration) var(--app-hover-ease), box-shadow var(--app-hover-duration) var(--app-hover-ease), background-color var(--app-hover-duration) var(--app-hover-ease), color var(--app-hover-duration) var(--app-hover-ease);
     box-shadow: 0 2px 8px rgba(40, 128, 75, 0.2);
     min-width: 130px;
 }
@@ -431,7 +472,7 @@ a,
     border: 1.5px solid var(--app-border);
     background: var(--app-surface);
     font-size: 0.9375rem;
-    transition: all var(--app-ease);
+    transition: border-color var(--app-ease), box-shadow var(--app-ease), background-color var(--app-ease);
 }
 
 .inventory-search-bar .form-control:focus {
@@ -447,7 +488,7 @@ a,
     background: var(--app-surface);
     font-size: 0.9375rem;
     font-weight: 500;
-    transition: all var(--app-ease);
+    transition: border-color var(--app-ease), box-shadow var(--app-ease), background-color var(--app-ease);
 }
 
 .inventory-sort-select .form-select:focus {

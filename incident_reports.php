@@ -636,5 +636,6 @@ if (empty($selectedSpecifics)) {
         </div>
     </div>
     <?php endif; ?>
+    <script src="assets/js/smooth_motion.js?v=20260325"></script>
 </body>
 </html>

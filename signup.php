@@ -180,5 +180,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             </div>
         </div>
     </div>
+    <script src="assets/js/smooth_motion.js?v=20260325"></script>
 </body>
 </html>
