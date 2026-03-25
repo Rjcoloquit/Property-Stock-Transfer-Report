@@ -528,6 +528,42 @@ try {
             if ($hasProductPoNumberTable && trim($formData['po_no']) === '') {
                 $errors[] = 'PO Number is required.';
             }
+            if ($action === 'create' && trim($formData['po_no']) !== '' && trim($formData['product_description']) !== '') {
+                $incomingPo = trim($formData['po_no']);
+                $incomingDescription = trim($formData['product_description']);
+
+                $existingPoProductStmt = $pdo->prepare('
+                    SELECT id, product_description
+                    FROM products
+                    WHERE LOWER(TRIM(COALESCE(po_no, ""))) = LOWER(?)
+                    ORDER BY id ASC
+                    LIMIT 1
+                ');
+                $existingPoProductStmt->execute([$incomingPo]);
+                $existingPoProduct = $existingPoProductStmt->fetch();
+
+                if (!$existingPoProduct && $hasProductPoNumberTable) {
+                    $existingPoFromMappingStmt = $pdo->prepare('
+                        SELECT p.id, p.product_description
+                        FROM product_po_number pp
+                        INNER JOIN products p ON p.id = pp.product_id
+                        WHERE LOWER(TRIM(COALESCE(pp.po_no, ""))) = LOWER(?)
+                        ORDER BY pp.id ASC
+                        LIMIT 1
+                    ');
+                    $existingPoFromMappingStmt->execute([$incomingPo]);
+                    $existingPoProduct = $existingPoFromMappingStmt->fetch();
+                }
+
+                if ($existingPoProduct) {
+                    $existingDescription = trim((string) ($existingPoProduct['product_description'] ?? ''));
+                    if (strcasecmp($existingDescription, $incomingDescription) !== 0) {
+                        $errors[] = 'PO Number "' . $incomingPo . '" already exists for "'
+                            . $existingDescription
+                            . '". Please use a different PO Number.';
+                    }
+                }
+            }
             if ($action === 'create' && $normalizedExpiryDate !== null && $normalizedExpiryDate < date('Y-m-d')) {
                 $errors[] = 'Expired items are not allowed in Add Item.';
             }
