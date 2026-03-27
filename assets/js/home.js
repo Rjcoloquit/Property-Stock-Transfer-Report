@@ -68,13 +68,21 @@
     }
 
     function createTrendChart(chartCanvas, labels, values, seriesKey) {
+        var normalizedLabels = Array.isArray(labels) ? labels : [];
+        var normalizedValues = Array.isArray(values)
+            ? values.map(function (value) {
+                var numericValue = Number(value);
+                return Number.isFinite(numericValue) ? numericValue : 0;
+            })
+            : [];
+
         trendChart = new Chart(chartCanvas, {
             type: 'bar',
             data: {
-                labels: labels,
+                labels: normalizedLabels,
                 datasets: [{
                     label: chartLabelBySeries[seriesKey] || 'Trend',
-                    data: values,
+                    data: normalizedValues,
                     backgroundColor: 'rgba(40, 128, 75, 0.80)',
                     borderColor: 'rgba(32, 102, 59, 1)',
                     borderWidth: 1,
@@ -85,7 +93,6 @@
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
-                parsing: false,
                 normalized: true,
                 devicePixelRatio: Math.min(window.devicePixelRatio || 1, 2),
                 resizeDelay: 90,
@@ -139,9 +146,16 @@
             return;
         }
 
+        var normalizedValues = Array.isArray(values)
+            ? values.map(function (value) {
+                var numericValue = Number(value);
+                return Number.isFinite(numericValue) ? numericValue : 0;
+            })
+            : [];
+
         var dataset = trendChart.data.datasets[0];
         dataset.label = chartLabelBySeries[seriesKey] || 'Trend';
-        dataset.data = values;
+        dataset.data = normalizedValues;
         trendChart.update(prefersReducedMotion ? 'none' : 'active');
     }
 
