@@ -866,6 +866,7 @@ try {
                 $updateId = isset($_POST['id']) ? (int) $_POST['id'] : 0;
                 if ($updateId > 0) {
                     $originalBatchNumber = trim((string) ($_POST['original_batch_number'] ?? ''));
+                    $originalPoNo = trim((string) ($_POST['original_po_no'] ?? ''));
                     $previousStockQty = 0;
                     if ($batchSourceTable !== '' && $formData['batch_number'] !== '') {
                         $lookupBatch = $originalBatchNumber !== '' ? $originalBatchNumber : $formData['batch_number'];
@@ -986,20 +987,44 @@ try {
                         }
                     }
                     if ($hasProductPoNumberTable && $formData['batch_number'] !== '' && $formData['po_no'] !== '') {
-                        $poFindStmt = $pdo->prepare('
-                            SELECT id
-                            FROM product_po_number
-                            WHERE product_id = ?
-                              AND LOWER(TRIM(po_no)) = LOWER(?)
-                              AND LOWER(TRIM(batch_number)) = LOWER(?)
-                            LIMIT 1
-                        ');
-                        $poFindStmt->execute([
-                            $updateId,
-                            $formData['po_no'],
-                            $formData['batch_number'],
-                        ]);
-                        $existingPoRow = $poFindStmt->fetch();
+                        $existingPoRow = false;
+
+                        if ($originalBatchNumber !== '' || $originalPoNo !== '') {
+                            $poFindOriginalStmt = $pdo->prepare('
+                                SELECT id
+                                FROM product_po_number
+                                WHERE product_id = ?
+                                  AND (? = "" OR LOWER(TRIM(po_no)) = LOWER(?))
+                                  AND (? = "" OR LOWER(TRIM(batch_number)) = LOWER(?))
+                                ORDER BY id ASC
+                                LIMIT 1
+                            ');
+                            $poFindOriginalStmt->execute([
+                                $updateId,
+                                $originalPoNo,
+                                $originalPoNo,
+                                $originalBatchNumber,
+                                $originalBatchNumber,
+                            ]);
+                            $existingPoRow = $poFindOriginalStmt->fetch();
+                        }
+
+                        if (!$existingPoRow) {
+                            $poFindStmt = $pdo->prepare('
+                                SELECT id
+                                FROM product_po_number
+                                WHERE product_id = ?
+                                  AND LOWER(TRIM(po_no)) = LOWER(?)
+                                  AND LOWER(TRIM(batch_number)) = LOWER(?)
+                                LIMIT 1
+                            ');
+                            $poFindStmt->execute([
+                                $updateId,
+                                $formData['po_no'],
+                                $formData['batch_number'],
+                            ]);
+                            $existingPoRow = $poFindStmt->fetch();
+                        }
 
                         if ($existingPoRow) {
                             $poUpdateStmt = $pdo->prepare('
@@ -1054,6 +1079,7 @@ try {
     if (!$isEditMode && isset($_GET['edit']) && ctype_digit($_GET['edit'])) {
         $editingId = (int) $_GET['edit'];
         $editingBatchNumber = trim((string) ($_GET['edit_batch'] ?? ''));
+        $editingPoNo = trim((string) ($_GET['edit_po'] ?? ''));
         if ($editingId > 0) {
             if ($batchSourceTable !== '') {
                 $editCostPerUnitExpr = $batchSourceTable === 'product_po_number'
@@ -1080,7 +1106,9 @@ try {
                            COALESCE(b.stock_quantity, 0) AS stock
                        FROM products p
                        LEFT JOIN ' . $batchSourceTable . ' b ON b.product_id = p.id
-                       WHERE p.id = ? AND (? = "" OR b.batch_number = ?)
+                                             WHERE p.id = ?
+                                                 AND (? = "" OR b.batch_number = ?)
+                                                 AND (? = "" OR LOWER(TRIM(COALESCE(b.po_no, p.po_no, ""))) = LOWER(?))
                        ORDER BY b.batch_number ASC
                        LIMIT 1'
                     : 'SELECT
@@ -1100,11 +1128,19 @@ try {
                            COALESCE(b.stock_quantity, 0) AS stock
                        FROM products p
                        LEFT JOIN ' . $batchSourceTable . ' b ON b.product_id = p.id
-                       WHERE p.id = ? AND (? = "" OR b.batch_number = ?)
+                       WHERE p.id = ?
+                         AND (? = "" OR b.batch_number = ?)
+                         AND (? = "" OR LOWER(TRIM(COALESCE(b.po_no, p.po_no, ""))) = LOWER(?))
                        ORDER BY b.batch_number ASC
                        LIMIT 1';
                 $editStmt = $pdo->prepare($editSelect);
-                $editStmt->execute([$editingId, $editingBatchNumber, $editingBatchNumber]);
+                $editStmt->execute([
+                    $editingId,
+                    $editingBatchNumber,
+                    $editingBatchNumber,
+                    $editingPoNo,
+                    $editingPoNo,
+                ]);
             } else {
                 $editSelect = $hasProductsExpiryDate
                     ? 'SELECT id, product_description, uom, cost_per_unit, expiry_date, program, po_no, supplier, place_of_delivery, date_of_delivery, delivery_term, payment_term, NULL AS batch_number, 0 AS stock FROM products WHERE id = ? LIMIT 1'
@@ -1418,7 +1454,7 @@ try {
                                                             Details
                                                         </button>
                                                         <a
-                                                            href="<?= htmlspecialchars(buildItemListUrl($search, $sort, '', (int) $item['id'], (string) ($item['batch_number'] ?? ''))) ?>"
+                                                            href="<?= htmlspecialchars(buildItemListUrl($search, $sort, '', (int) $item['id'], (string) ($item['batch_number'] ?? '')) . ((string) ($item['po_no'] ?? '') !== '' ? '&edit_po=' . urlencode((string) $item['po_no']) : '')) ?>"
                                                             class="inventory-action-btn inventory-btn-edit"
                                                         >
                                                             Edit
@@ -1511,6 +1547,7 @@ try {
                         <input type="hidden" name="return_sort" value="<?= htmlspecialchars($sort) ?>">
                         <?php if ($isEditMode): ?>
                             <input type="hidden" name="id" value="<?= (int) $editingId ?>">
+                            <input type="hidden" name="original_po_no" value="<?= htmlspecialchars($formData['po_no']) ?>">
                         <?php endif; ?>
 
                         <section class="item-form-section mb-4">
