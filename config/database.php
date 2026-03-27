@@ -5,9 +5,9 @@
  * If you get "Access denied (using password: NO)", set DB_PASS to your MySQL root password below.
  */
 define('DB_HOST', 'localhost');
-define('DB_NAME', 'supply');
+define('DB_NAME', 'supply_db');
 define('DB_USER', 'root');
-define('DB_PASS', 'root');  // Set your MySQL root password here (XAMPP default is often '' or 'root')
+define('DB_PASS', '');  // Set your MySQL root password here (XAMPP default is often '' or 'root')
 
 function getConnection(): PDO
 {

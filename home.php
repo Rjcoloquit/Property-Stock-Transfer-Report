@@ -35,7 +35,7 @@ try {
             expiry_date DATE DEFAULT NULL,
             program VARCHAR(255) DEFAULT NULL,
             PRIMARY KEY (id)
-        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci'
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci'
     );
     $pdo->exec(
         'CREATE TABLE IF NOT EXISTS inventory_records (
@@ -50,7 +50,7 @@ try {
             ptr_no VARCHAR(50) DEFAULT NULL,
             record_date DATE DEFAULT NULL,
             PRIMARY KEY (id)
-        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci'
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci'
     );
     $releaseStatusColumnStmt = $pdo->query("SHOW COLUMNS FROM inventory_records LIKE 'release_status'");
     if (!$releaseStatusColumnStmt || !$releaseStatusColumnStmt->fetch()) {
