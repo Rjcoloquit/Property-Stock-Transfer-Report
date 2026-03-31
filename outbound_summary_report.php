@@ -13,7 +13,6 @@ $error = '';
 $rows = [];
 $totalReleasedQty = 0;
 $totalReleasedAmount = 0.0;
-$printRecipients = [];
 
 try {
     $pdo = getConnection();
@@ -67,10 +66,6 @@ try {
     foreach ($rows as $reportRow) {
         $totalReleasedQty += (int) ($reportRow['quantity'] ?? 0);
         $totalReleasedAmount += (float) ($reportRow['total_cost'] ?? 0);
-        $recipientName = trim((string) ($reportRow['recipient'] ?? ''));
-        if ($recipientName !== '') {
-            $printRecipients[$recipientName] = true;
-        }
     }
 } catch (PDOException $e) {
     $error = 'Unable to load outbound summary report right now.';
@@ -453,7 +448,6 @@ function formatMoney($value): string
                             <div><strong>Outbound Summary Report</strong></div>
                             <div><strong>Total Released Quantity:</strong> <?= number_format($totalReleasedQty) ?></div>
                             <div><strong>Total Released Amount:</strong> <?= formatMoney($totalReleasedAmount) ?></div>
-                            <div><strong>Recipients:</strong> <?= !empty($printRecipients) ? htmlspecialchars(implode(', ', array_keys($printRecipients))) : '-' ?></div>
                         </div>
                         <div class="outbound-records-bar no-print">
                             <span class="outbound-records-label">Total Records</span>
