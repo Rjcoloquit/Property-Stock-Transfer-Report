@@ -1,30 +1,30 @@
 <?php
 
-function getPtrMonthPrefix(?string $recordDate = null): string
+function getPtrYearMonthPrefix(?string $recordDate = null): string
 {
     $dateValue = trim((string) ($recordDate ?? ''));
     if ($dateValue !== '') {
         $date = DateTime::createFromFormat('Y-m-d', $dateValue);
         if ($date instanceof DateTime && $date->format('Y-m-d') === $dateValue) {
-            return $date->format('m');
+            return $date->format('Y - m');
         }
     }
-    return date('m');
+    return date('Y - m');
 }
 
 function getNextPtrNumber(PDO $pdo, ?string $recordDate = null): string
 {
-    $monthPrefix = getPtrMonthPrefix($recordDate);
+    $yearMonthPrefix = getPtrYearMonthPrefix($recordDate);
     $stmt = $pdo->prepare("
-        SELECT COALESCE(MAX(CAST(SUBSTRING(ptr_no, 4) AS UNSIGNED)), 0) AS max_ptr
+        SELECT COALESCE(MAX(CAST(RIGHT(ptr_no, 4) AS UNSIGNED)), 0) AS max_ptr
         FROM inventory_records
-        WHERE ptr_no REGEXP '^[0-9]{2}/[0-9]{4}$'
-          AND SUBSTRING(ptr_no, 1, 2) = :month_prefix
+        WHERE ptr_no REGEXP '^[0-9]{4} - [0-9]{2} - [0-9]{4}$'
+          AND LEFT(ptr_no, 9) = :year_month_prefix
     ");
-    $stmt->execute(['month_prefix' => $monthPrefix]);
+    $stmt->execute(['year_month_prefix' => $yearMonthPrefix]);
     $row = $stmt->fetch();
     $maxPtr = isset($row['max_ptr']) ? (int) $row['max_ptr'] : 0;
-    return sprintf('%s/%04d', $monthPrefix, $maxPtr + 1);
+    return sprintf('%s - %04d', $yearMonthPrefix, $maxPtr + 1);
 }
 
 function normalizeExistingPtrNumbers(PDO $pdo): void
@@ -34,7 +34,7 @@ function normalizeExistingPtrNumbers(PDO $pdo): void
         FROM inventory_records
         WHERE ptr_no IS NULL
            OR TRIM(ptr_no) = ''
-           OR ptr_no NOT REGEXP '^[0-9]{2}/[0-9]{4}$'
+              OR ptr_no NOT REGEXP '^[0-9]{4} - [0-9]{2} - [0-9]{4}$'
     ")->fetchColumn();
 
     if ($legacyCount === 0) {
@@ -62,22 +62,22 @@ function normalizeExistingPtrNumbers(PDO $pdo): void
         $groupKey = $rawPtrNo !== '' ? 'ptr:' . $rawPtrNo : 'row:' . $id;
         if (!isset($groups[$groupKey])) {
             $groups[$groupKey] = [
-                'month' => getPtrMonthPrefix((string) ($row['record_date'] ?? '')),
+                'year_month' => getPtrYearMonthPrefix((string) ($row['record_date'] ?? '')),
                 'ids' => [],
             ];
         }
         $groups[$groupKey]['ids'][] = $id;
     }
 
-    $monthCounters = [];
+    $yearMonthCounters = [];
     $assignments = [];
     foreach ($groups as $group) {
-        $month = (string) ($group['month'] ?? date('m'));
-        if (!isset($monthCounters[$month])) {
-            $monthCounters[$month] = 0;
+        $yearMonth = (string) ($group['year_month'] ?? date('Y - m'));
+        if (!isset($yearMonthCounters[$yearMonth])) {
+            $yearMonthCounters[$yearMonth] = 0;
         }
-        $monthCounters[$month]++;
-        $newPtrNo = sprintf('%s/%04d', $month, $monthCounters[$month]);
+        $yearMonthCounters[$yearMonth]++;
+        $newPtrNo = sprintf('%s - %04d', $yearMonth, $yearMonthCounters[$yearMonth]);
 
         foreach ($group['ids'] as $id) {
             $assignments[(int) $id] = $newPtrNo;

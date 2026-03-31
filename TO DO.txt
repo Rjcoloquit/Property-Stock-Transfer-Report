@@ -18,7 +18,7 @@ Unit /
 ----------------------------------------------------------------------------------------------------
 
 THIS DAY FEB 16 /
-PTR NO = MM/0000 / 
+PTR NO = YYYY - MM - 0000
 BAWAS SA STOCK KAPAG NAG CREATE NG PTR /
 
 
