@@ -1329,7 +1329,7 @@ try {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Item List - Supply</title>
-    <link rel="stylesheet" href="style.css?v=20260305">
+    <link rel="stylesheet" href="style.css?v=20260407k">
 </head>
 <body>
     <header class="navbar navbar-expand-lg navbar-light bg-white app-header px-3 px-md-4">
@@ -1348,6 +1348,7 @@ try {
             <div class="app-header-actions">
                 <span class="app-user-chip"><?= htmlspecialchars($username) ?></span>
                 <a href="home.php" class="btn btn-outline-secondary btn-sm app-header-action-link">Home</a>
+                <a href="current_stock_report.php" class="btn btn-outline-secondary btn-sm app-header-action-link">Stock Report</a>
                 <a href="logout.php" class="btn btn-outline-secondary btn-sm app-header-action-link">Log out</a>
             </div>
         </div>

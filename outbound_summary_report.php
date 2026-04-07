@@ -82,202 +82,9 @@ function formatMoney($value): string
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Outbound Summary Report</title>
-    <link rel="stylesheet" href="style.css?v=20260305">
+    <link rel="stylesheet" href="style.css?v=20260408outfit">
     <style>
-        .outbound-page .outbound-filter-card {
-            border: 1px solid #d7e7de;
-            border-radius: 12px;
-            box-shadow: 0 3px 10px rgba(17, 27, 22, 0.05);
-            background: linear-gradient(180deg, #f9fcfa 0%, #ffffff 100%);
-        }
-        .outbound-page .outbound-filter-title {
-            font-size: 0.92rem;
-            letter-spacing: 0.02em;
-            color: #1f3b2d;
-            margin-bottom: 0.9rem;
-        }
-        .outbound-page .outbound-filter-row {
-            align-items: end;
-        }
-        .outbound-page .outbound-filter-row .form-label {
-            font-size: 0.78rem;
-            margin-bottom: 0.3rem;
-            color: #2e4f3f;
-        }
-        .outbound-page .outbound-filter-input {
-            min-height: 40px;
-            text-align: left;
-            border-radius: 8px;
-            border-color: #bfd8ca;
-            font-size: 0.86rem;
-            padding-left: 0.7rem;
-        }
-        .outbound-page .outbound-filter-input::placeholder {
-            text-align: left;
-            color: #7b9688;
-        }
-        .outbound-page .outbound-filter-clear {
-            min-height: 40px;
-            border-radius: 8px;
-            font-weight: 600;
-        }
-        .outbound-page .outbound-records-bar {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            gap: 0.75rem;
-            padding: 0.78rem 1rem;
-            border-bottom: 1px solid #1e1e1e;
-            background: linear-gradient(90deg, rgba(40, 128, 75, 0.05), rgba(40, 128, 75, 0.015));
-        }
-        .outbound-page .outbound-records-label {
-            font-size: 0.8rem;
-            font-weight: 700;
-            letter-spacing: 0.05em;
-            text-transform: uppercase;
-            color: #446455;
-        }
-        .outbound-page .outbound-records-pill {
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            min-width: 90px;
-            padding: 0.32rem 0.72rem;
-            border-radius: 999px;
-            border: 1px solid #b7d6c5;
-            background: #ffffff;
-            color: #1f3b2d;
-            font-size: 0.9rem;
-            font-weight: 700;
-            line-height: 1;
-        }
-        .outbound-page .inventory-table-container {
-            border: 1px solid #1e1e1e;
-            border-radius: 12px;
-            overflow: hidden;
-            box-shadow: 0 4px 12px rgba(17, 27, 22, 0.08);
-        }
-        .outbound-page .inventory-table-wrapper {
-            overflow-x: hidden;
-            overflow-y: hidden;
-            border: 0;
-            border-radius: 0;
-            background: #fff;
-        }
-        .outbound-page #outboundTable {
-            width: 100%;
-            min-width: 0;
-            table-layout: fixed;
-            border-collapse: collapse;
-            margin-bottom: 0;
-        }
-        .outbound-page .print-only {
-            display: none;
-        }
-        .outbound-page #outboundTable th,
-        .outbound-page #outboundTable td {
-            border: 1px solid #1e1e1e;
-            color: #1a1a1a;
-            background: #fff;
-            white-space: normal;
-            word-break: break-word;
-            overflow-wrap: anywhere;
-            vertical-align: middle;
-            padding: 0.52rem 0.42rem;
-            line-height: 1.3;
-            font-size: 0.81rem;
-        }
-        .outbound-page #outboundTable thead th {
-            background: #f5f7f6;
-            font-weight: 700;
-            border-bottom: 2px solid #1b1b1b;
-            text-transform: uppercase;
-            letter-spacing: 0.02em;
-            font-size: 0.73rem;
-            text-align: center;
-        }
-        .outbound-page #outboundTable tbody tr:nth-child(even) {
-            background: #fbfcfb;
-        }
-        .outbound-page #outboundTable tbody tr:hover {
-            background: inherit;
-            box-shadow: none !important;
-            transform: none !important;
-            position: static;
-            z-index: auto;
-        }
-        .outbound-page #outboundTable tbody tr {
-            transition: none !important;
-        }
-        .outbound-page .app-card:hover {
-            transform: none !important;
-        }
-        .outbound-page #outboundTable td,
-        .outbound-page #outboundTable th {
-            white-space: normal;
-        }
-        .outbound-page #outboundTable tfoot td {
-            font-weight: 700;
-            background: #f4f8f6;
-            text-align: center;
-            vertical-align: middle;
-        }
-        .outbound-page #outboundTable tfoot .outbound-grand-label {
-            text-align: right;
-            letter-spacing: 0.02em;
-            color: #1f3b2d;
-            background: #f8fbf9;
-        }
-        .outbound-page #outboundTable tfoot .outbound-grand-amount {
-            text-align: center;
-            font-size: 0.86rem;
-            color: #1f3b2d;
-            background: #f8fbf9;
-        }
-        .outbound-page #outboundTable tbody td {
-            vertical-align: middle;
-        }
-        .outbound-page #outboundTable tbody td:nth-child(1),
-        .outbound-page #outboundTable tbody td:nth-child(4),
-        .outbound-page #outboundTable tbody td:nth-child(10) {
-            text-align: left;
-        }
-        .outbound-page #outboundTable tbody td:nth-child(2),
-        .outbound-page #outboundTable tbody td:nth-child(3),
-        .outbound-page #outboundTable tbody td:nth-child(5),
-        .outbound-page #outboundTable tbody td:nth-child(7),
-        .outbound-page #outboundTable tbody td:nth-child(11) {
-            text-align: center;
-        }
-        .outbound-page #outboundTable tbody td:nth-child(6),
-        .outbound-page #outboundTable tbody td:nth-child(8),
-        .outbound-page #outboundTable tbody td:nth-child(9) {
-            text-align: right;
-            font-variant-numeric: tabular-nums;
-        }
-        .outbound-page #outboundTable tfoot td:nth-child(2) {
-            font-variant-numeric: tabular-nums;
-        }
-        .outbound-page #outboundTable thead th:nth-child(4),
-        .outbound-page #outboundTable thead th:nth-child(1),
-        .outbound-page #outboundTable thead th:nth-child(10) {
-            text-align: left;
-        }
-
-        @media (max-width: 1200px) {
-            .outbound-page #outboundTable th,
-            .outbound-page #outboundTable td {
-                font-size: 0.76rem;
-                padding: 0.4rem 0.3rem;
-            }
-            .outbound-page .outbound-records-bar {
-                padding: 0.65rem 0.75rem;
-            }
-            .outbound-page .outbound-records-pill {
-                min-width: 78px;
-            }
-        }
-
+        /* Print preview only — page-local (restores prior print layout; screen uses style.css) */
         @media print {
             @page {
                 size: A4 landscape;
@@ -331,7 +138,8 @@ function formatMoney($value): string
                 border-collapse: collapse;
             }
             .table thead,
-            .table tbody {
+            .table tbody,
+            .table tfoot {
                 display: table-row-group;
             }
             .table th,
@@ -363,20 +171,20 @@ function formatMoney($value): string
             .outbound-print-meta strong {
                 font-weight: 700;
             }
-            h1, h5 {
+            h1, .h5 {
                 margin: 0 0 5mm 0 !important;
                 font-size: 12pt !important;
             }
         }
     </style>
 </head>
-<body class="outbound-page">
-    <header class="navbar navbar-expand-lg navbar-light bg-white app-header px-3 px-md-4 no-print">
+<body class="outbound-page report-page">
+    <header class="navbar navbar-expand-lg app-header px-3 px-md-4 no-print">
         <div class="container-fluid">
             <span class="navbar-brand mb-0 h6 app-header-title d-flex align-items-center gap-2">
                 <?php if (file_exists(__DIR__ . '/PHO.png')): ?>
                     <a href="home.php" class="app-header-logo-link" aria-label="Go to homepage">
-                        <img src="PHO.png" alt="Palawan Health Office Logo" class="app-logo-circle" style="height: 40px; width: 40px;">
+                        <img src="PHO.png" alt="Palawan Health Office Logo" class="app-logo-circle app-logo-md">
                     </a>
                 <?php endif; ?>
                 <span class="d-inline-flex flex-column lh-sm">
@@ -387,6 +195,7 @@ function formatMoney($value): string
             <div class="app-header-actions">
                 <span class="app-user-chip"><?= htmlspecialchars($username) ?></span>
                 <a href="home.php" class="btn btn-outline-secondary btn-sm app-header-action-link">Home</a>
+                <a href="current_stock_report.php" class="btn btn-outline-secondary btn-sm app-header-action-link">Stock Report</a>
                 <a href="report.php" class="btn btn-outline-secondary btn-sm app-header-action-link">Report</a>
                 <a href="logout.php" class="btn btn-outline-secondary btn-sm app-header-action-link">Log out</a>
             </div>
@@ -403,7 +212,7 @@ function formatMoney($value): string
                             <span class="outbound-kpi-chip">Rows: <strong id="visibleRowsCount"><?= number_format(count($rows)) ?></strong></span>
                             <span class="outbound-kpi-chip">Qty: <strong id="visibleQtyTotal"><?= number_format($totalReleasedQty) ?></strong></span>
                             <span class="outbound-kpi-chip">Amount: <strong id="visibleAmountTotal"><?= formatMoney($totalReleasedAmount) ?></strong></span>
-                            <button type="button" class="btn btn-primary btn-sm" onclick="window.print();">Print</button>
+                            <button type="button" class="btn btn-primary dashboard-item-search-submit" onclick="window.print();">Print</button>
                         </div>
                     </div>
 
@@ -414,73 +223,62 @@ function formatMoney($value): string
                     <!-- Filter Section -->
                     <div class="card mb-4 no-print outbound-filter-card">
                         <div class="card-body">
-                            <h6 class="outbound-filter-title fw-bold">Filter Records</h6>
-                            <div class="row g-2 outbound-filter-row">
-                                <div class="col-md-3">
-                                    <label for="filterProgram" class="form-label form-label-sm">End-user / Program</label>
-                                    <input type="text" class="form-control outbound-filter-input" id="filterProgram" placeholder="Search program...">
+                            <h2 class="h6 mb-3">Filter records</h2>
+                            <p class="small text-muted mb-3">Filter the table below; KPI chips and grand total update to match visible rows.</p>
+                            <div class="row g-2 align-items-end">
+                                <div class="col-md-3 inventory-search-bar">
+                                    <label for="filterProgram" class="form-label mb-1">End-user / Program</label>
+                                    <input type="text" class="form-control" id="filterProgram" placeholder="Search program…">
                                 </div>
-                                <div class="col-md-3">
-                                    <label for="filterDescription" class="form-label form-label-sm">Item Description</label>
-                                    <input type="text" class="form-control outbound-filter-input" id="filterDescription" placeholder="Search item...">
+                                <div class="col-md-3 inventory-search-bar">
+                                    <label for="filterDescription" class="form-label mb-1">Item Description</label>
+                                    <input type="text" class="form-control" id="filterDescription" placeholder="Search item…">
                                 </div>
-                                <div class="col-md-2">
-                                    <label for="filterRecipient" class="form-label form-label-sm">Recipient</label>
-                                    <input type="text" class="form-control outbound-filter-input" id="filterRecipient" placeholder="Search recipient...">
+                                <div class="col-md-2 inventory-search-bar">
+                                    <label for="filterRecipient" class="form-label mb-1">Recipient</label>
+                                    <input type="text" class="form-control" id="filterRecipient" placeholder="Search recipient…">
                                 </div>
-                                <div class="col-md-2">
-                                    <label for="filterDateFrom" class="form-label form-label-sm">Date From</label>
-                                    <input type="date" class="form-control outbound-filter-input" id="filterDateFrom">
+                                <div class="col-md-2 inventory-search-bar">
+                                    <label for="filterDateFrom" class="form-label mb-1">Date From</label>
+                                    <input type="date" class="form-control" id="filterDateFrom">
                                 </div>
-                                <div class="col-md-2">
-                                    <label for="filterDateTo" class="form-label form-label-sm">Date To</label>
-                                    <input type="date" class="form-control outbound-filter-input" id="filterDateTo">
+                                <div class="col-md-2 inventory-search-bar">
+                                    <label for="filterDateTo" class="form-label mb-1">Date To</label>
+                                    <input type="date" class="form-control" id="filterDateTo">
                                 </div>
-                                <div class="col-md-2 d-flex align-items-end">
-                                    <button type="button" class="btn btn-sm btn-outline-secondary w-100 outbound-filter-clear" id="clearFilterBtn">Clear Filters</button>
+                                <div class="col-md-2 d-grid">
+                                    <label class="form-label mb-1 d-none d-md-block">&nbsp;</label>
+                                    <button type="button" class="btn btn-outline-secondary dashboard-item-search-submit" id="clearFilterBtn">Clear filters</button>
                                 </div>
                             </div>
                         </div>
                     </div>
 
-                    <div class="inventory-table-container">
+                    <div class="inventory-table-container outbound-table-shell">
                         <div class="outbound-print-meta print-only">
                             <div><strong>Outbound Summary Report</strong></div>
                             <div><strong>Total Released Quantity:</strong> <?= number_format($totalReleasedQty) ?></div>
                             <div><strong>Total Released Amount:</strong> <?= formatMoney($totalReleasedAmount) ?></div>
                         </div>
-                        <div class="outbound-records-bar no-print">
-                            <span class="outbound-records-label">Total Records</span>
-                            <span class="outbound-records-pill" id="visibleRowsCount2"><?= number_format(count($rows)) ?></span>
+                        <div class="inventory-stats no-print">
+                            Total records (visible):
+                            <span class="inventory-stats-value" id="visibleRowsCount2"><?= number_format(count($rows)) ?></span>
                         </div>
                         <div class="inventory-table-wrapper">
-                            <table class="table inventory-table" id="outboundTable">
-                            <colgroup>
-                                <col style="width:12%">
-                                <col style="width:8%">
-                                <col style="width:9%">
-                                <col style="width:18%">
-                                <col style="width:8%">
-                                <col style="width:6%">
-                                <col style="width:6%">
-                                <col style="width:8%">
-                                <col style="width:9%">
-                                <col style="width:10%">
-                                <col style="width:6%">
-                            </colgroup>
+                            <table class="table inventory-table outbound-table mb-0" id="outboundTable">
                             <thead>
                                 <tr>
-                                    <th>End-user</th>
-                                    <th>PO #</th>
-                                    <th>Date Released</th>
-                                    <th>Item Description</th>
-                                    <th class="text-nowrap text-center">Exp Date</th>
-                                    <th class="text-end">Qty</th>
-                                    <th class="text-center">UOM</th>
-                                    <th class="text-end">Unit Cost</th>
-                                    <th class="text-end">Total Cost</th>
-                                    <th>Recipient</th>
-                                    <th class="text-center">PTR #</th>
+                                    <th scope="col" class="col-out-program">End-user</th>
+                                    <th scope="col" class="col-out-po">PO #</th>
+                                    <th scope="col" class="col-out-date">Date Released</th>
+                                    <th scope="col" class="col-out-desc">Item Description</th>
+                                    <th scope="col" class="col-out-exp text-nowrap">Exp Date</th>
+                                    <th scope="col" class="col-out-qty">Qty</th>
+                                    <th scope="col" class="col-out-uom">UOM</th>
+                                    <th scope="col" class="col-out-unit-cost">Unit Cost</th>
+                                    <th scope="col" class="col-out-total-cost">Total Cost</th>
+                                    <th scope="col" class="col-out-recipient">Recipient</th>
+                                    <th scope="col" class="col-out-ptr">PTR #</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -496,31 +294,31 @@ function formatMoney($value): string
                                 <?php else: ?>
                                     <?php foreach ($rows as $row): ?>
                                         <tr data-record-row="true" data-program="<?= htmlspecialchars((string) ($row['program'] ?? '')) ?>" data-description="<?= htmlspecialchars((string) ($row['description'] ?? '')) ?>" data-recipient="<?= htmlspecialchars((string) ($row['recipient'] ?? '')) ?>" data-date="<?= htmlspecialchars((string) ($row['date_released'] ?? '')) ?>" data-qty="<?= (int) ($row['quantity'] ?? 0) ?>" data-total-cost="<?= number_format((float) ($row['total_cost'] ?? 0), 2, '.', '') ?>">
-                                            <td><?= htmlspecialchars((string) ($row['program'] ?? '-')) ?></td>
-                                            <td><?= htmlspecialchars((string) ($row['po_no'] ?? '-')) ?></td>
-                                            <td><?= htmlspecialchars((string) ($row['date_released'] ?? '-')) ?></td>
-                                            <td><?= htmlspecialchars((string) ($row['description'] ?? '-')) ?></td>
-                                        <td class="text-center text-nowrap"><?= htmlspecialchars((string) ($row['expiration_date'] ?? '-')) ?></td>
-                                        <td class="text-end"><?= htmlspecialchars((string) ($row['quantity'] ?? '0')) ?></td>
-                                        <td class="text-center"><?= htmlspecialchars((string) ($row['unit'] ?? '-')) ?></td>
-                                        <td class="text-end"><span class="inventory-currency"><?= number_format((float)($row['unit_cost'] ?? 0), 2) ?></span></td>
-                                        <td class="text-end"><span class="inventory-currency"><?= number_format((float)($row['total_cost'] ?? 0), 2) ?></span></td>
-                                            <td><?= htmlspecialchars((string) ($row['recipient'] ?? '-')) ?></td>
-                                            <td><?= htmlspecialchars((string) ($row['ptr_no'] ?? '-')) ?></td>
+                                            <td class="col-out-program"><?= htmlspecialchars((string) ($row['program'] ?? '-')) ?></td>
+                                            <td class="col-out-po"><?= htmlspecialchars((string) ($row['po_no'] ?? '-')) ?></td>
+                                            <td class="col-out-date text-nowrap"><?= htmlspecialchars((string) ($row['date_released'] ?? '-')) ?></td>
+                                            <td class="col-out-desc"><?= htmlspecialchars((string) ($row['description'] ?? '-')) ?></td>
+                                            <td class="col-out-exp text-nowrap"><?= htmlspecialchars((string) ($row['expiration_date'] ?? '-')) ?></td>
+                                            <td class="col-out-qty"><?= htmlspecialchars((string) ($row['quantity'] ?? '0')) ?></td>
+                                            <td class="col-out-uom"><?= htmlspecialchars((string) ($row['unit'] ?? '-')) ?></td>
+                                            <td class="col-out-unit-cost"><span class="inventory-currency"><?= number_format((float) ($row['unit_cost'] ?? 0), 2) ?></span></td>
+                                            <td class="col-out-total-cost"><span class="inventory-currency"><?= number_format((float) ($row['total_cost'] ?? 0), 2) ?></span></td>
+                                            <td class="col-out-recipient"><?= htmlspecialchars((string) ($row['recipient'] ?? '-')) ?></td>
+                                            <td class="col-out-ptr"><?= htmlspecialchars((string) ($row['ptr_no'] ?? '-')) ?></td>
                                         </tr>
                                     <?php endforeach; ?>
                                 <?php endif; ?>
                             </tbody>
-                            <tfoot>
+                            <tfoot class="outbound-table-foot">
                                 <tr>
-                                    <td colspan="8" class="outbound-grand-label"><strong>Grand Total (Filtered):</strong></td>
+                                    <td colspan="8" class="outbound-grand-label"><strong>Grand total (filtered)</strong></td>
                                     <td class="outbound-grand-amount"><strong id="filteredGrandTotal"><?= formatMoney($totalReleasedAmount) ?></strong></td>
-                                    <td colspan="2"></td>
+                                    <td colspan="2" class="outbound-grand-spacer"></td>
                                 </tr>
                             </tfoot>
                         </table>
+                        </div>
                     </div>
-                </div>
                 </div>
             </div>
         </div>

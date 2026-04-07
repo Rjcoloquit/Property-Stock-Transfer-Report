@@ -150,6 +150,7 @@ try {
             <div class="app-header-actions">
                 <span class="app-user-chip"><?= htmlspecialchars($username) ?></span>
                 <a href="home.php" class="btn btn-outline-secondary btn-sm app-header-action-link">Home</a>
+                <a href="current_stock_report.php" class="btn btn-outline-secondary btn-sm app-header-action-link">Stock Report</a>
                 <a href="logout.php" class="btn btn-outline-secondary btn-sm app-header-action-link">Log out</a>
             </div>
         </div>

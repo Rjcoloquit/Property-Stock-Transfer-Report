@@ -212,6 +212,122 @@
         });
     }
 
-    animateCounters();
+    var itemSearchInput = document.getElementById('item_q');
+    var itemSuggestList = document.getElementById('itemSuggestList');
+    var itemSearchForm = document.querySelector('.dashboard-item-search-form');
+    if (itemSearchInput) {
+        var suggestTimer = null;
+        var suggestFetchSeq = 0;
+
+        function hideItemSuggest() {
+            if (itemSuggestList) {
+                itemSuggestList.classList.add('d-none');
+                itemSuggestList.innerHTML = '';
+            }
+            itemSearchInput.setAttribute('aria-expanded', 'false');
+        }
+
+        function showItemSuggest(items) {
+            if (!itemSuggestList || !Array.isArray(items) || items.length === 0) {
+                hideItemSuggest();
+                return;
+            }
+            itemSuggestList.innerHTML = '';
+            items.forEach(function (text, i) {
+                var btn = document.createElement('button');
+                btn.type = 'button';
+                btn.className = 'dashboard-item-suggest-item';
+                btn.setAttribute('role', 'option');
+                btn.id = 'item-suggest-opt-' + i;
+                btn.textContent = text;
+                btn.addEventListener('mousedown', function (e) {
+                    e.preventDefault();
+                });
+                btn.addEventListener('click', function () {
+                    itemSearchInput.value = text;
+                    hideItemSuggest();
+                    if (itemSearchForm) {
+                        itemSearchForm.submit();
+                    }
+                });
+                itemSuggestList.appendChild(btn);
+            });
+            itemSuggestList.classList.remove('d-none');
+            itemSearchInput.setAttribute('aria-expanded', 'true');
+        }
+
+        function loadItemSuggest() {
+            var v = itemSearchInput.value.trim();
+            if (v === '') {
+                hideItemSuggest();
+                return;
+            }
+            var seq = ++suggestFetchSeq;
+            fetch('item_search_suggest.php?q=' + encodeURIComponent(v), { credentials: 'same-origin' })
+                .then(function (r) {
+                    return r.json();
+                })
+                .then(function (data) {
+                    if (seq !== suggestFetchSeq) {
+                        return;
+                    }
+                    showItemSuggest(Array.isArray(data) ? data : []);
+                })
+                .catch(function () {
+                    if (seq === suggestFetchSeq) {
+                        hideItemSuggest();
+                    }
+                });
+        }
+
+        itemSearchInput.addEventListener('input', function () {
+            if (itemSearchInput.value.trim() === '') {
+                hideItemSuggest();
+                try {
+                    var url = new URL(window.location.href);
+                    if (!url.searchParams.has('item_q')) {
+                        return;
+                    }
+                    url.searchParams.delete('item_q');
+                    var qs = url.searchParams.toString();
+                    var next = url.pathname + (qs ? '?' + qs : '') + url.hash;
+                    window.location.replace(next);
+                } catch (e) {
+                    window.location.replace('home.php');
+                }
+                return;
+            }
+            if (suggestTimer) {
+                clearTimeout(suggestTimer);
+            }
+            suggestTimer = setTimeout(function () {
+                suggestTimer = null;
+                loadItemSuggest();
+            }, 200);
+        });
+
+        itemSearchInput.addEventListener('focus', function () {
+            if (itemSearchInput.value.trim() !== '') {
+                loadItemSuggest();
+            }
+        });
+
+        itemSearchInput.addEventListener('blur', function () {
+            setTimeout(hideItemSuggest, 200);
+        });
+
+        itemSearchInput.addEventListener('keydown', function (e) {
+            if (e.key === 'Escape') {
+                hideItemSuggest();
+            }
+        });
+    }
+
+    if (prefersReducedMotion) {
+        animateCounters();
+    } else {
+        /* Align with dashboard stat card entrance (style.css) */
+        window.setTimeout(animateCounters, 320);
+    }
     renderTrend('transactions');
 })();

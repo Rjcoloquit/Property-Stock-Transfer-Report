@@ -9,8 +9,11 @@ if (empty($_SESSION['user_id'])) {
 
 require_once __DIR__ . '/config/database.php';
 require_once __DIR__ . '/config/ptr_numbering.php';
+require_once __DIR__ . '/dashboard_inventory_helper.php';
 
 $username = $_SESSION['username'] ?? $_SESSION['full_name'] ?? 'User';
+$itemSearch = trim($_GET['item_q'] ?? '');
+$dashboardInventoryRows = [];
 $totalItems = 0;
 $totalTransactions = 0;
 $totalPtr = 0;
@@ -115,6 +118,15 @@ try {
         $chartAmounts[] = round((float) ($row['total_amount'] ?? 0), 2);
     }
 
+    try {
+        if ($itemSearch !== '') {
+            $dashboardInventoryRows = ptr_dashboard_inventory_rows($pdo, $itemSearch, 120, 500);
+        }
+    } catch (Throwable $inventoryLoadError) {
+        error_log('home.php: dashboard inventory rows: ' . $inventoryLoadError->getMessage());
+        $dashboardInventoryRows = [];
+    }
+
 } catch (PDOException $e) {
     $dashboardError = 'Unable to load dashboard data right now. Please check your database setup.';
 }
@@ -125,7 +137,7 @@ try {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Home - Supply</title>
-    <link rel="stylesheet" href="style.css?v=20260305">
+    <link rel="stylesheet" href="style.css?v=20260407navdash">
 </head>
 <body class="home-page">
     <header class="navbar navbar-expand-lg navbar-light bg-white app-header px-3 px-md-4">
@@ -142,6 +154,7 @@ try {
                 </span>
             </span>
             <div class="app-header-actions">
+                <a href="current_stock_report.php" class="btn btn-outline-secondary btn-sm app-header-action-link">Current Stock Report</a>
                 <span class="app-user-chip">
                     Signed in as <strong><?= htmlspecialchars($username) ?></strong>
                 </span>
@@ -159,9 +172,13 @@ try {
                 <div class="col-lg-3">
                     <div class="card app-card dashboard-sidebar">
                         <div class="card-body">
-                            <h2 class="h6 mb-1">Navigation Panel</h2>
-                            <p class="small text-muted mb-3">Quick access to core supply modules.</p>
-                            <nav class="dashboard-nav" aria-label="Dashboard navigation">
+                            <div class="dashboard-nav-panel-head">
+                                <h2 class="dashboard-nav-panel-title h6 mb-0">Navigation</h2>
+                                <p class="dashboard-nav-panel-desc small text-muted mb-0">Quick access to supply modules</p>
+                            </div>
+                            <nav class="dashboard-nav-wrap" aria-label="Dashboard navigation">
+                                <ul class="dashboard-nav list-unstyled mb-0" role="list">
+                                <li>
                                 <a href="create_ptr.php" class="dashboard-nav-link dashboard-nav-link-primary">
                                     <span class="dashboard-nav-title d-flex align-items-center justify-content-between gap-2 w-100">
                                         <span>Create New PTR</span>
@@ -169,47 +186,69 @@ try {
                                     </span>
                                     <span class="dashboard-nav-meta">Prepare and save a new property transfer report</span>
                                 </a>
-                                <a href="report.php" class="dashboard-nav-link">
-                                    <span class="dashboard-nav-title">Transaction History</span>
-                                    <span class="dashboard-nav-meta">Review and filter saved transactions</span>
-                                </a>
-                                <a href="outbound_summary_report.php" class="dashboard-nav-link">
-                                    <span class="dashboard-nav-title">Outbound Summary Report</span>
-                                    <span class="dashboard-nav-meta">Summary of released items and recipients</span>
-                                </a>
+                                </li>
+                                <li>
                                 <a href="pending_transactions.php" class="dashboard-nav-link">
                                     <span class="dashboard-nav-title">Pending Transactions</span>
                                     <span class="dashboard-nav-meta">Release PTR before stock deduction and printing</span>
                                 </a>
-                                <a href="stock_card.php" class="dashboard-nav-link">
-                                    <span class="dashboard-nav-title">Stock Card</span>
-                                    <span class="dashboard-nav-meta">Prepare stock card details and running balances</span>
+                                </li>
+                                <li>
+                                <a href="report.php" class="dashboard-nav-link">
+                                    <span class="dashboard-nav-title">Transaction History</span>
+                                    <span class="dashboard-nav-meta">Review and filter saved transactions</span>
                                 </a>
+                                </li>
+                                <li>
                                 <a href="item_list.php" class="dashboard-nav-link">
                                     <span class="dashboard-nav-title">Manage Items</span>
                                     <span class="dashboard-nav-meta">Maintain item descriptions and costs</span>
                                 </a>
+                                </li>
+                                <li>
                                 <a href="notifications.php" class="dashboard-nav-link">
                                     <span class="dashboard-nav-title">Notifications</span>
                                     <span class="dashboard-nav-meta">Track expiration alerts by priority</span>
                                 </a>
+                                </li>
+                                <li>
+                                <a href="stock_card.php" class="dashboard-nav-link">
+                                    <span class="dashboard-nav-title">Stock Card</span>
+                                    <span class="dashboard-nav-meta">Prepare stock card details and running balances</span>
+                                </a>
+                                </li>
+                                <li>
+                                <a href="current_stock_report.php" class="dashboard-nav-link">
+                                    <span class="dashboard-nav-title">Current Stock Report</span>
+                                    <span class="dashboard-nav-meta">View, filter, and print on-hand stock by batch</span>
+                                </a>
+                                </li>
+                                <li>
+                                <a href="outbound_summary_report.php" class="dashboard-nav-link">
+                                    <span class="dashboard-nav-title">Outbound Summary Report</span>
+                                    <span class="dashboard-nav-meta">Summary of released items and recipients</span>
+                                </a>
+                                </li>
+                                <li>
                                 <a href="incident_report.php" class="dashboard-nav-link">
                                     <span class="dashboard-nav-title">Incident Report</span>
                                     <span class="dashboard-nav-meta">Warehouse operations incident report (Annex 16)</span>
                                 </a>
+                                </li>
+                                </ul>
                             </nav>
                         </div>
                     </div>
                 </div>
-                <div class="col-lg-9">
-                    <div class="card app-card mb-3">
+                <div class="col-lg-9 dashboard-main">
+                    <div class="card app-card mb-3 dashboard-hero-card">
                         <div class="card-body">
                             <h1 class="h4 mb-1">Dashboard</h1>
                             <p class="text-muted mb-0">Welcome back, <?= htmlspecialchars($username) ?>. Here is your supply operations snapshot.</p>
                         </div>
                     </div>
 
-                    <div class="row g-3 mb-3">
+                    <div class="row g-3 mb-3 dashboard-stats-row">
                         <div class="col-md-6 col-xl-3">
                             <div class="card app-card dashboard-stat-card h-100">
                                 <div class="card-body">
@@ -244,9 +283,80 @@ try {
                         </div>
                     </div>
 
-                    <div class="row g-3 mb-3">
+                    <div class="dashboard-item-search-wrap position-relative mb-3">
+                        <form class="dashboard-item-search-form row g-2 mb-0" method="get" action="home.php" role="search">
+                            <div class="col-md-9 col-lg-10 inventory-search-bar">
+                                <label for="item_q" class="visually-hidden">Search items</label>
+                                <input
+                                    type="search"
+                                    name="item_q"
+                                    id="item_q"
+                                    class="form-control"
+                                    value="<?= htmlspecialchars($itemSearch) ?>"
+                                    placeholder="Search product description, batch number, PO number, or unit of measure"
+                                    autocomplete="off"
+                                    aria-autocomplete="list"
+                                    aria-controls="itemSuggestList"
+                                    aria-expanded="false"
+                                >
+                            </div>
+                            <div class="col-md-3 col-lg-2 d-grid">
+                                <button type="submit" class="btn btn-primary dashboard-item-search-submit">Search</button>
+                            </div>
+                        </form>
+                        <div id="itemSuggestList" class="dashboard-item-suggest-list d-none" role="listbox" aria-label="Matching items"></div>
+                    </div>
+
+                    <?php if ($itemSearch !== ''): ?>
+                        <?php if (empty($dashboardInventoryRows)): ?>
+                            <div class="inventory-empty-state mb-3 dashboard-dynamic-panel">
+                                <div class="inventory-empty-state-icon">📦</div>
+                                <div>
+                                    <strong>No items found</strong> for &ldquo;<?= htmlspecialchars($itemSearch) ?>&rdquo;.
+                                    <div class="small mt-2 text-muted">Clear the search box to return to the dashboard.</div>
+                                </div>
+                            </div>
+                        <?php else: ?>
+                            <div class="inventory-table-container mb-3 dashboard-dynamic-panel">
+                                <div class="inventory-stats">
+                                    Search results:
+                                    <span class="inventory-stats-value"><?= number_format(count($dashboardInventoryRows)) ?></span>
+                                </div>
+                                <div class="inventory-table-wrapper">
+                                    <table class="table inventory-table">
+                                        <thead>
+                                            <tr>
+                                                <th scope="col" class="col-description">Product Description</th>
+                                                <th scope="col" class="col-po-no">PO Number</th>
+                                                <th scope="col" class="col-batch">Batch Number</th>
+                                                <th scope="col" class="col-uom">UOM</th>
+                                                <th scope="col" class="col-stock">Stock</th>
+                                                <th scope="col" class="col-cost">Cost Per Unit</th>
+                                                <th scope="col" class="col-expiry">Expiry Date</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <?php foreach ($dashboardInventoryRows as $invRow): ?>
+                                                <tr>
+                                                    <td class="col-description"><?= htmlspecialchars((string) ($invRow['product_description'] ?? '-')) ?></td>
+                                                    <td class="col-po-no"><?= htmlspecialchars((string) (($invRow['po_no'] ?? '') !== '' ? $invRow['po_no'] : '-')) ?></td>
+                                                    <td class="col-batch"><?= htmlspecialchars((string) (($invRow['batch_number'] ?? '') !== '' ? $invRow['batch_number'] : '-')) ?></td>
+                                                    <td class="col-uom"><?= htmlspecialchars((string) ($invRow['uom'] ?? '-')) ?></td>
+                                                    <td class="col-stock"><?= number_format((int) ($invRow['stock'] ?? 0)) ?></td>
+                                                    <td class="col-cost"><span class="inventory-currency"><?= number_format((float) ($invRow['cost_per_unit'] ?? 0), 2) ?></span></td>
+                                                    <td class="col-expiry"><?= htmlspecialchars((string) (($invRow['expiry_date'] ?? '') !== '' ? $invRow['expiry_date'] : '-')) ?></td>
+                                                </tr>
+                                            <?php endforeach; ?>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        <?php endif; ?>
+                    <?php endif; ?>
+
+                    <div class="row g-3 mb-3 dashboard-charts-row">
                         <div class="col-lg-8">
-                            <div class="card app-card h-100">
+                            <div class="card app-card h-100 dashboard-chart-card">
                                 <div class="card-body">
                                     <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
                                         <h2 class="h6 mb-0">7-Day Activity Trend</h2>
@@ -264,7 +374,7 @@ try {
                             </div>
                         </div>
                         <div class="col-lg-4">
-                            <div class="card app-card h-100">
+                            <div class="card app-card h-100 dashboard-programs-card">
                                 <div class="card-body">
                                     <h2 class="h6 mb-3">Top Programs by Quantity</h2>
                                     <?php if (empty($topPrograms)): ?>
@@ -285,7 +395,7 @@ try {
                         </div>
                     </div>
 
-                    <div class="card app-card">
+                    <div class="card app-card dashboard-recent-card">
                         <div class="card-body">
                             <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
                                 <h2 class="h6 mb-0">Recent Transactions</h2>
@@ -303,7 +413,7 @@ try {
                                             <th class="tx-col-recipient">Recipient</th>
                                             <th class="tx-col-description">Description</th>
                                             <th class="tx-col-qty text-end">Qty</th>
-                                            <th class="tx-col-unit-cost text-end">Unit Cost</th>
+                                            <th class="tx-col-unit-cost text-center">Unit Cost</th>
                                             <th class="tx-col-amount text-end">Amount</th>
                                         </tr>
                                     </thead>
@@ -324,7 +434,7 @@ try {
                                                         <?= htmlspecialchars((string) ($row['description'] ?? '-')) ?>
                                                     </td>
                                                     <td class="tx-col-qty text-end text-nowrap"><?= number_format((int) ($row['quantity'] ?? 0)) ?></td>
-                                                    <td class="tx-col-unit-cost text-end text-nowrap"><?= number_format((float) ($row['unit_cost'] ?? 0), 2) ?></td>
+                                                    <td class="tx-col-unit-cost text-center text-nowrap"><?= number_format((float) ($row['unit_cost'] ?? 0), 2) ?></td>
                                                     <td class="tx-col-amount text-end text-nowrap"><?= number_format((float) ($row['quantity'] ?? 0) * (float) ($row['unit_cost'] ?? 0), 2) ?></td>
                                                 </tr>
                                             <?php endforeach; ?>
@@ -350,6 +460,6 @@ try {
         };
     </script>
     <script src="assets/js/smooth_motion.js?v=20260325"></script>
-    <script src="assets/js/home.js"></script>
+    <script src="assets/js/home.js?v=20260407dashanim"></script>
 </body>
 </html>

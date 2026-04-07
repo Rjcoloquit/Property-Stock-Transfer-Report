@@ -47,7 +47,6 @@ body {
 /* Keep interactions GPU-friendly and consistent for high frame-rate feel */
 .btn,
 .app-card,
-.dashboard-nav-link,
 .inventory-action-btn,
 .inventory-add-btn,
 .inventory-table tbody tr {
@@ -58,7 +57,6 @@ body {
 
 .btn:hover,
 .app-card:hover,
-.dashboard-nav-link:hover,
 .inventory-action-btn:hover,
 .inventory-add-btn:hover {
     will-change: transform;
@@ -680,6 +678,13 @@ a,
     font-weight: 500;
 }
 
+.inventory-table .col-po-no {
+    width: 130px;
+    text-align: center;
+    font-size: 0.875rem;
+    font-weight: 500;
+}
+
 .inventory-table .col-batch {
     width: 130px;
     text-align: center;
@@ -704,7 +709,7 @@ a,
 
 .inventory-table .col-cost {
     width: 120px;
-    text-align: right;
+    text-align: center;
     font-weight: 500;
     font-size: 0.875rem;
 }
@@ -973,71 +978,250 @@ a,
 .dashboard-sidebar {
     position: sticky;
     top: 1rem;
+    overflow: hidden;
 }
 
 .dashboard-sidebar .card-body {
-    background: linear-gradient(180deg, rgba(40, 128, 75, 0.06), rgba(40, 128, 75, 0.02));
-    border-radius: 0.75rem;
+    padding: 1.1rem 1rem 1.15rem;
+    background: linear-gradient(165deg, rgba(40, 128, 75, 0.07) 0%, rgba(255, 255, 255, 0.92) 38%, #ffffff 100%);
+    border-radius: inherit;
+}
+
+.dashboard-nav-panel-head {
+    padding-bottom: 0.85rem;
+    margin-bottom: 0.65rem;
+    border-bottom: 1px solid var(--app-border);
+}
+
+/* Navigation entrance animation (skipped when user prefers reduced motion) */
+@media (prefers-reduced-motion: no-preference) {
+    @keyframes dashboard-nav-head-in {
+        from {
+            opacity: 0;
+            transform: translate3d(0, -12px, 0);
+        }
+        to {
+            opacity: 1;
+            transform: translate3d(0, 0, 0);
+        }
+    }
+
+    @keyframes dashboard-nav-item-in {
+        from {
+            opacity: 0;
+            transform: translate3d(-14px, 6px, 0);
+        }
+        to {
+            opacity: 1;
+            transform: translate3d(0, 0, 0);
+        }
+    }
+
+    @keyframes dashboard-nav-primary-glow {
+        0% {
+            box-shadow: 0 2px 12px rgba(40, 128, 75, 0.12);
+        }
+        40% {
+            box-shadow: 0 4px 22px rgba(40, 128, 75, 0.22);
+        }
+        100% {
+            box-shadow: 0 2px 12px rgba(40, 128, 75, 0.12);
+        }
+    }
+
+    .dashboard-nav-panel-head {
+        opacity: 0;
+        animation: dashboard-nav-head-in 0.55s var(--app-ease) forwards;
+    }
+
+    .dashboard-nav > li {
+        opacity: 0;
+        animation: dashboard-nav-item-in 0.48s var(--app-ease) forwards;
+    }
+
+    .dashboard-nav > li:nth-child(1) {
+        animation-delay: 0.08s;
+    }
+    .dashboard-nav > li:nth-child(2) {
+        animation-delay: 0.13s;
+    }
+    .dashboard-nav > li:nth-child(3) {
+        animation-delay: 0.18s;
+    }
+    .dashboard-nav > li:nth-child(4) {
+        animation-delay: 0.23s;
+    }
+    .dashboard-nav > li:nth-child(5) {
+        animation-delay: 0.28s;
+    }
+    .dashboard-nav > li:nth-child(6) {
+        animation-delay: 0.33s;
+    }
+    .dashboard-nav > li:nth-child(7) {
+        animation-delay: 0.38s;
+    }
+    .dashboard-nav > li:nth-child(8) {
+        animation-delay: 0.43s;
+    }
+    .dashboard-nav > li:nth-child(9) {
+        animation-delay: 0.48s;
+    }
+    .dashboard-nav > li:nth-child(10) {
+        animation-delay: 0.53s;
+    }
+    .dashboard-nav > li:nth-child(11) {
+        animation-delay: 0.58s;
+    }
+    .dashboard-nav > li:nth-child(12) {
+        animation-delay: 0.63s;
+    }
+
+    .dashboard-nav-link-primary {
+        animation: dashboard-nav-primary-glow 1.15s ease-in-out 0.65s 1;
+    }
+}
+
+.dashboard-nav-panel-title {
+    font-family: "Libre Baskerville", "DM Sans", "Segoe UI", sans-serif;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    color: var(--app-text);
+}
+
+.dashboard-nav-panel-desc {
+    margin-top: 0.35rem !important;
+    line-height: 1.35;
+    color: var(--app-text-soft) !important;
+}
+
+.dashboard-nav-wrap {
+    margin: 0;
 }
 
 .dashboard-nav {
     display: flex;
     flex-direction: column;
-    gap: 10px;
+    gap: 8px;
+}
+
+.dashboard-nav > li {
+    margin: 0;
 }
 
 .dashboard-nav-link {
+    position: relative;
     display: flex;
     flex-direction: column;
-    gap: 2px;
-    padding: 10px 12px;
-    border-radius: 10px;
-    border: 1px solid #d8eadd;
-    background: #ffffff;
+    gap: 3px;
+    padding: 11px 2.15rem 11px 13px;
+    border-radius: var(--app-radius);
+    border: 1px solid var(--app-border);
+    background: var(--app-surface);
     text-decoration: none;
-    transition: border-color 0.24s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.24s cubic-bezier(0.22, 1, 0.36, 1), transform 0.24s cubic-bezier(0.22, 1, 0.36, 1), background-color 0.24s ease;
-    will-change: transform, box-shadow;
+    color: inherit;
+    box-shadow: 0 1px 0 rgba(40, 128, 75, 0.04);
+    transition:
+        border-color var(--app-ease),
+        box-shadow var(--app-ease),
+        transform var(--app-ease),
+        background-color var(--app-ease);
+}
+
+.dashboard-nav-link::after {
+    content: "";
+    position: absolute;
+    right: 14px;
+    top: 50%;
+    width: 6px;
+    height: 6px;
+    margin-top: -3px;
+    border-right: 2px solid var(--app-border-strong);
+    border-bottom: 2px solid var(--app-border-strong);
+    transform: translate3d(0, 0, 0) rotate(-45deg);
+    opacity: 0.85;
+    transition:
+        border-color var(--app-ease),
+        opacity var(--app-ease),
+        transform 0.35s var(--app-hover-ease);
+    pointer-events: none;
 }
 
 .dashboard-nav-link:hover {
-    border-color: #28804b;
-    box-shadow: 0 10px 20px rgba(40, 128, 75, 0.15);
-    transform: translateY(-1px);
+    border-color: rgba(40, 128, 75, 0.55);
+    box-shadow: var(--app-shadow-sm);
+    transform: translate3d(0, -1px, 0);
+    background: #fff;
+}
+
+.dashboard-nav-link:hover::after {
+    border-right-color: var(--bs-primary);
+    border-bottom-color: var(--bs-primary);
+    opacity: 1;
+    transform: translate3d(4px, 0, 0) rotate(-45deg);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .dashboard-nav-link::after {
+        transition: border-color var(--app-ease), opacity var(--app-ease);
+    }
+
+    .dashboard-nav-link:hover::after {
+        transform: rotate(-45deg);
+    }
+}
+
+.dashboard-nav-link:focus-visible {
+    outline: 2px solid rgba(40, 128, 75, 0.45);
+    outline-offset: 2px;
+    box-shadow: 0 0 0 3px rgba(40, 128, 75, 0.18);
 }
 
 .dashboard-nav-link-primary {
-    border-color: #28804b;
-    background: linear-gradient(180deg, #f3fbf6 0%, #ffffff 100%);
+    border-color: rgba(40, 128, 75, 0.45);
+    background: linear-gradient(145deg, #eaf6ef 0%, #ffffff 72%);
+    box-shadow: 0 2px 12px rgba(40, 128, 75, 0.12);
+}
+
+.dashboard-nav-link-primary::after {
+    display: none;
+}
+
+.dashboard-nav-link-primary:hover {
+    border-color: var(--bs-primary);
+    box-shadow: 0 8px 22px rgba(40, 128, 75, 0.18);
 }
 
 .dashboard-nav-title {
     font-family: "DM Sans", "Segoe UI", sans-serif;
-    font-weight: 700;
-    color: #1f3b2d;
-    font-size: 0.92rem;
+    font-weight: 600;
+    color: var(--app-text);
+    font-size: 0.9rem;
+    line-height: 1.25;
 }
 
 .dashboard-nav-meta {
     font-family: "DM Sans", "Segoe UI", sans-serif;
-    color: #5a7464;
-    font-size: 0.74rem;
+    color: var(--app-text-soft);
+    font-size: 0.72rem;
+    line-height: 1.35;
 }
 
 .dashboard-nav-icon {
-    width: 22px;
-    height: 22px;
+    flex-shrink: 0;
+    width: 24px;
+    height: 24px;
     border-radius: 999px;
-    background: #28804b;
+    background: var(--bs-primary);
     color: #fff;
     display: inline-grid;
     place-items: center;
-    font-size: 1rem;
+    font-size: 1.05rem;
     font-weight: 700;
-    font-family: Arial, "Segoe UI", sans-serif;
+    font-family: "DM Sans", "Segoe UI", sans-serif;
     line-height: 1;
     text-align: center;
     padding: 0;
-    transform: translateY(-0.5px);
+    box-shadow: 0 1px 4px rgba(40, 128, 75, 0.35);
 }
 
 .dashboard-stat-card:hover {
@@ -1060,6 +1244,87 @@ a,
     color: #1f3b2d;
 }
 
+/* Dashboard main column — staggered entrance (home only; respects reduced motion) */
+@media (prefers-reduced-motion: no-preference) {
+    @keyframes dashboard-main-in {
+        from {
+            opacity: 0;
+            transform: translate3d(0, 20px, 0);
+        }
+        to {
+            opacity: 1;
+            transform: translate3d(0, 0, 0);
+        }
+    }
+
+    @keyframes dashboard-main-in-tight {
+        from {
+            opacity: 0;
+            transform: translate3d(0, 14px, 0);
+        }
+        to {
+            opacity: 1;
+            transform: translate3d(0, 0, 0);
+        }
+    }
+
+    .home-page .dashboard-hero-card {
+        opacity: 0;
+        animation: dashboard-main-in 0.58s var(--app-ease) forwards;
+        animation-delay: 0.04s;
+    }
+
+    .home-page .dashboard-stats-row .dashboard-stat-card {
+        opacity: 0;
+        animation: dashboard-main-in-tight 0.52s var(--app-ease) forwards;
+    }
+
+    .home-page .dashboard-stats-row .col-md-6:nth-child(1) .dashboard-stat-card {
+        animation-delay: 0.1s;
+    }
+    .home-page .dashboard-stats-row .col-md-6:nth-child(2) .dashboard-stat-card {
+        animation-delay: 0.15s;
+    }
+    .home-page .dashboard-stats-row .col-md-6:nth-child(3) .dashboard-stat-card {
+        animation-delay: 0.2s;
+    }
+    .home-page .dashboard-stats-row .col-md-6:nth-child(4) .dashboard-stat-card {
+        animation-delay: 0.25s;
+    }
+
+    .home-page .dashboard-item-search-wrap {
+        opacity: 0;
+        animation: dashboard-main-in-tight 0.52s var(--app-ease) forwards;
+        animation-delay: 0.3s;
+    }
+
+    .home-page .dashboard-dynamic-panel {
+        opacity: 0;
+        animation: dashboard-main-in-tight 0.48s var(--app-ease) forwards;
+        animation-delay: 0.36s;
+    }
+
+    .home-page .dashboard-chart-card,
+    .home-page .dashboard-programs-card {
+        opacity: 0;
+        animation: dashboard-main-in 0.56s var(--app-ease) forwards;
+    }
+
+    .home-page .dashboard-chart-card {
+        animation-delay: 0.36s;
+    }
+
+    .home-page .dashboard-programs-card {
+        animation-delay: 0.42s;
+    }
+
+    .home-page .dashboard-recent-card {
+        opacity: 0;
+        animation: dashboard-main-in 0.56s var(--app-ease) forwards;
+        animation-delay: 0.48s;
+    }
+}
+
 .recent-tx-table-wrap {
     border: 1px solid #e1ebe4;
     border-radius: 10px;
@@ -1069,6 +1334,8 @@ a,
 .recent-tx-table {
     font-family: "DM Sans", "Segoe UI", sans-serif;
     table-layout: fixed;
+    width: 100%;
+    min-width: 720px;
     margin-bottom: 0;
 }
 
@@ -1088,13 +1355,51 @@ a,
     vertical-align: middle;
 }
 
-.recent-tx-table .tx-col-date { width: 110px; }
-.recent-tx-table .tx-col-ptr { width: 90px; }
-.recent-tx-table .tx-col-recipient { width: 190px; }
-.recent-tx-table .tx-col-description { width: 290px; }
-.recent-tx-table .tx-col-qty { width: 80px; }
-.recent-tx-table .tx-col-unit-cost { width: 100px; }
-.recent-tx-table .tx-col-amount { width: 110px; }
+.recent-tx-table .tx-col-date {
+    width: 108px;
+    min-width: 108px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.recent-tx-table .tx-col-ptr {
+    width: 168px;
+    min-width: 168px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.recent-tx-table .tx-col-recipient {
+    width: 22%;
+    min-width: 140px;
+    overflow: hidden;
+}
+
+.recent-tx-table .tx-col-description {
+    width: 26%;
+    min-width: 120px;
+    overflow: hidden;
+}
+
+.recent-tx-table .tx-col-qty {
+    width: 72px;
+    min-width: 72px;
+    text-align: right;
+}
+
+.recent-tx-table .tx-col-unit-cost {
+    width: 96px;
+    min-width: 96px;
+    text-align: center;
+}
+
+.recent-tx-table .tx-col-amount {
+    width: 104px;
+    min-width: 104px;
+    text-align: right;
+}
 
 .tx-ellipsis {
     overflow: hidden;
@@ -1104,6 +1409,55 @@ a,
 
 .recent-tx-filter-input {
     max-width: 280px;
+}
+
+.dashboard-item-search-submit {
+    min-height: 44px;
+    font-weight: 600;
+    border-radius: 8px;
+}
+
+.dashboard-item-suggest-list {
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 100%;
+    z-index: 1080;
+    margin-top: 4px;
+    max-height: 260px;
+    overflow-y: auto;
+    background: #fff;
+    border: 1px solid #d8e6dc;
+    border-radius: 8px;
+    box-shadow: 0 8px 24px rgba(31, 59, 45, 0.12);
+}
+
+.dashboard-item-suggest-item {
+    display: block;
+    width: 100%;
+    padding: 0.45rem 0.75rem;
+    border: 0;
+    background: transparent;
+    text-align: left;
+    font-size: 0.875rem;
+    color: #1f3b2d;
+    cursor: pointer;
+    border-bottom: 1px solid #eef4f0;
+}
+
+.dashboard-item-suggest-item:last-child {
+    border-bottom: 0;
+}
+
+.dashboard-item-suggest-item:hover,
+.dashboard-item-suggest-item:focus {
+    background: #f0f7f3;
+    outline: none;
+}
+
+.dashboard-item-suggest-item:focus-visible {
+    outline: 2px solid #287f4b;
+    outline-offset: -2px;
 }
 
 .report-tx-table-wrap {
@@ -1837,13 +2191,14 @@ a,
 
 /* Outbound summary report */
 .outbound-filter-card {
-    background: linear-gradient(180deg, #f8fbf9 0%, #f2f8f5 100%);
+    background: linear-gradient(165deg, rgba(40, 128, 75, 0.05) 0%, #ffffff 55%);
     border: 1px solid var(--app-border);
-    border-radius: 10px;
+    border-radius: var(--app-radius);
+    box-shadow: var(--app-shadow-sm);
 }
 
 .outbound-filter-card .card-body {
-    padding: 0.95rem 1rem;
+    padding: 1rem 1.1rem 1.05rem;
 }
 
 .outbound-kpi-chip {
@@ -1895,6 +2250,136 @@ a,
 .outbound-empty-row td {
     text-align: center;
     color: #6d7f75;
+}
+
+/* Outbound table — match inventory-table system (screen) */
+.outbound-page .outbound-table-shell {
+    border: 1px solid var(--app-border);
+    border-radius: var(--app-radius);
+    box-shadow: var(--app-shadow-sm);
+    background: var(--app-surface);
+    overflow: hidden;
+}
+
+.outbound-page .outbound-table-shell .inventory-table-wrapper {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    border-radius: 0;
+    max-width: 100%;
+}
+
+/* Fit within the app card: full width, no forced horizontal min-width */
+.outbound-page .outbound-table {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    table-layout: fixed;
+    font-size: 0.8125rem;
+}
+
+.outbound-page .outbound-table thead th {
+    white-space: normal;
+    word-break: break-word;
+    padding: 0.65rem 0.45rem;
+    line-height: 1.25;
+}
+
+.outbound-page .outbound-table tbody td {
+    padding: 0.55rem 0.45rem;
+    line-height: 1.35;
+}
+
+.outbound-page .outbound-table .col-out-program {
+    width: 11%;
+    min-width: 0;
+    text-align: left;
+}
+
+.outbound-page .outbound-table .col-out-po {
+    width: 5.5%;
+    text-align: center;
+}
+
+.outbound-page .outbound-table .col-out-date {
+    width: 7.5%;
+    text-align: center;
+}
+
+.outbound-page .outbound-table .col-out-desc {
+    width: 22%;
+    min-width: 0;
+    text-align: left;
+    word-break: break-word;
+    overflow-wrap: break-word;
+}
+
+.outbound-page .outbound-table .col-out-exp {
+    width: 6.5%;
+    text-align: center;
+}
+
+.outbound-page .outbound-table .col-out-qty {
+    width: 5%;
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+}
+
+.outbound-page .outbound-table .col-out-uom {
+    width: 4.5%;
+    text-align: center;
+}
+
+.outbound-page .outbound-table .col-out-unit-cost {
+    width: 7.5%;
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+}
+
+.outbound-page .outbound-table .col-out-total-cost {
+    width: 8.5%;
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+}
+
+.outbound-page .outbound-table .col-out-recipient {
+    width: 13%;
+    min-width: 0;
+    text-align: left;
+    word-break: break-word;
+    overflow-wrap: break-word;
+}
+
+.outbound-page .outbound-table .col-out-ptr {
+    width: 8%;
+    text-align: center;
+}
+
+.outbound-page .outbound-table-foot td {
+    background: linear-gradient(180deg, #e8f3ec 0%, #f4faf7 100%) !important;
+    border-top: 2px solid var(--bs-primary) !important;
+    font-weight: 700;
+    color: var(--app-text);
+    padding-top: 0.75rem !important;
+    padding-bottom: 0.75rem !important;
+}
+
+.outbound-page .outbound-grand-label {
+    text-align: right !important;
+}
+
+.outbound-page .outbound-grand-amount {
+    text-align: right !important;
+    color: var(--bs-primary) !important;
+    font-variant-numeric: tabular-nums;
+}
+
+.outbound-page .outbound-grand-spacer {
+    background: linear-gradient(180deg, #e8f3ec 0%, #f4faf7 100%) !important;
+    border-top: 2px solid var(--bs-primary) !important;
+}
+
+.outbound-page .print-only {
+    display: none;
 }
 
 /* Create PTR */
@@ -2082,6 +2567,426 @@ a,
 
     .create-ptr-page .ptr-draft-info-grid {
         grid-template-columns: 1fr;
+    }
+}
+
+/* Current Stock Report — on-screen table layout (logos: print only) */
+.stock-report-page .stock-report-table-shell .stock-report-table-scroll {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
+.stock-report-page .stock-report-table.inventory-table {
+    width: 100%;
+    min-width: 720px;
+    margin-bottom: 0;
+    table-layout: fixed;
+}
+
+.stock-report-page .stock-report-table.inventory-table .col-description {
+    width: 36%;
+    min-width: 200px;
+    max-width: none !important;
+    word-break: break-word;
+}
+
+.stock-report-page .stock-report-table.inventory-table .col-batch {
+    width: 18%;
+    min-width: 104px;
+}
+
+.stock-report-page .stock-report-table.inventory-table .col-uom {
+    width: 12%;
+    min-width: 76px;
+}
+
+.stock-report-page .stock-report-table.inventory-table .col-stock {
+    width: 14%;
+    min-width: 80px;
+    text-align: right !important;
+    font-variant-numeric: tabular-nums;
+}
+
+.stock-report-page .stock-report-table.inventory-table .col-expiry {
+    width: 20%;
+    min-width: 104px;
+    text-align: center !important;
+}
+
+.stock-report-page .stock-report-table.inventory-table .col-batch,
+.stock-report-page .stock-report-table.inventory-table .col-uom {
+    text-align: center !important;
+}
+
+.stock-report-page .stock-report-table.inventory-table thead th {
+    vertical-align: middle;
+}
+
+.stock-report-page .stock-report-table.inventory-table thead th.col-description {
+    text-align: left;
+}
+
+.stock-report-page .stock-report-table.inventory-table thead th.col-batch,
+.stock-report-page .stock-report-table.inventory-table thead th.col-uom,
+.stock-report-page .stock-report-table.inventory-table thead th.col-expiry {
+    text-align: center;
+}
+
+.stock-report-page .stock-report-table.inventory-table thead th.col-stock {
+    text-align: right;
+}
+
+.stock-report-page .stock-report-table.inventory-table tbody td {
+    vertical-align: top;
+}
+
+.stock-report-page .stock-report-table.inventory-table tbody td.col-description {
+    text-align: left;
+}
+
+/* Current Stock Report — print layout */
+@media print {
+    body.stock-report-page {
+        background: #fff !important;
+        color: #1f3b2d !important;
+        font-family: "DM Sans", "Segoe UI", sans-serif !important;
+        font-size: 10pt;
+        line-height: 1.35;
+    }
+
+    body.stock-report-page .no-print {
+        display: none !important;
+    }
+
+    body.stock-report-page .stock-report-print-header.d-none {
+        display: block !important;
+        margin-bottom: 1rem;
+        break-after: avoid;
+        page-break-after: avoid;
+    }
+
+    body.stock-report-page .stock-report-print-letterhead {
+        display: grid;
+        grid-template-columns: 1fr auto 1fr;
+        align-items: center;
+        column-gap: 0.4rem;
+        row-gap: 0.5rem;
+        margin-bottom: 0.5rem;
+    }
+
+    body.stock-report-page .stock-report-print-logo-slot {
+        display: flex;
+        align-items: center;
+        min-width: 0;
+    }
+
+    /* Logos sit on the inner edges so they read closer to the centered titles */
+    body.stock-report-page .stock-report-print-logo-slot:first-child {
+        justify-content: flex-end;
+        padding-right: 0.15rem;
+    }
+
+    body.stock-report-page .stock-report-print-logo-slot:last-child {
+        justify-content: flex-start;
+        padding-left: 0.15rem;
+    }
+
+    body.stock-report-page .stock-report-print-logo-img {
+        max-width: 76px !important;
+        max-height: 76px !important;
+        width: auto !important;
+        height: auto !important;
+        object-fit: contain;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+    }
+
+    body.stock-report-page .stock-report-print-titles {
+        text-align: center;
+        min-width: 0;
+    }
+
+    body.stock-report-page .stock-report-print-org {
+        font-size: 16pt;
+        font-weight: 700;
+        color: #1f3b2d !important;
+        letter-spacing: 0.02em;
+    }
+
+    body.stock-report-page .stock-report-print-doc-title {
+        font-size: 13pt;
+        font-weight: 700;
+        margin-top: 0.2rem;
+        color: #1f3b2d !important;
+    }
+
+    body.stock-report-page .stock-report-print-subtitle {
+        font-size: 9pt;
+        color: #444 !important;
+        margin-top: 0.15rem;
+    }
+
+    body.stock-report-page .stock-report-print-rule {
+        border: none;
+        border-top: 2pt solid #287f4b;
+        margin: 0.65rem 0 0.85rem;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+    }
+
+    body.stock-report-page .stock-report-print-meta {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 0.35rem 1.25rem;
+        margin: 0 0 0.85rem;
+        padding: 0;
+        font-size: 9pt;
+    }
+
+    body.stock-report-page .stock-report-print-meta-row {
+        display: flex;
+        flex-direction: column;
+        gap: 0.1rem;
+        margin: 0;
+    }
+
+    body.stock-report-page .stock-report-print-meta dt {
+        font-weight: 700;
+        color: #2d4a3e !important;
+        margin: 0;
+        font-size: 8pt;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+    }
+
+    body.stock-report-page .stock-report-print-meta dd {
+        margin: 0;
+        color: #222 !important;
+    }
+
+    body.stock-report-page .stock-report-print-filters {
+        font-size: 9pt;
+        padding: 0.5rem 0.65rem;
+        margin-bottom: 0.85rem;
+        border: 0.75pt solid #bfd8ca;
+        background: #f3faf6 !important;
+        color: #1f3b2d !important;
+        border-radius: 2px;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+    }
+
+    body.stock-report-page main {
+        padding-top: 0 !important;
+        padding-bottom: 0 !important;
+    }
+
+    body.stock-report-page .container,
+    body.stock-report-page .stock-report-main {
+        max-width: 100% !important;
+        width: 100% !important;
+        padding: 0 !important;
+        margin: 0 !important;
+    }
+
+    /* Single on-screen card; for print, drop chrome so only letterhead + table remain */
+    body.stock-report-page .stock-report-main .app-card {
+        border: none !important;
+        box-shadow: none !important;
+        background: transparent !important;
+        border-radius: 0 !important;
+    }
+
+    body.stock-report-page .stock-report-main .app-card .card-body {
+        padding: 0 !important;
+    }
+
+    body.stock-report-page .stock-report-table-shell {
+        box-shadow: none !important;
+        border: none !important;
+        background: transparent !important;
+        margin: 0 !important;
+    }
+
+    body.stock-report-page .stock-report-table-scroll {
+        overflow: visible !important;
+        border-radius: 0 !important;
+    }
+
+    /*
+     * Print table: matches app inventory styling (green borders, DM Sans),
+     * width 100% within @page margins — no min-width overflow.
+     */
+    body.stock-report-page .stock-report-table.inventory-table {
+        width: 100% !important;
+        max-width: 100% !important;
+        min-width: 0 !important;
+        table-layout: fixed;
+        font-family: "DM Sans", "Segoe UI", sans-serif !important;
+        font-size: 8.75pt;
+        line-height: 1.35;
+        border-collapse: separate !important;
+        border-spacing: 0 !important;
+        background: var(--app-surface, #fff) !important;
+        border-top: 0.5pt solid #7a9e8c !important;
+        border-left: 0.5pt solid #7a9e8c !important;
+        border-right: none !important;
+        border-bottom: none !important;
+        box-shadow: none !important;
+        color: #1f3b2d !important;
+        --bs-table-border-color: #7a9e8c;
+    }
+
+    body.stock-report-page .stock-report-table.inventory-table > :not(caption) > * > * {
+        box-shadow: none !important;
+    }
+
+    body.stock-report-page .stock-report-table.inventory-table thead tr,
+    body.stock-report-page .stock-report-table.inventory-table tbody tr {
+        border: 0 !important;
+    }
+
+    body.stock-report-page .stock-report-table.inventory-table thead {
+        display: table-header-group;
+        background: #e8f3ec !important;
+        background-image: none !important;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+    }
+
+    body.stock-report-page .stock-report-table.inventory-table thead th {
+        color: #1f3b2d !important;
+        font-weight: 700;
+        font-size: 7.75pt;
+        text-transform: uppercase;
+        letter-spacing: 0.055em;
+        padding: 0.3rem 0.35rem !important;
+        border-top: none !important;
+        border-left: none !important;
+        border-right: 0.5pt solid #7a9e8c !important;
+        border-bottom: 0.75pt solid #28804b !important;
+        vertical-align: middle !important;
+        white-space: normal;
+        word-break: break-word;
+        overflow-wrap: break-word;
+        background: #e8f3ec !important;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+    }
+
+    body.stock-report-page .stock-report-table.inventory-table tbody td {
+        padding: 0.3rem 0.35rem !important;
+        border-top: none !important;
+        border-left: none !important;
+        border-right: 0.5pt solid #7a9e8c !important;
+        border-bottom: 0.5pt solid #7a9e8c !important;
+        color: #1f3b2d !important;
+        vertical-align: middle !important;
+        word-break: break-word;
+        overflow-wrap: break-word;
+        background-clip: padding-box !important;
+    }
+
+    body.stock-report-page .stock-report-table.inventory-table tbody td.col-description {
+        text-align: left !important;
+        vertical-align: top !important;
+        white-space: normal !important;
+        hyphens: auto;
+    }
+
+    body.stock-report-page .stock-report-table.inventory-table tbody td.col-uom,
+    body.stock-report-page .stock-report-table.inventory-table tbody td.col-stock {
+        white-space: nowrap;
+    }
+
+    body.stock-report-page .stock-report-table.inventory-table tbody tr {
+        background: #ffffff !important;
+        border: none !important;
+        border-top: none !important;
+        border-bottom: none !important;
+        box-shadow: none !important;
+        outline: none !important;
+        page-break-inside: auto;
+    }
+
+    body.stock-report-page .stock-report-table.inventory-table tbody tr:nth-child(even) {
+        background: rgba(40, 128, 75, 0.04) !important;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+    }
+
+    /* Column share fits printable width (same ratios as on-screen inventory) */
+    body.stock-report-page .stock-report-table .col-description {
+        width: 34%;
+    }
+
+    body.stock-report-page .stock-report-table .col-batch {
+        width: 19%;
+    }
+
+    body.stock-report-page .stock-report-table .col-uom {
+        width: 11%;
+    }
+
+    body.stock-report-page .stock-report-table .col-stock {
+        width: 13%;
+        text-align: center !important;
+        font-variant-numeric: tabular-nums;
+    }
+
+    body.stock-report-page .stock-report-table .col-expiry {
+        width: 23%;
+        text-align: center !important;
+        white-space: normal;
+    }
+
+    body.stock-report-page .stock-report-table .col-batch,
+    body.stock-report-page .stock-report-table .col-uom {
+        text-align: center !important;
+    }
+
+    body.stock-report-page .stock-report-table.inventory-table thead th.col-description {
+        text-align: left !important;
+    }
+
+    body.stock-report-page .stock-report-table.inventory-table thead th.col-batch,
+    body.stock-report-page .stock-report-table.inventory-table thead th.col-uom,
+    body.stock-report-page .stock-report-table.inventory-table thead th.col-expiry {
+        text-align: center !important;
+    }
+
+    body.stock-report-page .stock-report-table.inventory-table thead th.col-stock {
+        text-align: center !important;
+    }
+
+    body.stock-report-page .stock-report-table.inventory-table tbody td.col-stock {
+        text-align: center !important;
+    }
+
+    body.stock-report-page .stock-report-table.inventory-table tbody td[colspan] {
+        vertical-align: middle !important;
+        text-align: center !important;
+        white-space: normal !important;
+        border-top: none !important;
+        border-left: none !important;
+        border-right: 0.5pt solid #7a9e8c !important;
+        border-bottom: 0.5pt solid #7a9e8c !important;
+        padding: 0.65rem 0.35rem !important;
+        color: #567364 !important;
+    }
+
+    body.stock-report-page .stock-report-print-footer.d-none {
+        display: block !important;
+        margin-top: 1rem;
+        padding-top: 0.5rem;
+        font-size: 9pt;
+        font-family: "DM Sans", "Segoe UI", sans-serif !important;
+        color: #567364 !important;
+        border-top: 0.5pt solid var(--app-border-strong, #bfd8ca);
+    }
+
+    @page {
+        margin: 12mm 10mm;
     }
 }
 
