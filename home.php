@@ -14,6 +14,7 @@ require_once __DIR__ . '/dashboard_inventory_helper.php';
 $username = $_SESSION['username'] ?? $_SESSION['full_name'] ?? 'User';
 $itemSearch = trim($_GET['item_q'] ?? '');
 $dashboardInventoryRows = [];
+$expiredNotificationsCount = 0;
 $totalItems = 0;
 $totalTransactions = 0;
 $totalPtr = 0;
@@ -64,6 +65,34 @@ try {
         $pdo->exec('ALTER TABLE inventory_records ADD COLUMN released_at DATETIME DEFAULT NULL AFTER release_status');
     }
     normalizeExistingPtrNumbers($pdo);
+
+    $hasProductsExpiryDate = false;
+    $hasProductBatchesTable = false;
+    $expiryColumnStmt = $pdo->query("SHOW COLUMNS FROM products LIKE 'expiry_date'");
+    if ($expiryColumnStmt && $expiryColumnStmt->fetch()) {
+        $hasProductsExpiryDate = true;
+    }
+    $batchTableStmt = $pdo->query("SHOW TABLES LIKE 'product_batches'");
+    if ($batchTableStmt && $batchTableStmt->fetch()) {
+        $hasProductBatchesTable = true;
+    }
+
+    if ($hasProductBatchesTable) {
+        $expiredNotificationsCount = (int) $pdo->query('
+            SELECT COUNT(*)
+            FROM product_batches b
+            INNER JOIN products p ON p.id = b.product_id
+            WHERE b.expiry_date IS NOT NULL
+              AND b.expiry_date < CURDATE()
+        ')->fetchColumn();
+    } elseif ($hasProductsExpiryDate) {
+        $expiredNotificationsCount = (int) $pdo->query('
+            SELECT COUNT(*)
+            FROM products
+            WHERE expiry_date IS NOT NULL
+              AND expiry_date < CURDATE()
+        ')->fetchColumn();
+    }
 
     $totalItems = (int) $pdo->query('SELECT COUNT(*) FROM products')->fetchColumn();
     $totalTransactions = (int) $pdo->query('SELECT COUNT(*) FROM inventory_records WHERE COALESCE(release_status, "released") = "released"')->fetchColumn();
@@ -137,7 +166,7 @@ try {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Home - Supply</title>
-    <link rel="stylesheet" href="style.css?v=20260407navdash">
+    <link rel="stylesheet" href="style.css?v=20260408navwarn">
 </head>
 <body class="home-page">
     <header class="navbar navbar-expand-lg navbar-light bg-white app-header px-3 px-md-4">
@@ -206,8 +235,16 @@ try {
                                 </a>
                                 </li>
                                 <li>
-                                <a href="notifications.php" class="dashboard-nav-link">
-                                    <span class="dashboard-nav-title">Notifications</span>
+                                <a href="notifications.php" class="dashboard-nav-link <?= $expiredNotificationsCount > 0 ? 'dashboard-nav-link-alert' : '' ?>">
+                                    <span class="dashboard-nav-title d-flex align-items-center justify-content-between gap-2 w-100">
+                                        <span>Notifications</span>
+                                        <?php if ($expiredNotificationsCount > 0): ?>
+                                            <span class="dashboard-nav-alert-badge" aria-label="<?= number_format($expiredNotificationsCount) ?> expired item(s)">
+                                                <span class="dashboard-nav-alert-badge-mark" aria-hidden="true">!</span>
+                                                <span class="dashboard-nav-alert-badge-count"><?= number_format($expiredNotificationsCount) ?></span>
+                                            </span>
+                                        <?php endif; ?>
+                                    </span>
                                     <span class="dashboard-nav-meta">Track expiration alerts by priority</span>
                                 </a>
                                 </li>
