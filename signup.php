@@ -1,9 +1,14 @@
 <?php
 session_start();
+require_once __DIR__ . '/config/rbac.php';
 
 // If already logged in, redirect to home
 if (!empty($_SESSION['user_id'])) {
-    header('Location: home.php');
+    if (ptr_current_role() === 'Admin') {
+        header('Location: home.php');
+    } else {
+        header('Location: create_ptr.php');
+    }
     exit;
 }
 
@@ -16,7 +21,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $email = trim($_POST['email'] ?? '');
     $password = $_POST['password'] ?? '';
     $password_confirm = $_POST['password_confirm'] ?? '';
-    // Match DB enum in `users.role` (Admin, Encoder)
+    // Signup creates Encoder accounts only.
     $role = 'Encoder';
 
     // Validation

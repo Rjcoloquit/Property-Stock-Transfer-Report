@@ -1,11 +1,9 @@
 <?php
 session_start();
-
-// Require login
-if (empty($_SESSION['user_id'])) {
-    header('Location: login.php');
-    exit;
-}
+require_once __DIR__ . '/config/rbac.php';
+ptr_require_login();
+ptr_require_page_access('create_ptr');
+ptr_block_encoder_mutations();
 
 $errors = [];
 $success = false;

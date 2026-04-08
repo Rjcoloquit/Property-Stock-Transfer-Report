@@ -1,10 +1,9 @@
 <?php
 session_start();
-
-if (empty($_SESSION['user_id'])) {
-    header('Location: login.php');
-    exit;
-}
+require_once __DIR__ . '/config/rbac.php';
+ptr_require_login();
+ptr_require_page_access('stock_card');
+ptr_block_encoder_mutations();
 
 require_once __DIR__ . '/config/database.php';
 

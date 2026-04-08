@@ -1,13 +1,12 @@
 <?php
 session_start();
-
-// Require login
-if (empty($_SESSION['user_id'])) {
-    header('Location: login.php');
-    exit;
-}
+require_once __DIR__ . '/config/rbac.php';
+ptr_require_login();
+ptr_require_page_access('home');
+ptr_block_encoder_mutations();
 
 require_once __DIR__ . '/config/database.php';
+require_once __DIR__ . '/config/rbac.php';
 require_once __DIR__ . '/config/ptr_numbering.php';
 require_once __DIR__ . '/dashboard_inventory_helper.php';
 
@@ -199,12 +198,14 @@ try {
                                     <span class="dashboard-nav-meta">Review and filter saved transactions</span>
                                 </a>
                                 </li>
+                                <?php if (ptr_current_role() === 'Admin'): ?>
                                 <li>
                                 <a href="item_list.php" class="dashboard-nav-link">
                                     <span class="dashboard-nav-title">Manage Items</span>
                                     <span class="dashboard-nav-meta">Maintain item descriptions and costs</span>
                                 </a>
                                 </li>
+                                <?php endif; ?>
                                 <li>
                                 <a href="notifications.php" class="dashboard-nav-link">
                                     <span class="dashboard-nav-title">Notifications</span>

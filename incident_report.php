@@ -1,10 +1,9 @@
 <?php
 session_start();
-
-if (empty($_SESSION['user_id'])) {
-    header('Location: login.php');
-    exit;
-}
+require_once __DIR__ . '/config/rbac.php';
+ptr_require_login();
+ptr_require_page_access('incident_report');
+ptr_block_encoder_mutations();
 
 require_once __DIR__ . '/config/database.php';
 
@@ -436,6 +435,7 @@ while (count($specRows) < 1) {
                                     <option value="">-- Select Type --</option>
                                     <option value="Expired Commodity" <?= $formData['incident_type'] === 'Expired Commodity' ? 'selected' : '' ?>>Expired Commodity</option>
                                     <option value="Damage Commodity" <?= $formData['incident_type'] === 'Damage Commodity' ? 'selected' : '' ?>>Damage Commodity</option>
+                                    <option value="Missing Inventory" <?= $formData['incident_type'] === 'Missing Inventory' ? 'selected' : '' ?>>Missing Inventory</option>
                                 </select>
                             </div>
                             <div class="col-md-4">

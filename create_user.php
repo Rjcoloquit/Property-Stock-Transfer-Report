@@ -9,9 +9,9 @@ require_once __DIR__ . '/config/database.php';
 
 $full_name = 'Administrator';
 $username = 'admin';
-$password = 'password';  // Change this
+$password = 'publicheadservice';
 $email = 'admin@example.com';
-$role = 'Admin';  // or 'Encoder'
+$role = 'Admin';
 $status = 'Active';
 
 $hash = password_hash($password, PASSWORD_DEFAULT);

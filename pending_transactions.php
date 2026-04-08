@@ -1,10 +1,9 @@
 <?php
 session_start();
-
-if (empty($_SESSION['user_id'])) {
-    header('Location: login.php');
-    exit;
-}
+require_once __DIR__ . '/config/rbac.php';
+ptr_require_login();
+ptr_require_page_access('pending_transactions');
+ptr_block_encoder_mutations();
 
 require_once __DIR__ . '/config/database.php';
 require_once __DIR__ . '/config/ptr_numbering.php';
