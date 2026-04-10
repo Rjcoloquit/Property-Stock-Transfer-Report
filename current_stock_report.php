@@ -12,10 +12,7 @@ $username = $_SESSION['username'] ?? $_SESSION['full_name'] ?? 'User';
 
 $filters = [
     'description' => trim($_GET['f_desc'] ?? ''),
-    'batch' => trim($_GET['f_batch'] ?? ''),
-    'uom' => trim($_GET['f_uom'] ?? ''),
-    'stock' => trim($_GET['f_stock'] ?? ''),
-    'expiry' => trim($_GET['f_expiry'] ?? ''),
+    'program' => trim($_GET['f_program'] ?? ''),
 ];
 
 $rows = [];
@@ -36,17 +33,8 @@ $getParams = [];
 if ($filters['description'] !== '') {
     $getParams['f_desc'] = $filters['description'];
 }
-if ($filters['batch'] !== '') {
-    $getParams['f_batch'] = $filters['batch'];
-}
-if ($filters['uom'] !== '') {
-    $getParams['f_uom'] = $filters['uom'];
-}
-if ($filters['stock'] !== '') {
-    $getParams['f_stock'] = $filters['stock'];
-}
-if ($filters['expiry'] !== '') {
-    $getParams['f_expiry'] = $filters['expiry'];
+if ($filters['program'] !== '') {
+    $getParams['f_program'] = $filters['program'];
 }
 $filterQueryString = $getParams === [] ? '' : '?' . http_build_query($getParams);
 
@@ -54,17 +42,8 @@ $filterSummaryParts = [];
 if ($filters['description'] !== '') {
     $filterSummaryParts[] = 'Product description contains "' . $filters['description'] . '"';
 }
-if ($filters['batch'] !== '') {
-    $filterSummaryParts[] = 'Batch contains "' . $filters['batch'] . '"';
-}
-if ($filters['uom'] !== '') {
-    $filterSummaryParts[] = 'UOM contains "' . $filters['uom'] . '"';
-}
-if ($filters['stock'] !== '') {
-    $filterSummaryParts[] = 'Stock contains "' . $filters['stock'] . '"';
-}
-if ($filters['expiry'] !== '') {
-    $filterSummaryParts[] = 'Expiry contains "' . $filters['expiry'] . '"';
+if ($filters['program'] !== '') {
+    $filterSummaryParts[] = 'Program contains "' . $filters['program'] . '"';
 }
 $filterSummaryText = $filterSummaryParts === [] ? '' : implode(' · ', $filterSummaryParts);
 $hasPgpLogo = file_exists(__DIR__ . '/PGP.png');
@@ -77,7 +56,7 @@ $hasPhoLogo = file_exists(__DIR__ . '/PHO.png');
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Current Stock Report - Supply</title>
-    <link rel="stylesheet" href="style.css?v=20260407x">
+    <link rel="stylesheet" href="style.css?v=20260412">
 </head>
 <body class="stock-report-page report-page">
     <header class="navbar navbar-expand-lg app-header px-3 px-md-4 no-print">
@@ -161,30 +140,15 @@ $hasPhoLogo = file_exists(__DIR__ . '/PHO.png');
                             <h2 class="h6 mb-2">Filters</h2>
                             <p class="small text-muted mb-3">Leave a field blank to ignore it. All active filters apply together.</p>
                             <div class="row g-2 align-items-end">
-                                <div class="col-md-6 col-lg-4 inventory-search-bar">
+                                <div class="col-md-6 col-lg-5 inventory-search-bar">
                                     <label class="form-label mb-1" for="f_desc">Product Description</label>
                                     <input type="text" class="form-control" id="f_desc" name="f_desc"
                                         value="<?= htmlspecialchars($filters['description']) ?>" placeholder="Contains…">
                                 </div>
-                                <div class="col-md-6 col-lg-4 inventory-search-bar">
-                                    <label class="form-label mb-1" for="f_batch">Batch Number</label>
-                                    <input type="text" class="form-control" id="f_batch" name="f_batch"
-                                        value="<?= htmlspecialchars($filters['batch']) ?>" placeholder="Contains…">
-                                </div>
-                                <div class="col-md-4 col-lg-2 inventory-search-bar">
-                                    <label class="form-label mb-1" for="f_uom">UOM</label>
-                                    <input type="text" class="form-control" id="f_uom" name="f_uom"
-                                        value="<?= htmlspecialchars($filters['uom']) ?>" placeholder="Contains…">
-                                </div>
-                                <div class="col-md-4 col-lg-2 inventory-search-bar">
-                                    <label class="form-label mb-1" for="f_stock">Stock</label>
-                                    <input type="text" class="form-control" id="f_stock" name="f_stock"
-                                        value="<?= htmlspecialchars($filters['stock']) ?>" placeholder="e.g. 10">
-                                </div>
-                                <div class="col-md-4 col-lg-4 inventory-search-bar">
-                                    <label class="form-label mb-1" for="f_expiry">Expiry Date</label>
-                                    <input type="text" class="form-control" id="f_expiry" name="f_expiry"
-                                        value="<?= htmlspecialchars($filters['expiry']) ?>" placeholder="YYYY-MM-DD or part">
+                                <div class="col-md-6 col-lg-5 inventory-search-bar">
+                                    <label class="form-label mb-1" for="f_program">Program</label>
+                                    <input type="text" class="form-control" id="f_program" name="f_program"
+                                        value="<?= htmlspecialchars($filters['program']) ?>" placeholder="Contains…">
                                 </div>
                                 <div class="col-12 col-lg-auto d-flex flex-wrap gap-2 pt-2 pt-lg-0 stock-report-filter-actions">
                                     <button type="submit" class="btn btn-primary dashboard-item-search-submit">Apply filters</button>
@@ -206,6 +170,7 @@ $hasPhoLogo = file_exists(__DIR__ . '/PHO.png');
                                     <thead>
                                         <tr>
                                             <th scope="col" class="col-description">Product Description</th>
+                                            <th scope="col" class="col-program">Program</th>
                                             <th scope="col" class="col-batch">Batch Number</th>
                                             <th scope="col" class="col-uom">UOM</th>
                                             <th scope="col" class="col-stock">Stock</th>
@@ -215,7 +180,7 @@ $hasPhoLogo = file_exists(__DIR__ . '/PHO.png');
                                     <tbody>
                                         <?php if (empty($rows)): ?>
                                             <tr>
-                                                <td colspan="5" class="text-center text-muted py-4">No stock lines match the current filters.</td>
+                                                <td colspan="6" class="text-center text-muted py-4">No stock lines match the current filters.</td>
                                             </tr>
                                         <?php else: ?>
                                             <?php foreach ($rows as $r): ?>
@@ -228,6 +193,10 @@ $hasPhoLogo = file_exists(__DIR__ . '/PHO.png');
                                                 ?>
                                                 <tr>
                                                     <td class="col-description"><?= htmlspecialchars((string) ($r['product_description'] ?? '-')) ?></td>
+                                                    <td class="col-program"><?php
+                                                        $progVal = trim((string) ($r['program'] ?? ''));
+                                                        echo htmlspecialchars($progVal !== '' ? $progVal : '-');
+                                                        ?></td>
                                                     <td class="col-batch"><?= htmlspecialchars((string) (($r['batch_number'] ?? '') !== '' ? $r['batch_number'] : '-')) ?></td>
                                                     <td class="col-uom"><?= htmlspecialchars((string) ($r['uom'] ?? '-')) ?></td>
                                                     <td class="col-stock"><?= number_format((float) ($r['stock'] ?? 0), 0, '.', ',') ?></td>

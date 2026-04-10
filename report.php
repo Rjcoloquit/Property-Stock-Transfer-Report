@@ -6,6 +6,8 @@ ptr_require_page_access('report');
 ptr_block_encoder_mutations();
 
 require_once __DIR__ . '/config/database.php';
+require_once __DIR__ . '/config/ptr_signatories.php';
+require_once __DIR__ . '/config/print_preview_helpers.php';
 require_once __DIR__ . '/config/ptr_numbering.php';
 
 $username = $_SESSION['username'] ?? $_SESSION['full_name'] ?? 'User';
@@ -50,6 +52,7 @@ $addingRefId = 0;
 $showAddModal = false;
 $addFormErrors = [];
 $previewLineRows = 10;
+$ptrSignatoriesByPtrNo = [];
 $addFormData = [
     'record_date' => '',
     'ptr_no' => '',
@@ -136,6 +139,8 @@ try {
         $pdo->exec('ALTER TABLE inventory_records ADD COLUMN released_at DATETIME DEFAULT NULL AFTER release_status');
     }
     normalizeExistingPtrNumbers($pdo);
+    ptr_ensure_signatories_table($pdo);
+    $ptrSignatoriesByPtrNo = ptr_load_all_signatories_map($pdo);
 
     $descriptionOptionsStmt = $pdo->query('
         SELECT DISTINCT TRIM(product_description) AS product_description
@@ -339,6 +344,27 @@ try {
 
     if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $action = $_POST['action'] ?? '';
+        if ($action === 'save_signatories') {
+            $returnSearch = trim((string) ($_POST['return_q'] ?? ''));
+            $returnDateFrom = trim((string) ($_POST['return_date_from'] ?? ''));
+            $returnDateTo = trim((string) ($_POST['return_date_to'] ?? ''));
+            $returnSort = strtolower(trim((string) ($_POST['return_sort'] ?? 'desc')));
+            $returnSort = $returnSort === 'asc' ? 'asc' : 'desc';
+            $ptrNoSave = trim((string) ($_POST['ptr_no'] ?? ''));
+            if ($ptrNoSave === '' || $ptrNoSave === '-') {
+                header('Location: ' . buildReportUrl($returnSearch, $returnDateFrom, $returnDateTo, $returnSort, 'Could not save signatories: missing PTR number.'));
+                exit;
+            }
+            ptr_save_signatories_for_ptr(
+                $pdo,
+                $ptrNoSave,
+                (string) ($_POST['prepared_by'] ?? ''),
+                (string) ($_POST['approved_by'] ?? ''),
+                (string) ($_POST['issued_by'] ?? '')
+            );
+            header('Location: ' . buildReportUrl($returnSearch, $returnDateFrom, $returnDateTo, $returnSort, 'Signatory names saved for this PTR.'));
+            exit;
+        }
         if (in_array($action, ['delete', 'update', 'create_related'], true)) {
             $returnSearch = trim((string) ($_POST['return_q'] ?? ''));
             $returnDateFrom = trim((string) ($_POST['return_date_from'] ?? ''));
@@ -915,7 +941,7 @@ try {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Transaction Report - Supply</title>
-    <link rel="stylesheet" href="style.css?v=20260305">
+    <link rel="stylesheet" href="style.css?v=20260414">
 </head>
 <body class="report-page">
     <header class="navbar navbar-expand-lg navbar-light bg-white app-header px-3 px-md-4">
@@ -1014,14 +1040,28 @@ try {
                         <?php else: ?>
                             <?php $groupIndex = 0; ?>
                             <?php foreach ($groupedRecords as $group): ?>
-                                <?php $groupSectionId = 'ptrGroupPrint_' . $groupIndex; ?>
-                                <?php $groupPreviewId = 'ptrGroupPreview_' . $groupIndex; ?>
-                                <?php $groupIndex++; ?>
+                                <?php $gIdx = $groupIndex;
+                                    $groupSectionId = 'ptrGroupPrint_' . $gIdx;
+                                    $groupPreviewId = 'ptrGroupPreview_' . $gIdx;
+                                    $signatoryPanelWrapId = 'ptrSignatoryPanel_' . $gIdx;
+                                    $groupIndex++;
+                                ?>
                                 <?php
                                     $groupTotal = 0.0;
                                     foreach ($group['items'] as $groupItem) {
                                         $groupTotal += (float) ($groupItem['quantity'] ?? 0) * (float) ($groupItem['unit_cost'] ?? 0);
                                     }
+                                    $savePtrNo = trim((string) ($group['ptr_no'] ?? ''));
+                                    if ($savePtrNo === '-' || $savePtrNo === '') {
+                                        $savePtrNo = '';
+                                    }
+                                    $sigDefaults = ptr_signatory_defaults();
+                                    $sigSaved = ($savePtrNo !== '' && isset($ptrSignatoriesByPtrNo[$savePtrNo]))
+                                        ? $ptrSignatoriesByPtrNo[$savePtrNo]
+                                        : null;
+                                    $sigPrepared = $sigSaved !== null ? $sigSaved['prepared_by'] : $sigDefaults['prepared_by'];
+                                    $sigApproved = $sigSaved !== null ? $sigSaved['approved_by'] : $sigDefaults['approved_by'];
+                                    $sigIssued = $sigSaved !== null ? $sigSaved['issued_by'] : $sigDefaults['issued_by'];
                                 ?>
                                 <section class="report-group-block" id="<?= htmlspecialchars($groupSectionId) ?>">
                                     <div class="report-group-head">
@@ -1033,8 +1073,19 @@ try {
                                         <div class="report-group-head-actions">
                                             <button
                                                 type="button"
+                                                class="btn btn-outline-secondary btn-sm"
+                                                data-bs-toggle="collapse"
+                                                data-bs-target="#<?= htmlspecialchars($signatoryPanelWrapId, ENT_QUOTES, 'UTF-8') ?>"
+                                                aria-expanded="false"
+                                                aria-controls="<?= htmlspecialchars($signatoryPanelWrapId, ENT_QUOTES, 'UTF-8') ?>"
+                                            >
+                                                Edit signatory names
+                                            </button>
+                                            <button
+                                                type="button"
                                                 class="btn btn-outline-secondary btn-sm report-print-btn"
                                                 data-print-target="<?= htmlspecialchars($groupPreviewId) ?>"
+                                                data-ptr-group-index="<?= (int) $gIdx ?>"
                                             >
                                                 Print
                                             </button>
@@ -1081,135 +1132,68 @@ try {
                                         </table>
                                     </div>
                                 </div>
-                                    <div id="<?= htmlspecialchars($groupPreviewId) ?>" class="preview-sheet d-none">
-                                        <div class="preview-header">
-                                            <div class="preview-logo-wrap">
-                                                <?php if (file_exists(__DIR__ . '/PGP.png')): ?>
-                                                    <img src="PGP.png" alt="PGP Logo">
-                                                <?php endif; ?>
+                                    <div
+                                        id="<?= htmlspecialchars($signatoryPanelWrapId) ?>"
+                                        class="report-ptr-signatory-panel collapse no-print"
+                                    >
+                                        <form method="post" action="report.php" class="report-ptr-signatory-save-form">
+                                            <input type="hidden" name="action" value="save_signatories">
+                                            <input type="hidden" name="return_q" value="<?= htmlspecialchars($search, ENT_QUOTES, 'UTF-8') ?>">
+                                            <input type="hidden" name="return_date_from" value="<?= htmlspecialchars($dateFrom, ENT_QUOTES, 'UTF-8') ?>">
+                                            <input type="hidden" name="return_date_to" value="<?= htmlspecialchars($dateTo, ENT_QUOTES, 'UTF-8') ?>">
+                                            <input type="hidden" name="return_sort" value="<?= htmlspecialchars($sort, ENT_QUOTES, 'UTF-8') ?>">
+                                            <input type="hidden" name="ptr_no" value="<?= htmlspecialchars($savePtrNo, ENT_QUOTES, 'UTF-8') ?>">
+                                            <div class="px-3 pt-2">
+                                                <button
+                                                    type="submit"
+                                                    class="btn btn-primary btn-sm"
+                                                    <?= $savePtrNo === '' ? ' disabled title="This group has no PTR number."' : '' ?>
+                                                >
+                                                    Save names
+                                                </button>
                                             </div>
-                                            <div class="preview-title">Property Stock Transfer Report</div>
-                                            <div class="preview-logo-wrap">
-                                                <?php if (file_exists(__DIR__ . '/PHO.png')): ?>
-                                                    <img src="PHO.png" alt="PHO Logo">
-                                                <?php endif; ?>
+                                            <div class="report-ptr-signatory-editor px-3 pb-3">
+                                                <div class="row g-3 mt-0">
+                                                    <div class="col-md-4">
+                                                        <label class="form-label small mb-1" for="reportPtrPrepared_<?= (int) $gIdx ?>">Prepared by</label>
+                                                        <textarea
+                                                            id="reportPtrPrepared_<?= (int) $gIdx ?>"
+                                                            class="form-control form-control-sm ptr-signatory-name"
+                                                            name="prepared_by"
+                                                            rows="4"
+                                                            spellcheck="false"
+                                                            autocomplete="off"
+                                                            placeholder="Mark Anthony Borres,&#10;John Paul Joseph Opiala,&#10;Richard Roy"
+                                                        ><?= htmlspecialchars($sigPrepared) ?></textarea>
+                                                    </div>
+                                                    <div class="col-md-4">
+                                                        <label class="form-label small mb-1" for="reportPtrApproved_<?= (int) $gIdx ?>">Approved by</label>
+                                                        <textarea
+                                                            id="reportPtrApproved_<?= (int) $gIdx ?>"
+                                                            class="form-control form-control-sm ptr-signatory-name"
+                                                            name="approved_by"
+                                                            rows="4"
+                                                            spellcheck="false"
+                                                            autocomplete="off"
+                                                            placeholder="Elizabeth C. Calaor, RPh&#10;(Pharmacist II/ Head, Supply &amp; Logistics Unit)"
+                                                        ><?= htmlspecialchars($sigApproved) ?></textarea>
+                                                    </div>
+                                                    <div class="col-md-4">
+                                                        <label class="form-label small mb-1" for="reportPtrIssued_<?= (int) $gIdx ?>">Issued by</label>
+                                                        <textarea
+                                                            id="reportPtrIssued_<?= (int) $gIdx ?>"
+                                                            class="form-control form-control-sm ptr-signatory-name ptr-signatory-name--issued"
+                                                            name="issued_by"
+                                                            rows="4"
+                                                            spellcheck="false"
+                                                            autocomplete="off"
+                                                            placeholder="Jannete Ventura,&#10;Earnest John Tolentino, RPh"
+                                                        ><?= htmlspecialchars($sigIssued) ?></textarea>
+                                                    </div>
+                                                </div>
                                             </div>
-                                        </div>
-                                        <table>
-                                            <tr>
-                                                <td colspan="4"><span class="preview-label">Entity Name:</span> Provincial Government of Palawan</td>
-                                                <td><span class="preview-label">Fund Cluster:</span></td>
-                                                <td><span class="preview-label">ELMIS CI No.:</span></td>
-                                            </tr>
-                                            <tr>
-                                                <td colspan="4"><span class="preview-label">Division:</span> Supply & Logistics Unit</td>
-                                                <td colspan="2"><span class="preview-label">Data Responsibility Center Code:</span></td>
-                                            </tr>
-                                            <tr>
-                                                <td colspan="4"><span class="preview-label">Office:</span> Provincial Health Office</td>
-                                                <td><span class="preview-label">Date:</span> <?= htmlspecialchars((string) ($group['record_date'] ?? '-')) ?></td>
-                                                <td><span class="preview-label">PTR No.:</span> <?= htmlspecialchars((string) ($group['ptr_no'] ?? '-')) ?></td>
-                                            </tr>
-                                        </table>
-                                        <table>
-                                            <thead>
-                                                <tr>
-                                                    <th>Expiration Date</th>
-                                                    <th>Unit</th>
-                                                    <th>Description / Lot No.</th>
-                                                    <th>Quantity</th>
-                                                    <th>Unit Cost</th>
-                                                    <th>Amount</th>
-                                                    <th>Program</th>
-                                                    <th>PO Number</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody>
-                                                <?php $renderedRows = 0; ?>
-                                                <?php foreach ($group['items'] as $record): ?>
-                                                    <?php if ($renderedRows >= $previewLineRows) { break; } ?>
-                                                    <?php
-                                                        $descriptionValue = trim((string) ($record['description'] ?? ''));
-                                                        $batchValue = trim((string) ($record['batch_number'] ?? ''));
-                                                        $descriptionWithBatch = $batchValue !== '' ? $descriptionValue . ' / ' . $batchValue : $descriptionValue;
-                                                        $quantityValue = (float) ($record['quantity'] ?? 0);
-                                                        $unitCostValue = (float) ($record['unit_cost'] ?? 0);
-                                                        $amountValue = $quantityValue * $unitCostValue;
-                                                    ?>
-                                                    <tr>
-                                                        <td><?= htmlspecialchars((string) ($record['expiration_date'] ?? '-')) ?></td>
-                                                        <td><?= htmlspecialchars((string) ($record['unit'] ?? '-')) ?></td>
-                                                        <td><?= htmlspecialchars($descriptionWithBatch !== '' ? $descriptionWithBatch : '-') ?></td>
-                                                        <td><?= htmlspecialchars((string) ($record['quantity'] ?? '-')) ?></td>
-                                                        <td><?= htmlspecialchars(number_format($unitCostValue, 2, '.', '')) ?></td>
-                                                        <td><?= htmlspecialchars(number_format($amountValue, 2, '.', '')) ?></td>
-                                                        <td><?= htmlspecialchars((string) ($record['program'] ?? '-')) ?></td>
-                                                        <td><?= htmlspecialchars((string) ($record['po_no'] ?? '-')) ?></td>
-                                                    </tr>
-                                                    <?php $renderedRows++; ?>
-                                                <?php endforeach; ?>
-                                                <?php for ($i = $renderedRows; $i < $previewLineRows; $i++): ?>
-                                                    <tr>
-                                                        <td>-</td>
-                                                        <td>-</td>
-                                                        <td>-</td>
-                                                        <td>-</td>
-                                                        <td>-</td>
-                                                        <td>-</td>
-                                                        <td>-</td>
-                                                        <td>-</td>
-                                                    </tr>
-                                                <?php endfor; ?>
-                                            </tbody>
-                                            <tfoot>
-                                                <tr>
-                                                    <td colspan="5" class="text-end"><strong>TOTAL:</strong></td>
-                                                    <td><?= htmlspecialchars(number_format($groupTotal, 2, '.', '')) ?></td>
-                                                    <td></td>
-                                                    <td></td>
-                                                </tr>
-                                            </tfoot>
-                                        </table>
-                                        <table>
-                                            <tr>
-                                                <td colspan="4"><span class="preview-label">Purpose:</span><br><em>(For the use of)</em> <?= htmlspecialchars((string) ($group['recipient'] ?? '-')) ?></td>
-                                            </tr>
-                                        </table>
-                                        <table class="signatory-table">
-                                            <tr>
-                                                <td class="preview-signatory-half">
-                                                    <div class="signatory-content">
-                                                        <span class="preview-label signatory-label">Prepared by:</span>
-                                                        <textarea class="ptr-signatory-name" rows="3" placeholder="Mark Anthony Borres, John Paul Joseph Opiala, Richard Roy"></textarea>
-                                                    </div>
-                                                </td>
-                                                <td class="preview-signatory-half">
-                                                    <div class="signatory-content">
-                                                        <span class="preview-label signatory-label">Approved by:</span>
-                                                        <textarea class="ptr-signatory-name" rows="3" placeholder="Elizabeth C. Calaor, RPh&#10;(Pharmacist II/ Head, Supply &amp; Logistics Unit)"></textarea>
-                                                        <span class="preview-approved-date"><?= htmlspecialchars(date('m/d/Y')) ?></span>
-                                                    </div>
-                                                </td>
-                                            </tr>
-                                            <tr>
-                                                <td class="preview-signatory-half">
-                                                    <div class="signatory-content">
-                                                        <span class="preview-label signatory-label">Issued by:</span>
-                                                        <textarea class="ptr-signatory-name" rows="2" placeholder="Jannete Ventura, Earnest John Tolentino, RPh"></textarea>
-                                                    </div>
-                                                </td>
-                                                <td class="preview-signatory-half">
-                                                    <div class="received-box">
-                                                        <div class="received-top">
-                                                            <span class="preview-label">Received by:</span>
-                                                        </div>
-                                                        <div class="received-bottom">
-                                                            Name, Position, Signature &amp; Date
-                                                        </div>
-                                                    </div>
-                                                </td>
-                                            </tr>
-                                        </table>
+                                        </form>
+                                        <?php ptr_render_report_ptr_print_sheet($groupPreviewId, $group, $groupTotal, $previewLineRows, $sigPrepared, $sigApproved, $sigIssued); ?>
                                     </div>
                                 </section>
                             <?php endforeach; ?>
@@ -1546,6 +1530,6 @@ try {
         };
     </script>
     <script src="assets/js/smooth_motion.js?v=20260325"></script>
-    <script src="assets/js/report.js"></script>
+    <script src="assets/js/report.js?v=20260414"></script>
 </body>
 </html>

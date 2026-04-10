@@ -286,10 +286,10 @@ function ptr_dashboard_search_suggestions(PDO $pdo, string $q, int $max): array
 }
 
 /**
- * Full stock list for Current Stock Report with optional column filters (AND logic).
+ * Full stock list for Current Stock Report with optional filters (AND logic).
  *
- * @param array{description?: string, batch?: string, uom?: string, stock?: string, expiry?: string} $filters
- * @return list<array{product_description: string, uom: string, batch_number: string|null, stock: float|int, expiry_date: string|null}>
+ * @param array{description?: string, program?: string} $filters
+ * @return list<array{product_description: string, program: string|null, uom: string, batch_number: string|null, stock: float|int, expiry_date: string|null}>
  */
 function ptr_current_stock_report_rows(PDO $pdo, array $filters): array
 {
@@ -308,13 +308,10 @@ function ptr_current_stock_report_rows(PDO $pdo, array $filters): array
             : 'b.expiry_date';
     }
 
-    $expiryForFilter = $batchSourceTable !== ''
-        ? 'COALESCE(b.expiry_date, p.expiry_date)'
-        : 'p.expiry_date';
-
     $sql = '
         SELECT
             p.product_description,
+            p.program AS program,
             p.uom,
             ' . $batchSelectSql . ',
             ' . $expirySelectSql . ' AS expiry_date
@@ -330,32 +327,10 @@ function ptr_current_stock_report_rows(PDO $pdo, array $filters): array
         $params['f_desc'] = '%' . $fd . '%';
     }
 
-    $fb = trim((string) ($filters['batch'] ?? ''));
-    if ($fb !== '' && $batchSourceTable !== '') {
-        $wheres[] = 'COALESCE(b.batch_number, \'\') LIKE :f_batch';
-        $params['f_batch'] = '%' . $fb . '%';
-    }
-
-    $fu = trim((string) ($filters['uom'] ?? ''));
-    if ($fu !== '') {
-        $wheres[] = 'COALESCE(p.uom, \'\') LIKE :f_uom';
-        $params['f_uom'] = '%' . $fu . '%';
-    }
-
-    $fs = trim((string) ($filters['stock'] ?? ''));
-    if ($fs !== '') {
-        if ($batchSourceTable !== '') {
-            $wheres[] = 'CAST(COALESCE(b.stock_quantity, 0) AS CHAR) LIKE :f_stock';
-        } else {
-            $wheres[] = 'CAST(0 AS CHAR) LIKE :f_stock';
-        }
-        $params['f_stock'] = '%' . $fs . '%';
-    }
-
-    $fe = trim((string) ($filters['expiry'] ?? ''));
-    if ($fe !== '') {
-        $wheres[] = 'COALESCE(DATE_FORMAT(' . $expiryForFilter . ', \'%Y-%m-%d\'), \'\') LIKE :f_expiry';
-        $params['f_expiry'] = '%' . $fe . '%';
+    $fp = trim((string) ($filters['program'] ?? ''));
+    if ($fp !== '') {
+        $wheres[] = 'COALESCE(p.program, \'\') LIKE :f_program';
+        $params['f_program'] = '%' . $fp . '%';
     }
 
     if ($wheres !== []) {

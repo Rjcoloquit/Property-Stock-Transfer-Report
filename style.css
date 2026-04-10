@@ -1555,6 +1555,34 @@ a,
     max-width: 100%;
 }
 
+/* Transaction History — collapsible PTR preview / signatory editor */
+.report-ptr-signatory-panel {
+    border-top: 1px solid #d4e5da;
+    background: #f9fcfa;
+    padding-bottom: 0.5rem;
+}
+
+.report-ptr-signatory-panel.show {
+    border-bottom: 1px solid #d4e5da;
+}
+
+.report-ptr-preview-sheet {
+    margin-left: 14px;
+    margin-right: 14px;
+    margin-bottom: 12px;
+    padding: 0.5rem;
+    background: #fff;
+    border: 1px solid #e0ebe3 !important;
+    border-radius: 8px;
+}
+
+/* Transaction History — compact signatory editor (full PTR sheet is print-only / d-none) */
+.report-ptr-signatory-editor .ptr-signatory-name {
+    text-align: left;
+    white-space: pre-wrap;
+    min-height: 5.5rem;
+}
+
 .report-group-table-wrap {
     overflow-x: auto;
     max-width: 100%;
@@ -2661,38 +2689,45 @@ a,
 
 .stock-report-page .stock-report-table.inventory-table {
     width: 100%;
-    min-width: 720px;
+    min-width: 840px;
     margin-bottom: 0;
     table-layout: fixed;
 }
 
 .stock-report-page .stock-report-table.inventory-table .col-description {
-    width: 36%;
-    min-width: 200px;
+    width: 28%;
+    min-width: 180px;
+    max-width: none !important;
+    word-break: break-word;
+}
+
+.stock-report-page .stock-report-table.inventory-table .col-program {
+    width: 15%;
+    min-width: 100px;
     max-width: none !important;
     word-break: break-word;
 }
 
 .stock-report-page .stock-report-table.inventory-table .col-batch {
-    width: 18%;
-    min-width: 104px;
+    width: 15%;
+    min-width: 96px;
 }
 
 .stock-report-page .stock-report-table.inventory-table .col-uom {
-    width: 12%;
-    min-width: 76px;
+    width: 11%;
+    min-width: 72px;
 }
 
 .stock-report-page .stock-report-table.inventory-table .col-stock {
-    width: 14%;
-    min-width: 80px;
+    width: 12%;
+    min-width: 76px;
     text-align: right !important;
     font-variant-numeric: tabular-nums;
 }
 
 .stock-report-page .stock-report-table.inventory-table .col-expiry {
-    width: 20%;
-    min-width: 104px;
+    width: 19%;
+    min-width: 96px;
     text-align: center !important;
 }
 
@@ -2705,7 +2740,8 @@ a,
     vertical-align: middle;
 }
 
-.stock-report-page .stock-report-table.inventory-table thead th.col-description {
+.stock-report-page .stock-report-table.inventory-table thead th.col-description,
+.stock-report-page .stock-report-table.inventory-table thead th.col-program {
     text-align: left;
 }
 
@@ -2723,7 +2759,8 @@ a,
     vertical-align: top;
 }
 
-.stock-report-page .stock-report-table.inventory-table tbody td.col-description {
+.stock-report-page .stock-report-table.inventory-table tbody td.col-description,
+.stock-report-page .stock-report-table.inventory-table tbody td.col-program {
     text-align: left;
 }
 
@@ -2970,7 +3007,8 @@ a,
         background-clip: padding-box !important;
     }
 
-    body.stock-report-page .stock-report-table.inventory-table tbody td.col-description {
+    body.stock-report-page .stock-report-table.inventory-table tbody td.col-description,
+    body.stock-report-page .stock-report-table.inventory-table tbody td.col-program {
         text-align: left !important;
         vertical-align: top !important;
         white-space: normal !important;
@@ -3000,25 +3038,29 @@ a,
 
     /* Column share fits printable width (same ratios as on-screen inventory) */
     body.stock-report-page .stock-report-table .col-description {
-        width: 34%;
+        width: 26%;
+    }
+
+    body.stock-report-page .stock-report-table .col-program {
+        width: 14%;
     }
 
     body.stock-report-page .stock-report-table .col-batch {
-        width: 19%;
+        width: 14%;
     }
 
     body.stock-report-page .stock-report-table .col-uom {
-        width: 11%;
+        width: 10%;
     }
 
     body.stock-report-page .stock-report-table .col-stock {
-        width: 13%;
+        width: 11%;
         text-align: center !important;
         font-variant-numeric: tabular-nums;
     }
 
     body.stock-report-page .stock-report-table .col-expiry {
-        width: 23%;
+        width: 25%;
         text-align: center !important;
         white-space: normal;
     }
@@ -3028,7 +3070,8 @@ a,
         text-align: center !important;
     }
 
-    body.stock-report-page .stock-report-table.inventory-table thead th.col-description {
+    body.stock-report-page .stock-report-table.inventory-table thead th.col-description,
+    body.stock-report-page .stock-report-table.inventory-table thead th.col-program {
         text-align: left !important;
     }
 

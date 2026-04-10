@@ -6,6 +6,7 @@ ptr_require_page_access('item_list');
 ptr_block_encoder_mutations();
 
 require_once __DIR__ . '/config/database.php';
+require_once __DIR__ . '/config/print_preview_helpers.php';
 
 $username = $_SESSION['username'] ?? $_SESSION['full_name'] ?? 'User';
 $search = trim($_GET['q'] ?? '');
@@ -161,7 +162,7 @@ function appendReceivedStockCardEntry(
         'issued' => '0',
         'balance' => number_format($newBalance, 2, '.', ''),
         'total_cost' => number_format($newBalance * $unitCost, 2, '.', ''),
-        'ref_no' => $poNo !== '' ? ('PO ' . $poNo) : 'Manage Items',
+        'ref_no' => ptrFormatStockCardPoRefNo($poNo),
         'remarks' => (trim($supplier) !== '' ? (trim($supplier) . '/') : '') . 'Stock received via Manage Items',
     ];
     $ledgerJson = json_encode($ledgerRows, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);

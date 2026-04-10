@@ -6,6 +6,7 @@ ptr_require_page_access('stock_card');
 ptr_block_encoder_mutations();
 
 require_once __DIR__ . '/config/database.php';
+require_once __DIR__ . '/config/print_preview_helpers.php';
 
 $username = $_SESSION['username'] ?? $_SESSION['full_name'] ?? 'User';
 $message = trim((string) ($_GET['msg'] ?? ''));
@@ -226,7 +227,7 @@ try {
                         'issued' => $issuedRaw,
                         'balance' => number_format($runningBalance, 2, '.', ''),
                         'total_cost' => $computedTotalCost,
-                        'ref_no' => (string) ($row['ref_no'] ?? ''),
+                        'ref_no' => ptrNormalizeDuplicatePoRefPrefix((string) ($row['ref_no'] ?? '')),
                         'remarks' => (string) ($row['remarks'] ?? ''),
                     ];
                 }
@@ -288,7 +289,13 @@ while (count($ledgerRows) < 18) {
                 <div class="card-body">
                     <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
                         <h1 class="h5 mb-0">Released PTR Stock Cards</h1>
-                        <button type="button" class="btn btn-outline-secondary btn-sm stock-card-print-btn" onclick="window.print()">Print</button>
+                        <button
+                            type="button"
+                            class="btn btn-outline-secondary btn-sm stock-card-print-btn"
+                            data-print-target="stockCardPrintPreview"
+                        >
+                            Print
+                        </button>
                     </div>
 
                     <form method="get" action="stock_card.php" class="row g-2 mb-3">
@@ -337,7 +344,7 @@ while (count($ledgerRows) < 18) {
                                     <?php foreach ($cards as $card): ?>
                                         <?php $cardId = (int) ($card['id'] ?? 0); ?>
                                         <tr>
-                                            <td><?= htmlspecialchars((string) ($card['po_contract_no'] ?? '-')) ?></td>
+                                            <td><?= htmlspecialchars(ptrNormalizeDuplicatePoRefPrefix((string) ($card['po_contract_no'] ?? '')) ?: '-') ?></td>
                                             <td><?= htmlspecialchars((string) ($card['item_description'] ?? '-')) ?></td>
                                             <td><?= htmlspecialchars((string) ($card['batch_no'] ?? '-')) ?></td>
                                             <td><?= htmlspecialchars((string) ($card['uom'] ?? '-')) ?></td>
@@ -357,7 +364,7 @@ while (count($ledgerRows) < 18) {
 
             <div class="card app-card stock-card-print-card">
                 <div class="card-body">
-                    <div class="stock-card-sheet">
+                    <div id="stockCardPrintPreview" class="stock-card-sheet">
                         <div class="table-responsive">
                             <table class="table table-bordered table-sm mb-0 stock-card-master-table">
                                 <colgroup>
@@ -370,43 +377,43 @@ while (count($ledgerRows) < 18) {
                                     <tr>
                                         <td colspan="2" class="stock-card-title-cell">STOCK CARD</td>
                                         <th class="stock-card-label-cell">Stock Keeping Unit (SKU) Code:</th>
-                                        <td><input type="text" class="stock-card-line-input" value="<?= htmlspecialchars($formData['sku_code']) ?>" readonly></td>
+                                        <td><input type="text" class="stock-card-line-input" value="<?= ptrPrintPreviewText($formData['sku_code'], '') ?>" readonly></td>
                                     </tr>
                                     <tr>
                                         <th class="stock-card-label-cell">P.O. / Contract #:</th>
-                                        <td><input type="text" class="stock-card-line-input" value="<?= htmlspecialchars($formData['po_contract_no']) ?>" readonly></td>
+                                        <td><input type="text" class="stock-card-line-input" data-ptr-print-dedupe-po value="<?= ptrPrintPreviewText(ptrNormalizeDuplicatePoRefPrefix($formData['po_contract_no']), '') ?>" readonly></td>
                                         <th class="stock-card-label-cell">Entity Name:</th>
-                                        <td><input type="text" class="stock-card-line-input" value="<?= htmlspecialchars($formData['entity_name']) ?>" readonly></td>
+                                        <td><input type="text" class="stock-card-line-input" value="<?= ptrPrintPreviewText($formData['entity_name'], '') ?>" readonly></td>
                                     </tr>
                                     <tr>
                                         <th class="stock-card-label-cell">Supplier:</th>
-                                        <td><input type="text" class="stock-card-line-input" value="<?= htmlspecialchars($formData['supplier']) ?>" readonly></td>
+                                        <td><input type="text" class="stock-card-line-input" value="<?= ptrPrintPreviewText($formData['supplier'], '') ?>" readonly></td>
                                         <th class="stock-card-label-cell">Fund Cluster:</th>
-                                        <td><input type="text" class="stock-card-line-input" value="<?= htmlspecialchars($formData['fund_cluster']) ?>" readonly></td>
+                                        <td><input type="text" class="stock-card-line-input" value="<?= ptrPrintPreviewText($formData['fund_cluster'], '') ?>" readonly></td>
                                     </tr>
                                     <tr>
                                         <th class="stock-card-label-cell">Item Description:</th>
-                                        <td><input type="text" class="stock-card-line-input" value="<?= htmlspecialchars($formData['item_description']) ?>" readonly></td>
+                                        <td><input type="text" class="stock-card-line-input" value="<?= ptrPrintPreviewText($formData['item_description'], '') ?>" readonly></td>
                                         <th class="stock-card-label-cell">Unit Cost:</th>
-                                        <td><input type="text" class="stock-card-line-input text-end" value="<?= htmlspecialchars($formData['unit_cost']) ?>" readonly></td>
+                                        <td><input type="text" class="stock-card-line-input text-end" value="<?= ptrPrintPreviewText($formData['unit_cost'], '') ?>" readonly></td>
                                     </tr>
                                     <tr>
                                         <th class="stock-card-label-cell">Expiry Date:</th>
-                                        <td><input type="text" class="stock-card-line-input" value="<?= htmlspecialchars($formData['expiry_date']) ?>" readonly></td>
+                                        <td><input type="text" class="stock-card-line-input" value="<?= ptrPrintPreviewText($formData['expiry_date'], '') ?>" readonly></td>
                                         <th class="stock-card-label-cell">Mode of Procurement:</th>
-                                        <td><input type="text" class="stock-card-line-input" value="<?= htmlspecialchars($formData['mode_of_procurement']) ?>" readonly></td>
+                                        <td><input type="text" class="stock-card-line-input" value="<?= ptrPrintPreviewText($formData['mode_of_procurement'], '') ?>" readonly></td>
                                     </tr>
                                     <tr>
                                         <th class="stock-card-label-cell">Dosage Strength:</th>
-                                        <td><input type="text" class="stock-card-line-input" value="<?= htmlspecialchars($formData['dosage_strength']) ?>" readonly></td>
+                                        <td><input type="text" class="stock-card-line-input" value="<?= ptrPrintPreviewText($formData['dosage_strength'], '') ?>" readonly></td>
                                         <th class="stock-card-label-cell">End User (Program):</th>
-                                        <td><input type="text" class="stock-card-line-input" value="<?= htmlspecialchars($formData['end_user_program']) ?>" readonly></td>
+                                        <td><input type="text" class="stock-card-line-input" value="<?= ptrPrintPreviewText($formData['end_user_program'], '') ?>" readonly></td>
                                     </tr>
                                     <tr>
                                         <th class="stock-card-label-cell">Unit of Measure:</th>
-                                        <td><input type="text" class="stock-card-line-input" value="<?= htmlspecialchars($formData['uom']) ?>" readonly></td>
+                                        <td><input type="text" class="stock-card-line-input" value="<?= ptrPrintPreviewText($formData['uom'], '') ?>" readonly></td>
                                         <th class="stock-card-label-cell">Batch No.:</th>
-                                        <td><input type="text" class="stock-card-line-input" value="<?= htmlspecialchars($formData['batch_no']) ?>" readonly></td>
+                                        <td><input type="text" class="stock-card-line-input" value="<?= ptrPrintPreviewText($formData['batch_no'], '') ?>" readonly></td>
                                     </tr>
                                 </tbody>
                             </table>
@@ -440,13 +447,13 @@ while (count($ledgerRows) < 18) {
                                 <tbody>
                                     <?php foreach ($ledgerRows as $row): ?>
                                         <tr>
-                                            <td class="text-center"><input type="text" class="stock-card-line-input text-center" value="<?= htmlspecialchars((string) ($row['entry_date'] ?? '')) ?>" readonly></td>
-                                            <td class="text-center"><input type="text" class="stock-card-line-input text-center" value="<?= htmlspecialchars((string) ($row['received'] ?? '')) ?>" readonly></td>
-                                            <td class="text-center"><input type="text" class="stock-card-line-input text-center" value="<?= htmlspecialchars((string) ($row['issued'] ?? '')) ?>" readonly></td>
-                                            <td class="text-center"><input type="text" class="stock-card-line-input text-center" value="<?= htmlspecialchars((string) ($row['balance'] ?? '')) ?>" readonly></td>
-                                            <td class="text-end"><input type="text" class="stock-card-line-input text-end" value="<?= htmlspecialchars((string) ($row['total_cost'] ?? '')) ?>" readonly></td>
-                                            <td class="text-center"><input type="text" class="stock-card-line-input text-center" value="<?= htmlspecialchars((string) ($row['ref_no'] ?? '')) ?>" readonly></td>
-                                            <td><input type="text" class="stock-card-line-input" value="<?= htmlspecialchars((string) ($row['remarks'] ?? '')) ?>" readonly></td>
+                                            <td class="text-center"><input type="text" class="stock-card-line-input text-center" value="<?= ptrPrintPreviewText($row['entry_date'] ?? null, '') ?>" readonly></td>
+                                            <td class="text-center"><input type="text" class="stock-card-line-input text-center" value="<?= ptrPrintPreviewText($row['received'] ?? null, '') ?>" readonly></td>
+                                            <td class="text-center"><input type="text" class="stock-card-line-input text-center" value="<?= ptrPrintPreviewText($row['issued'] ?? null, '') ?>" readonly></td>
+                                            <td class="text-center"><input type="text" class="stock-card-line-input text-center" value="<?= ptrPrintPreviewText($row['balance'] ?? null, '') ?>" readonly></td>
+                                            <td class="text-end"><input type="text" class="stock-card-line-input text-end" value="<?= ptrPrintPreviewText($row['total_cost'] ?? null, '') ?>" readonly></td>
+                                            <td class="text-center"><input type="text" class="stock-card-line-input text-center" data-ptr-print-dedupe-po value="<?= ptrPrintPreviewText($row['ref_no'] ?? null, '') ?>" readonly></td>
+                                            <td><input type="text" class="stock-card-line-input" value="<?= ptrPrintPreviewText($row['remarks'] ?? null, '') ?>" readonly></td>
                                         </tr>
                                     <?php endforeach; ?>
                                 </tbody>
@@ -458,6 +465,7 @@ while (count($ledgerRows) < 18) {
         </div>
     </main>
     <script src="assets/js/smooth_motion.js?v=20260325"></script>
+    <script src="assets/js/stock_card.js?v=20260411"></script>
 </body>
 </html>
 

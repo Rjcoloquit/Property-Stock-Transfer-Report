@@ -844,6 +844,63 @@
         printWindow.print();
     });
 
+    document.querySelectorAll('.create-ptr-signatory-scroll-btn').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+            var block = document.getElementById('previewSignatoryBlock');
+            var prepared = document.getElementById('previewPreparedBy');
+            if (!block) {
+                return;
+            }
+            block.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            if (prepared) {
+                window.setTimeout(function () {
+                    prepared.focus();
+                }, 280);
+            }
+        });
+    });
+
+    var savePtrSignatoriesBtn = document.getElementById('savePtrSignatoriesBtn');
+    if (savePtrSignatoriesBtn) {
+        savePtrSignatoriesBtn.addEventListener('click', function () {
+            var ptrNo = String(ptrNoInput.value || '').trim();
+            if (ptrNo === '') {
+                window.alert('PTR number is required. Reload the page if the number is missing.');
+                return;
+            }
+            var preparedEl = document.getElementById('previewPreparedBy');
+            var approvedEl = document.getElementById('previewApprovedBy');
+            var issuedEl = document.getElementById('previewIssuedBy');
+            var fd = new FormData();
+            fd.append('action', 'save_ptr_signatories');
+            fd.append('ptr_no', ptrNo);
+            fd.append('ptr_prepared_by', preparedEl ? preparedEl.value : '');
+            fd.append('ptr_approved_by', approvedEl ? approvedEl.value : '');
+            fd.append('ptr_issued_by', issuedEl ? issuedEl.value : '');
+            savePtrSignatoriesBtn.disabled = true;
+            fetch('create_ptr.php', { method: 'POST', body: fd, credentials: 'same-origin' })
+                .then(function (res) {
+                    return res.json().then(function (body) {
+                        return { ok: res.ok, body: body };
+                    });
+                })
+                .then(function (result) {
+                    var body = result.body || {};
+                    if (result.ok && body.ok) {
+                        window.alert(body.message || 'Saved.');
+                    } else {
+                        window.alert(body.message || 'Could not save signatory names.');
+                    }
+                })
+                .catch(function () {
+                    window.alert('Could not save signatory names.');
+                })
+                .finally(function () {
+                    savePtrSignatoriesBtn.disabled = false;
+                });
+        });
+    }
+
     itemRowsBody.querySelectorAll('.item-row').forEach(function (row) {
         applyRowMeta(row);
     });
