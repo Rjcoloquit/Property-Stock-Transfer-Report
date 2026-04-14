@@ -1,14 +1,13 @@
 -- MySQL dump 10.13  Distrib 8.0.36, for Win64 (x86_64)
 --
--- Host: localhost    Database: supply
+-- Host: localhost    Database: supply_db
 -- ------------------------------------------------------
--- Server version	5.7.0
--- Note: Collation changed from utf8mb4_0900_ai_ci to utf8mb4_general_ci for compatibility
+-- Server version	8.0.36
 
 /*!40101 SET @OLD_CHARACTER_SET_CLIENT=@@CHARACTER_SET_CLIENT */;
 /*!40101 SET @OLD_CHARACTER_SET_RESULTS=@@CHARACTER_SET_RESULTS */;
 /*!40101 SET @OLD_COLLATION_CONNECTION=@@COLLATION_CONNECTION */;
-/*!40101 SET NAMES utf8mb4 */;
+/*!50503 SET NAMES utf8 */;
 /*!40103 SET @OLD_TIME_ZONE=@@TIME_ZONE */;
 /*!40103 SET TIME_ZONE='+00:00' */;
 /*!40014 SET @OLD_UNIQUE_CHECKS=@@UNIQUE_CHECKS, UNIQUE_CHECKS=0 */;
@@ -25,26 +24,26 @@ DROP TABLE IF EXISTS `incident_reports`;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `incident_reports` (
   `id` int NOT NULL AUTO_INCREMENT,
-  `name_of_office` varchar(255) DEFAULT NULL,
-  `address` varchar(255) DEFAULT NULL,
-  `incident_no` varchar(120) DEFAULT NULL,
-  `incident_type` varchar(255) DEFAULT NULL,
+  `name_of_office` varchar(255) COLLATE utf8mb4_general_ci DEFAULT NULL,
+  `address` varchar(255) COLLATE utf8mb4_general_ci DEFAULT NULL,
+  `incident_no` varchar(120) COLLATE utf8mb4_general_ci DEFAULT NULL,
+  `incident_type` varchar(255) COLLATE utf8mb4_general_ci DEFAULT NULL,
   `incident_datetime` datetime DEFAULT NULL,
-  `location` varchar(255) DEFAULT NULL,
-  `specifics_json` longtext,
-  `persons_involved` text,
-  `remarks` longtext,
-  `action_taken` longtext,
-  `prepared_by_name` varchar(255) DEFAULT NULL,
-  `prepared_by_designation` varchar(255) DEFAULT NULL,
+  `location` varchar(255) COLLATE utf8mb4_general_ci DEFAULT NULL,
+  `specifics_json` longtext COLLATE utf8mb4_general_ci,
+  `persons_involved` text COLLATE utf8mb4_general_ci,
+  `remarks` longtext COLLATE utf8mb4_general_ci,
+  `action_taken` longtext COLLATE utf8mb4_general_ci,
+  `prepared_by_name` varchar(255) COLLATE utf8mb4_general_ci DEFAULT NULL,
+  `prepared_by_designation` varchar(255) COLLATE utf8mb4_general_ci DEFAULT NULL,
   `prepared_by_date` date DEFAULT NULL,
-  `submitted_to_name` varchar(255) DEFAULT NULL,
-  `submitted_to_designation` varchar(255) DEFAULT NULL,
+  `submitted_to_name` varchar(255) COLLATE utf8mb4_general_ci DEFAULT NULL,
+  `submitted_to_designation` varchar(255) COLLATE utf8mb4_general_ci DEFAULT NULL,
   `submitted_to_date` date DEFAULT NULL,
-  `created_by` varchar(150) DEFAULT NULL,
+  `created_by` varchar(150) COLLATE utf8mb4_general_ci DEFAULT NULL,
   `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -66,22 +65,22 @@ DROP TABLE IF EXISTS `inventory_records`;
 CREATE TABLE `inventory_records` (
   `id` int NOT NULL AUTO_INCREMENT,
   `expiration_date` date DEFAULT NULL,
-  `unit` varchar(50) DEFAULT NULL,
-  `description` text,
-  `batch_number` varchar(100) DEFAULT NULL,
+  `unit` varchar(50) COLLATE utf8mb4_general_ci DEFAULT NULL,
+  `description` text COLLATE utf8mb4_general_ci,
+  `batch_number` varchar(100) COLLATE utf8mb4_general_ci DEFAULT NULL,
   `batch_id` int DEFAULT NULL,
   `quantity` int DEFAULT '0',
   `unit_cost` decimal(10,2) DEFAULT '0.00',
-  `program` varchar(255) DEFAULT NULL,
-  `po_no` varchar(100) DEFAULT NULL,
-  `supplier` varchar(255) DEFAULT NULL,
-  `recipient` varchar(255) DEFAULT NULL,
-  `ptr_no` varchar(50) DEFAULT NULL,
+  `program` varchar(255) COLLATE utf8mb4_general_ci DEFAULT NULL,
+  `po_no` varchar(100) COLLATE utf8mb4_general_ci DEFAULT NULL,
+  `supplier` varchar(255) COLLATE utf8mb4_general_ci DEFAULT NULL,
+  `recipient` varchar(255) COLLATE utf8mb4_general_ci DEFAULT NULL,
+  `ptr_no` varchar(50) COLLATE utf8mb4_general_ci DEFAULT NULL,
   `record_date` date DEFAULT NULL,
-  `release_status` varchar(20) NOT NULL DEFAULT 'released',
+  `release_status` varchar(20) COLLATE utf8mb4_general_ci NOT NULL DEFAULT 'released',
   `released_at` datetime DEFAULT NULL,
   PRIMARY KEY (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=5 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -90,7 +89,6 @@ CREATE TABLE `inventory_records` (
 
 LOCK TABLES `inventory_records` WRITE;
 /*!40000 ALTER TABLE `inventory_records` DISABLE KEYS */;
-INSERT INTO `inventory_records` VALUES (1,'2028-03-30','Vial','PAEL','456',3,100,45.00,'Daddy\'s Boy','EA456','DOH','Rizal RHU','03/0001','2026-03-24','released','2026-03-24 14:08:09'),(3,'2027-03-16','Vial','PAEL','456',4,50,35.00,'Daddy\'s Boy','PO-342','DOH','Dr. Jose Rizal District Hospital','03/0002','2026-03-24','released','2026-03-24 14:14:26'),(4,'2027-03-16','Vial','PAEL','456',3,400,45.00,'Daddy\'s Boy','EA456','DOH','PHO TB-DOTS','03/0003','2026-03-24','released','2026-03-24 14:17:15');
 /*!40000 ALTER TABLE `inventory_records` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -104,21 +102,21 @@ DROP TABLE IF EXISTS `item_add_history`;
 CREATE TABLE `item_add_history` (
   `id` int NOT NULL AUTO_INCREMENT,
   `product_id` int DEFAULT NULL,
-  `product_description` text,
-  `uom` varchar(50) DEFAULT NULL,
+  `product_description` text COLLATE utf8mb4_general_ci,
+  `uom` varchar(50) COLLATE utf8mb4_general_ci DEFAULT NULL,
   `cost_per_unit` decimal(12,2) DEFAULT '0.00',
   `expiry_date` date DEFAULT NULL,
-  `program` varchar(255) DEFAULT NULL,
-  `po_no` varchar(100) DEFAULT NULL,
-  `supplier` varchar(255) DEFAULT NULL,
-  `place_of_delivery` varchar(255) DEFAULT NULL,
+  `program` varchar(255) COLLATE utf8mb4_general_ci DEFAULT NULL,
+  `po_no` varchar(100) COLLATE utf8mb4_general_ci DEFAULT NULL,
+  `supplier` varchar(255) COLLATE utf8mb4_general_ci DEFAULT NULL,
+  `place_of_delivery` varchar(255) COLLATE utf8mb4_general_ci DEFAULT NULL,
   `date_of_delivery` date DEFAULT NULL,
-  `delivery_term` varchar(255) DEFAULT NULL,
-  `payment_term` varchar(255) DEFAULT NULL,
-  `added_by` varchar(150) DEFAULT NULL,
+  `delivery_term` varchar(255) COLLATE utf8mb4_general_ci DEFAULT NULL,
+  `payment_term` varchar(255) COLLATE utf8mb4_general_ci DEFAULT NULL,
+  `added_by` varchar(150) COLLATE utf8mb4_general_ci DEFAULT NULL,
   `added_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=6 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -127,7 +125,6 @@ CREATE TABLE `item_add_history` (
 
 LOCK TABLES `item_add_history` WRITE;
 /*!40000 ALTER TABLE `item_add_history` DISABLE KEYS */;
-INSERT INTO `item_add_history` VALUES (1,1,'RJ','Box',30.00,'2028-03-22','Comscie','167','DOH','PHO','2026-03-24','Full','None','admin','2026-03-24 06:04:01'),(2,2,'LAU','Bottle',25.00,'2027-03-18','Bading','0069','DOH','PHO','2026-03-24','Full','None','admin','2026-03-24 06:05:26'),(3,3,'PAEL','Vial',45.00,'2028-03-30','Daddy\'s Boy','EA456','DOH','PHO','2026-03-24','Full','None','admin','2026-03-24 06:07:10'),(4,4,'PAEL','Vial',35.00,'2027-03-16','Daddy\'s Boy','PO-342','DOH','PHO','2026-03-24','Full','None','admin','2026-03-24 06:09:49'),(5,5,'KEN','Bottle',15.00,'2028-03-13','Supot','PO-548','DOH','PHO','2026-03-25','Full','None','admin','2026-03-25 06:00:22');
 /*!40000 ALTER TABLE `item_add_history` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -141,13 +138,13 @@ DROP TABLE IF EXISTS `product_batches`;
 CREATE TABLE `product_batches` (
   `id` int NOT NULL AUTO_INCREMENT,
   `product_id` int NOT NULL,
-  `batch_number` varchar(100) NOT NULL,
+  `batch_number` varchar(100) COLLATE utf8mb4_general_ci NOT NULL,
   `stock_quantity` int DEFAULT '0',
   `expiry_date` date DEFAULT NULL,
   `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
   `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=6 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -156,7 +153,6 @@ CREATE TABLE `product_batches` (
 
 LOCK TABLES `product_batches` WRITE;
 /*!40000 ALTER TABLE `product_batches` DISABLE KEYS */;
-INSERT INTO `product_batches` VALUES (1,1,'0956',3000,'2028-03-22','2026-03-24 06:04:01','2026-03-24 06:04:01'),(2,2,'6969',150,'2027-03-18','2026-03-24 06:05:26','2026-03-24 06:05:26'),(3,3,'456',6000,'2028-03-30','2026-03-24 06:07:10','2026-03-24 06:07:10'),(4,4,'456',500,'2027-03-16','2026-03-24 06:09:49','2026-03-24 06:09:49'),(5,5,'0023',6900,'2028-03-13','2026-03-25 06:00:22','2026-03-25 06:02:29');
 /*!40000 ALTER TABLE `product_batches` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -170,8 +166,8 @@ DROP TABLE IF EXISTS `product_po_number`;
 CREATE TABLE `product_po_number` (
   `id` int NOT NULL AUTO_INCREMENT,
   `product_id` int NOT NULL,
-  `po_no` varchar(100) NOT NULL,
-  `batch_number` varchar(100) NOT NULL,
+  `po_no` varchar(100) COLLATE utf8mb4_general_ci NOT NULL,
+  `batch_number` varchar(100) COLLATE utf8mb4_general_ci NOT NULL,
   `cost_per_unit` decimal(12,2) DEFAULT '0.00',
   `stock_quantity` int DEFAULT '0',
   `expiry_date` date DEFAULT NULL,
@@ -181,7 +177,7 @@ CREATE TABLE `product_po_number` (
   UNIQUE KEY `po_no` (`po_no`),
   KEY `fk_product` (`product_id`),
   CONSTRAINT `fk_product` FOREIGN KEY (`product_id`) REFERENCES `products` (`id`) ON DELETE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=11 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -190,7 +186,6 @@ CREATE TABLE `product_po_number` (
 
 LOCK TABLES `product_po_number` WRITE;
 /*!40000 ALTER TABLE `product_po_number` DISABLE KEYS */;
-INSERT INTO `product_po_number` VALUES (1,1,'167','0956',30.00,3000,'2028-03-22','2026-03-24 06:04:01','2026-03-24 06:04:01'),(2,2,'0069','6969',25.00,150,'2027-03-18','2026-03-24 06:05:26','2026-03-24 06:05:26'),(3,3,'EA456','456',45.00,5500,'2028-03-30','2026-03-24 06:07:10','2026-03-24 06:17:15'),(4,4,'PO-342','456',35.00,450,'2027-03-16','2026-03-24 06:09:49','2026-03-24 06:14:26'),(5,5,'PO-548','6969',15.00,6900,'2028-03-13','2026-03-25 06:00:22','2026-03-25 06:00:22'),(9,5,'PO-54800','6969',15.00,6900,'2028-03-13','2026-03-25 06:04:28','2026-03-25 06:04:28');
 /*!40000 ALTER TABLE `product_po_number` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -203,21 +198,21 @@ DROP TABLE IF EXISTS `products`;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `products` (
   `id` int NOT NULL AUTO_INCREMENT,
-  `product_description` text NOT NULL,
-  `uom` varchar(50) NOT NULL,
-  `program` varchar(255) DEFAULT NULL,
-  `po_no` varchar(100) DEFAULT NULL,
-  `place_of_delivery` varchar(255) DEFAULT NULL,
-  `supplier` varchar(255) DEFAULT NULL,
+  `product_description` text COLLATE utf8mb4_general_ci NOT NULL,
+  `uom` varchar(50) COLLATE utf8mb4_general_ci NOT NULL,
+  `program` varchar(255) COLLATE utf8mb4_general_ci DEFAULT NULL,
+  `po_no` varchar(100) COLLATE utf8mb4_general_ci DEFAULT NULL,
+  `place_of_delivery` varchar(255) COLLATE utf8mb4_general_ci DEFAULT NULL,
+  `supplier` varchar(255) COLLATE utf8mb4_general_ci DEFAULT NULL,
   `date_of_delivery` date DEFAULT NULL,
-  `delivery_term` varchar(100) DEFAULT NULL,
-  `payment_term` varchar(100) DEFAULT NULL,
+  `delivery_term` varchar(100) COLLATE utf8mb4_general_ci DEFAULT NULL,
+  `payment_term` varchar(100) COLLATE utf8mb4_general_ci DEFAULT NULL,
   `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
   `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   `cost_per_unit` decimal(12,2) DEFAULT '0.00',
   `expiry_date` date DEFAULT NULL,
   PRIMARY KEY (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=6 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -226,8 +221,33 @@ CREATE TABLE `products` (
 
 LOCK TABLES `products` WRITE;
 /*!40000 ALTER TABLE `products` DISABLE KEYS */;
-INSERT INTO `products` VALUES (1,'RJ','Box','Comscie','167','PHO','DOH','2026-03-24','Full','None','2026-03-24 06:04:01','2026-03-24 06:04:01',30.00,'2028-03-22'),(2,'LAU','Bottle','Bading','0069','PHO','DOH','2026-03-24','Full','None','2026-03-24 06:05:26','2026-03-24 06:05:26',25.00,'2027-03-18'),(3,'PAEL','Vial','Daddy\'s Boy','EA456','PHO','DOH','2026-03-24','Full','None','2026-03-24 06:07:10','2026-03-24 06:07:10',45.00,'2028-03-30'),(4,'PAEL','Vial','Daddy\'s Boy','PO-342','PHO','DOH','2026-03-24','Full','None','2026-03-24 06:09:49','2026-03-24 06:09:49',35.00,'2027-03-16'),(5,'KEN-supot','Bottle','Supot','PO-548','PHO','DOH','2026-03-25','Full','None','2026-03-25 06:00:22','2026-03-25 06:06:55',15.00,'2028-03-13');
 /*!40000 ALTER TABLE `products` ENABLE KEYS */;
+UNLOCK TABLES;
+
+--
+-- Table structure for table `ptr_print_signatories`
+--
+
+DROP TABLE IF EXISTS `ptr_print_signatories`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `ptr_print_signatories` (
+  `ptr_no` varchar(50) COLLATE utf8mb4_general_ci NOT NULL,
+  `prepared_by` text COLLATE utf8mb4_general_ci,
+  `approved_by` text COLLATE utf8mb4_general_ci,
+  `issued_by` text COLLATE utf8mb4_general_ci,
+  `updated_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`ptr_no`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `ptr_print_signatories`
+--
+
+LOCK TABLES `ptr_print_signatories` WRITE;
+/*!40000 ALTER TABLE `ptr_print_signatories` DISABLE KEYS */;
+/*!40000 ALTER TABLE `ptr_print_signatories` ENABLE KEYS */;
 UNLOCK TABLES;
 
 --
@@ -239,7 +259,7 @@ DROP TABLE IF EXISTS `recipients`;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `recipients` (
   `recipient_id` int NOT NULL AUTO_INCREMENT,
-  `recipient_name` varchar(255) NOT NULL,
+  `recipient_name` varchar(255) COLLATE utf8mb4_general_ci NOT NULL,
   `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`recipient_id`),
   UNIQUE KEY `recipient_name` (`recipient_name`)
@@ -265,26 +285,26 @@ DROP TABLE IF EXISTS `stock_cards`;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `stock_cards` (
   `id` int NOT NULL AUTO_INCREMENT,
-  `po_contract_no` varchar(255) DEFAULT NULL,
-  `supplier` varchar(255) DEFAULT NULL,
-  `item_description` text,
-  `dosage_form` varchar(255) DEFAULT NULL,
-  `dosage_strength` varchar(255) DEFAULT NULL,
-  `uom` varchar(100) DEFAULT NULL,
-  `sku_code` varchar(150) DEFAULT NULL,
-  `entity_name` varchar(255) DEFAULT NULL,
-  `fund_cluster` varchar(255) DEFAULT NULL,
+  `po_contract_no` varchar(255) COLLATE utf8mb4_general_ci DEFAULT NULL,
+  `supplier` varchar(255) COLLATE utf8mb4_general_ci DEFAULT NULL,
+  `item_description` text COLLATE utf8mb4_general_ci,
+  `dosage_form` varchar(255) COLLATE utf8mb4_general_ci DEFAULT NULL,
+  `dosage_strength` varchar(255) COLLATE utf8mb4_general_ci DEFAULT NULL,
+  `uom` varchar(100) COLLATE utf8mb4_general_ci DEFAULT NULL,
+  `sku_code` varchar(150) COLLATE utf8mb4_general_ci DEFAULT NULL,
+  `entity_name` varchar(255) COLLATE utf8mb4_general_ci DEFAULT NULL,
+  `fund_cluster` varchar(255) COLLATE utf8mb4_general_ci DEFAULT NULL,
   `unit_cost` decimal(12,2) DEFAULT NULL,
-  `mode_of_procurement` varchar(255) DEFAULT NULL,
-  `end_user_program` varchar(255) DEFAULT NULL,
-  `batch_no` varchar(120) DEFAULT NULL,
-  `ledger_rows` longtext,
-  `item_key` varchar(400) DEFAULT NULL,
-  `source_type` varchar(30) NOT NULL DEFAULT 'manual',
-  `created_by` varchar(150) DEFAULT NULL,
+  `mode_of_procurement` varchar(255) COLLATE utf8mb4_general_ci DEFAULT NULL,
+  `end_user_program` varchar(255) COLLATE utf8mb4_general_ci DEFAULT NULL,
+  `batch_no` varchar(120) COLLATE utf8mb4_general_ci DEFAULT NULL,
+  `ledger_rows` longtext COLLATE utf8mb4_general_ci,
+  `item_key` varchar(400) COLLATE utf8mb4_general_ci DEFAULT NULL,
+  `source_type` varchar(30) COLLATE utf8mb4_general_ci NOT NULL DEFAULT 'manual',
+  `created_by` varchar(150) COLLATE utf8mb4_general_ci DEFAULT NULL,
   `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=6 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -293,7 +313,6 @@ CREATE TABLE `stock_cards` (
 
 LOCK TABLES `stock_cards` WRITE;
 /*!40000 ALTER TABLE `stock_cards` DISABLE KEYS */;
-INSERT INTO `stock_cards` VALUES (1,'167','DOH','RJ','Box',NULL,'Box',NULL,'PHO','PHO',30.00,NULL,'Comscie','0956','[{\"entry_date\":\"2026-03-24\",\"received\":\"3000\",\"issued\":\"0\",\"balance\":\"3000.00\",\"total_cost\":\"90000.00\",\"ref_no\":\"PO 167\",\"remarks\":\"DOH/Stock received via Manage Items\"}]','rj|box|0956|comscie|167','release','admin','2026-03-24 06:04:01'),(2,'0069','DOH','LAU','Bottle',NULL,'Bottle',NULL,'PHO','PHO',25.00,NULL,'Bading','6969','[{\"entry_date\":\"2026-03-24\",\"received\":\"150\",\"issued\":\"0\",\"balance\":\"150.00\",\"total_cost\":\"3750.00\",\"ref_no\":\"PO 0069\",\"remarks\":\"DOH/Stock received via Manage Items\"}]','lau|bottle|6969|bading|0069','release','admin','2026-03-24 06:05:26'),(3,'EA456','DOH','PAEL','Vial',NULL,'Vial',NULL,'PHO','PHO',45.00,NULL,'Daddy\'s Boy','456','[{\"entry_date\":\"2026-03-24\",\"received\":\"6000\",\"issued\":\"0\",\"balance\":\"6000.00\",\"total_cost\":\"270000.00\",\"ref_no\":\"PO EA456\",\"remarks\":\"DOH/Stock received via Manage Items\"},{\"entry_date\":\"2026-03-24\",\"received\":\"0\",\"issued\":\"100\",\"balance\":\"5900.00\",\"total_cost\":\"4500.00\",\"ref_no\":\"03/0001\",\"remarks\":\"Rizal RHU / DOH\"},{\"entry_date\":\"2026-03-24\",\"received\":\"0\",\"issued\":\"400\",\"balance\":\"5500.00\",\"total_cost\":\"18000.00\",\"ref_no\":\"03/0003\",\"remarks\":\"PHO TB-DOTS / DOH\"}]','pael|vial|456|daddy\'s boy|ea456','release','admin','2026-03-24 06:07:10'),(4,'PO-342','DOH','PAEL','Vial',NULL,'Vial',NULL,'PHO','PHO',35.00,NULL,'Daddy\'s Boy','456','[{\"entry_date\":\"2026-03-24\",\"received\":\"500\",\"issued\":\"0\",\"balance\":\"500.00\",\"total_cost\":\"17500.00\",\"ref_no\":\"PO PO-342\",\"remarks\":\"DOH/Stock received via Manage Items\"},{\"entry_date\":\"2026-03-24\",\"received\":\"0\",\"issued\":\"50\",\"balance\":\"450.00\",\"total_cost\":\"1750.00\",\"ref_no\":\"03/0002\",\"remarks\":\"Dr. Jose Rizal District Hospital / DOH\"}]','pael|vial|456|daddy\'s boy|po-342','release','admin','2026-03-24 06:09:49'),(5,'PO-548','DOH','KEN','Bottle',NULL,'Bottle',NULL,'PHO','PHO',15.00,NULL,'Supot','6969','[{\"entry_date\":\"2026-03-25\",\"received\":\"6900\",\"issued\":\"0\",\"balance\":\"6900.00\",\"total_cost\":\"103500.00\",\"ref_no\":\"PO PO-548\",\"remarks\":\"DOH/Stock received via Manage Items\"}]','ken|bottle|6969|supot|po-548','release','admin','2026-03-25 06:00:22');
 /*!40000 ALTER TABLE `stock_cards` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -306,17 +325,17 @@ DROP TABLE IF EXISTS `users`;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `users` (
   `user_id` int NOT NULL AUTO_INCREMENT,
-  `full_name` varchar(150) NOT NULL,
-  `username` varchar(100) NOT NULL,
-  `email` varchar(150) DEFAULT NULL,
-  `password_hash` varchar(255) NOT NULL,
-  `role` enum('Admin','Encoder') NOT NULL DEFAULT 'Encoder',
-  `status` enum('Active','Inactive') DEFAULT 'Active',
+  `full_name` varchar(150) COLLATE utf8mb4_general_ci NOT NULL,
+  `username` varchar(100) COLLATE utf8mb4_general_ci NOT NULL,
+  `email` varchar(150) COLLATE utf8mb4_general_ci DEFAULT NULL,
+  `password_hash` varchar(255) COLLATE utf8mb4_general_ci NOT NULL,
+  `role` enum('Admin','Encoder') COLLATE utf8mb4_general_ci NOT NULL DEFAULT 'Encoder',
+  `status` enum('Active','Inactive') COLLATE utf8mb4_general_ci DEFAULT 'Active',
   `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`user_id`),
   UNIQUE KEY `username` (`username`),
   UNIQUE KEY `email` (`email`)
-) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -325,7 +344,6 @@ CREATE TABLE `users` (
 
 LOCK TABLES `users` WRITE;
 /*!40000 ALTER TABLE `users` DISABLE KEYS */;
-INSERT INTO `users` VALUES (1,'rj coloquit','admin',NULL,'$2y$10$0gvl9fzphWHEsE8./WBTn.XCnLBh7jTEi4Uo3i81s7oaCA9zG7142','Encoder','Active','2026-02-27 02:35:55'),(2,'Richard Roy','restetutoputo@gmail.com','restetutoputo@gmail.com','$2y$10$C15i9MrLwuLWS6vXyYVbwuCW./RSbyWtCUZdK0U5OTTofB13Kp02O','Encoder','Active','2026-02-27 05:46:14');
 /*!40000 ALTER TABLE `users` ENABLE KEYS */;
 UNLOCK TABLES;
 /*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;
@@ -338,5 +356,4 @@ UNLOCK TABLES;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2026-03-27 14:36:31
--- Fixed: replaced utf8mb4_0900_ai_ci with utf8mb4_general_ci for MySQL 5.7 / MariaDB compatibility
+-- Dump completed on 2026-04-14 10:04:11

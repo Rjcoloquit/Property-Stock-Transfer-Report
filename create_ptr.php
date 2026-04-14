@@ -199,6 +199,7 @@ try {
         ];
     }
 
+    $poNumberLoadSucceeded = false;
     try {
         $poNumberStmt = $pdo->query('
             SELECT
@@ -216,9 +217,11 @@ try {
             INNER JOIN products p ON p.id = ppn.product_id
             WHERE p.product_description IS NOT NULL AND TRIM(p.product_description) <> ""
               AND ppn.po_no IS NOT NULL AND TRIM(ppn.po_no) <> ""
+              AND COALESCE(ppn.stock_quantity, 0) > 0
             ORDER BY p.product_description ASC, ppn.po_no ASC
         ');
         $poNumberRows = $poNumberStmt->fetchAll();
+        $poNumberLoadSucceeded = true;
 
         foreach ($poNumberRows as $row) {
             $description = trim((string) ($row['product_description'] ?? ''));
@@ -290,6 +293,34 @@ try {
         $programOptionsByDescription[$description] = $options;
     }
 
+    if ($hasProductPoNumberTable && $poNumberLoadSucceeded) {
+        $allowedDescriptions = array_keys($poOptionsByDescription);
+        if ($allowedDescriptions === []) {
+            $productMetaByDescription = [];
+            $poOptionsByDescription = [];
+            $productMetaByDescriptionPo = [];
+            $costByDescriptionAndPo = [];
+            $quantityByDescriptionAndPo = [];
+        } else {
+            $allowedFlip = array_flip($allowedDescriptions);
+            $productMetaByDescription = array_intersect_key($productMetaByDescription, $allowedFlip);
+            $poOptionsByDescription = array_intersect_key($poOptionsByDescription, $allowedFlip);
+            $allowedDescLower = [];
+            foreach (array_keys($productMetaByDescription) as $d) {
+                $allowedDescLower[strtolower(trim($d))] = true;
+            }
+            foreach (array_keys($productMetaByDescriptionPo) as $poMapKey) {
+                $pipe = strpos($poMapKey, '|');
+                $descLower = $pipe !== false ? substr($poMapKey, 0, $pipe) : $poMapKey;
+                if (!isset($allowedDescLower[$descLower])) {
+                    unset($productMetaByDescriptionPo[$poMapKey], $costByDescriptionAndPo[$poMapKey], $quantityByDescriptionAndPo[$poMapKey]);
+                }
+            }
+        }
+        $unitOptionsByDescription = array_intersect_key($unitOptionsByDescription, $productMetaByDescription);
+        $programOptionsByDescription = array_intersect_key($programOptionsByDescription, $productMetaByDescription);
+    }
+
     $descriptionOptions = array_keys($productMetaByDescription);
     sort($descriptionOptions, SORT_NATURAL | SORT_FLAG_CASE);
     $programOptions = [];
@@ -333,6 +364,7 @@ try {
             INNER JOIN products p ON p.id = ppn.product_id
             WHERE ppn.batch_number IS NOT NULL AND TRIM(ppn.batch_number) <> ""
               AND p.product_description IS NOT NULL AND TRIM(p.product_description) <> ""
+              AND COALESCE(ppn.stock_quantity, 0) > 0
             ORDER BY p.product_description ASC, ppn.batch_number ASC
         ');
         $batchRows = $poNumberBatchStmt->fetchAll();

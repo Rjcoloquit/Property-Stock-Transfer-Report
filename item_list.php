@@ -1205,24 +1205,32 @@ try {
         FROM products p
         ' . $batchJoinSql;
 
+    $listStockFilterSql = $batchSourceTable !== '' ? ' AND COALESCE(b.stock_quantity, 0) > 0' : '';
+
     if ($search !== '') {
         $like = '%' . $search . '%';
         $batchSearchClause = $batchSourceTable !== ''
             ? '                OR COALESCE(b.batch_number, "") LIKE :q' . PHP_EOL
             : '';
+        $searchWhereSql = $listStockFilterSql !== ''
+            ? 'WHERE (p.product_description LIKE :q
+                OR p.uom LIKE :q
+             ' . $batchSearchClause . ')' . $listStockFilterSql
+            : 'WHERE p.product_description LIKE :q
+                OR p.uom LIKE :q
+             ' . $batchSearchClause;
         $stmt = $pdo->prepare(
             $listSelect . '
-             WHERE p.product_description LIKE :q
-                OR p.uom LIKE :q
-             ' . $batchSearchClause . '
+             ' . $searchWhereSql . '
              ORDER BY TRIM(LOWER(p.product_description)) ' . $orderByDirection . ',
                       COALESCE(batch_number, "") ASC,
                       p.id ASC'
         );
         $stmt->execute(['q' => $like]);
     } else {
+        $listWhereSql = $listStockFilterSql !== '' ? (' WHERE 1=1' . $listStockFilterSql) : '';
         $stmt = $pdo->query(
-            $listSelect . '
+            $listSelect . $listWhereSql . '
              ORDER BY TRIM(LOWER(p.product_description)) ' . $orderByDirection . ',
                       COALESCE(batch_number, "") ASC,
                       p.id ASC'
