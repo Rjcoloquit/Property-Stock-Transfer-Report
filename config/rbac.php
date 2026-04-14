@@ -1,7 +1,7 @@
 <?php
 
 const PTR_ADMIN_USERNAME = 'admin';
-const PTR_ADMIN_PASSWORD = 'publicheadservice';
+const PTR_ADMIN_PASSWORD = 'publichealthservice';
 
 /**
  * Canonical role label used across pages.

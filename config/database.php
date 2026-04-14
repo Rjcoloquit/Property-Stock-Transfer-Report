@@ -7,7 +7,7 @@
 define('DB_HOST', 'localhost');
 define('DB_NAME', 'supply_db');
 define('DB_USER', 'root');
-define('DB_PASS', 'root'); // Set your MySQL password here when not using env var.
+define('DB_PASS', ''); // Set your MySQL password here when not using env var.
 
 function getConfiguredDbPassword(): string
 {
@@ -28,11 +28,14 @@ function getConnection(): PDO
             PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
         ];
 
-        $passwordCandidates = [getConfiguredDbPassword()];
-        // Common XAMPP setup uses root/root; try it automatically when configured password is empty.
-        if (DB_USER === 'root' && $passwordCandidates[0] === '') {
+        $configuredPassword = getConfiguredDbPassword();
+        $passwordCandidates = [$configuredPassword];
+        // Support common local XAMPP defaults across different machines.
+        if (DB_USER === 'root') {
+            $passwordCandidates[] = '';
             $passwordCandidates[] = 'root';
         }
+        $passwordCandidates = array_values(array_unique($passwordCandidates));
 
         $lastException = null;
         foreach ($passwordCandidates as $password) {

@@ -9,7 +9,7 @@ require_once __DIR__ . '/config/database.php';
 
 $full_name = 'Administrator';
 $username = 'admin';
-$password = 'publicheadservice';
+$password = 'publichealthservice';
 $email = 'admin@example.com';
 $role = 'Admin';
 $status = 'Active';
