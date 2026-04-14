@@ -55,6 +55,7 @@ function ptr_require_page_access(string $pageKey, bool $json = false): void
         'current_stock_report',
         'outbound_summary_report',
         'incident_report',
+        'incident_reports',
         'item_search_suggest',
         'logout',
     ];

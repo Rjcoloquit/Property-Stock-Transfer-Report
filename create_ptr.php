@@ -1375,8 +1375,6 @@ $previewSignatoryIssued = $sigLoaded !== null ? $sigLoaded['issued_by'] : $sigDe
                     </div>
                 </div>
                 <div class="modal-footer flex-wrap gap-2">
-                    <button type="button" class="btn btn-outline-secondary create-ptr-signatory-scroll-btn">Edit signatory names</button>
-                    <button type="button" id="savePtrSignatoriesBtn" class="btn btn-outline-primary">Save signatory names</button>
                     <button type="button" id="printPreviewBtn" class="btn btn-outline-secondary">Print</button>
                     <button type="submit" form="ptrForm" class="btn btn-primary"><?= $isDraftEditMode ? 'Save Draft Changes' : 'Save Report' ?></button>
                 </div>

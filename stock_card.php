@@ -218,9 +218,10 @@ try {
                     $runningBalance = max(0, $runningBalance + $receivedNumeric - $issuedNumeric);
 
                     $storedTotalCost = (string) ($row['total_cost'] ?? '');
+                    $storedTotalCostNumeric = (float) str_replace(',', '', trim($storedTotalCost));
                     $computedTotalCost = $issuedNumeric > 0
-                        ? number_format($issuedNumeric * $unitCostValue, 2, '.', '')
-                        : $storedTotalCost;
+                        ? number_format($issuedNumeric * $unitCostValue, 2, '.', ',')
+                        : ($storedTotalCost !== '' ? number_format($storedTotalCostNumeric, 2, '.', ',') : '');
                     $ledgerRows[] = [
                         'entry_date' => (string) ($row['entry_date'] ?? ''),
                         'received' => $receivedRaw,

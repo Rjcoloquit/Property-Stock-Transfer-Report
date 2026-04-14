@@ -509,23 +509,43 @@ try {
             if ($formData['product_description'] === '') {
                 $errors[] = 'Description is required.';
             }
+            if ($formData['batch_number'] === '') {
+                $errors[] = 'Batch number is required.';
+            }
             if ($formData['uom'] === '') {
                 $errors[] = 'UOM is required.';
+            }
+            if ($formData['program'] === '') {
+                $errors[] = 'Program is required.';
+            }
+            if ($formData['po_no'] === '') {
+                $errors[] = 'PO Number is required.';
+            }
+            if ($formData['supplier'] === '') {
+                $errors[] = 'Supplier is required.';
+            }
+            if ($formData['place_of_delivery'] === '') {
+                $errors[] = 'Place of delivery is required.';
+            }
+            if ($formData['delivery_term'] === '') {
+                $errors[] = 'Delivery term is required.';
+            }
+            if ($formData['payment_term'] === '') {
+                $errors[] = 'Payment term is required.';
+            }
+            if ($formData['expiry_date'] === '') {
+                $errors[] = 'Expiry date is required.';
+            }
+            if ($formData['date_of_delivery'] === '') {
+                $errors[] = 'Date of delivery is required.';
             }
             if ($formData['cost_per_unit'] === '' || !is_numeric($formData['cost_per_unit']) || (float) $formData['cost_per_unit'] < 0) {
                 $errors[] = 'Cost per unit must be a valid non-negative number.';
             }
             $normalizedExpiryDate = normalizeDateInputToIso($formData['expiry_date'], 'Expiry date', $errors);
             $normalizedDateOfDelivery = normalizeDateInputToIso($formData['date_of_delivery'], 'Date of delivery', $errors);
-            $requiresBatchTracking = $hasProductBatchesTable || $hasProductPoNumberTable;
-            if ($requiresBatchTracking && $formData['batch_number'] === '') {
-                $errors[] = 'Batch number is required.';
-            }
-            if ($requiresBatchTracking && ($formData['stock'] === '' || !ctype_digit($formData['stock']) || (int) $formData['stock'] <= 0)) {
+            if ($formData['stock'] === '' || !ctype_digit($formData['stock']) || (int) $formData['stock'] <= 0) {
                 $errors[] = 'Stock must be a valid positive whole number (greater than 0).';
-            }
-            if ($hasProductPoNumberTable && trim($formData['po_no']) === '') {
-                $errors[] = 'PO Number is required.';
             }
             if ($action === 'create' && trim($formData['po_no']) !== '' && trim($formData['product_description']) !== '') {
                 $incomingPo = trim($formData['po_no']);
@@ -1581,7 +1601,7 @@ try {
                                     <div class="form-text">If item already exists, stock quantity will be added to current stock.</div>
                                 </div>
                                 <div class="col-sm-6 col-md-4">
-                                    <label for="batch_number" class="form-label item-form-label">Batch number <?= ($hasProductBatchesTable || $hasProductPoNumberTable) ? '<span class="text-danger">*</span>' : '' ?></label>
+                                    <label for="batch_number" class="form-label item-form-label">Batch number <span class="text-danger">*</span></label>
                                     <input
                                         type="text"
                                         id="batch_number"
@@ -1589,7 +1609,7 @@ try {
                                         class="form-control item-form-input"
                                         value="<?= htmlspecialchars($formData['batch_number']) ?>"
                                         placeholder="Batch no."
-                                        <?= ($hasProductBatchesTable || $hasProductPoNumberTable) ? 'required' : '' ?>
+                                        required
                                     >
                                     <?php if ($isEditMode): ?>
                                         <input type="hidden" name="original_batch_number" value="<?= htmlspecialchars($formData['batch_number']) ?>">
@@ -1611,7 +1631,7 @@ try {
                                     </datalist>
                                 </div>
                                 <div class="col-sm-6 col-md-4">
-                                    <label for="program" class="form-label item-form-label">Program</label>
+                                    <label for="program" class="form-label item-form-label">Program <span class="text-danger">*</span></label>
                                     <input
                                         type="text"
                                         id="program"
@@ -1620,6 +1640,7 @@ try {
                                         list="programRecommendationsList"
                                         value="<?= htmlspecialchars($formData['program']) ?>"
                                         placeholder="e.g. EPI, MCH, TB"
+                                        required
                                     >
                                     <datalist id="programRecommendationsList">
                                     </datalist>
@@ -1631,7 +1652,7 @@ try {
                             <h3 class="item-form-section-title">Inventory &amp; pricing</h3>
                             <div class="row g-3">
                                 <div class="col-sm-6 col-md-4">
-                                    <label for="stock" class="form-label item-form-label">Stock quantity <?= ($hasProductBatchesTable || $hasProductPoNumberTable) ? '<span class="text-danger">*</span>' : '' ?></label>
+                                    <label for="stock" class="form-label item-form-label">Stock quantity <span class="text-danger">*</span></label>
                                     <input
                                         type="number"
                                         id="stock"
@@ -1641,7 +1662,7 @@ try {
                                         step="1"
                                         value="<?= htmlspecialchars($formData['stock']) ?>"
                                         placeholder="1"
-                                        <?= ($hasProductBatchesTable || $hasProductPoNumberTable) ? 'required' : '' ?>
+                                        required
                                     >
                                 </div>
                                 <div class="col-sm-6 col-md-4">
@@ -1659,7 +1680,7 @@ try {
                                     >
                                 </div>
                                 <div class="col-sm-6 col-md-4">
-                                    <label for="expiry_date" class="form-label item-form-label">Expiry date</label>
+                                    <label for="expiry_date" class="form-label item-form-label">Expiry date <span class="text-danger">*</span></label>
                                     <input
                                         type="text"
                                         id="expiry_date"
@@ -1667,6 +1688,7 @@ try {
                                         class="form-control item-form-input js-flatpickr-date"
                                         placeholder="mm/dd/yyyy"
                                         value="<?= htmlspecialchars($formData['expiry_date']) ?>"
+                                        required
                                     >
                                 </div>
                             </div>
@@ -1676,7 +1698,7 @@ try {
                             <h3 class="item-form-section-title">Procurement</h3>
                             <div class="row g-3">
                                 <div class="col-sm-6 col-md-4">
-                                    <label for="po_no" class="form-label item-form-label">PO number</label>
+                                    <label for="po_no" class="form-label item-form-label">PO number <span class="text-danger">*</span></label>
                                     <input
                                         type="text"
                                         id="po_no"
@@ -1685,12 +1707,13 @@ try {
                                         list="poNoRecommendationsList"
                                         value="<?= htmlspecialchars($formData['po_no']) ?>"
                                         placeholder="Purchase order number"
+                                        required
                                     >
                                     <datalist id="poNoRecommendationsList">
                                     </datalist>
                                 </div>
                                 <div class="col-sm-6 col-md-4">
-                                    <label for="supplier" class="form-label item-form-label">Supplier</label>
+                                    <label for="supplier" class="form-label item-form-label">Supplier <span class="text-danger">*</span></label>
                                     <input
                                         type="text"
                                         id="supplier"
@@ -1699,6 +1722,7 @@ try {
                                         list="supplierRecommendationsList"
                                         value="<?= htmlspecialchars($formData['supplier']) ?>"
                                         placeholder="Supplier name"
+                                        required
                                     >
                                     <datalist id="supplierRecommendationsList">
                                     </datalist>
@@ -1710,7 +1734,7 @@ try {
                             <h3 class="item-form-section-title">Delivery</h3>
                             <div class="row g-3">
                                 <div class="col-sm-6 col-md-6">
-                                    <label for="place_of_delivery" class="form-label item-form-label">Place of delivery</label>
+                                    <label for="place_of_delivery" class="form-label item-form-label">Place of delivery <span class="text-danger">*</span></label>
                                     <input
                                         type="text"
                                         id="place_of_delivery"
@@ -1718,10 +1742,11 @@ try {
                                         class="form-control item-form-input"
                                         value="<?= htmlspecialchars($formData['place_of_delivery']) ?>"
                                         placeholder="Place of delivery"
+                                        required
                                     >
                                 </div>
                                 <div class="col-sm-6 col-md-3">
-                                    <label for="date_of_delivery" class="form-label item-form-label">Date of delivery</label>
+                                    <label for="date_of_delivery" class="form-label item-form-label">Date of delivery <span class="text-danger">*</span></label>
                                     <input
                                         type="text"
                                         id="date_of_delivery"
@@ -1730,10 +1755,11 @@ try {
                                         placeholder="mm/dd/yyyy"
                                         value="<?= htmlspecialchars($formData['date_of_delivery']) ?>"
                                         data-max-date="<?= date('Y-m-d') ?>"
+                                        required
                                     >
                                 </div>
                                 <div class="col-sm-6 col-md-3">
-                                    <label for="delivery_term" class="form-label item-form-label">Delivery term</label>
+                                    <label for="delivery_term" class="form-label item-form-label">Delivery term <span class="text-danger">*</span></label>
                                     <input
                                         type="text"
                                         id="delivery_term"
@@ -1741,10 +1767,11 @@ try {
                                         class="form-control item-form-input"
                                         value="<?= htmlspecialchars($formData['delivery_term']) ?>"
                                         placeholder="Term"
+                                        required
                                     >
                                 </div>
                                 <div class="col-sm-6 col-md-6">
-                                    <label for="payment_term" class="form-label item-form-label">Payment term</label>
+                                    <label for="payment_term" class="form-label item-form-label">Payment term <span class="text-danger">*</span></label>
                                     <input
                                         type="text"
                                         id="payment_term"
@@ -1752,6 +1779,7 @@ try {
                                         class="form-control item-form-input"
                                         value="<?= htmlspecialchars($formData['payment_term']) ?>"
                                         placeholder="Payment term"
+                                        required
                                     >
                                 </div>
                             </div>

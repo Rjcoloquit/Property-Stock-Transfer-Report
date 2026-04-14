@@ -3,13 +3,13 @@ session_start();
 require_once __DIR__ . '/config/rbac.php';
 ptr_require_login();
 ptr_require_page_access('incident_reports');
-ptr_block_encoder_mutations();
 
 require_once __DIR__ . '/config/database.php';
 
 $username = $_SESSION['username'] ?? $_SESSION['full_name'] ?? 'User';
 $message = trim((string) ($_GET['msg'] ?? ''));
 $selectedId = isset($_GET['id']) ? (int) $_GET['id'] : 0;
+$deleteIdFromGet = isset($_GET['delete_id']) ? (int) $_GET['delete_id'] : 0;
 $error = '';
 $reports = [];
 $selectedReport = null;
@@ -43,6 +43,19 @@ try {
     $incidentDateTimeColumnStmt = $pdo->query("SHOW COLUMNS FROM incident_reports LIKE 'incident_datetime'");
     if (!$incidentDateTimeColumnStmt || !$incidentDateTimeColumnStmt->fetch()) {
         $pdo->exec('ALTER TABLE incident_reports ADD COLUMN incident_datetime DATETIME DEFAULT NULL AFTER incident_type');
+    }
+
+    $deleteId = 0;
+    if ($_SERVER['REQUEST_METHOD'] === 'POST' && (string) ($_POST['action'] ?? '') === 'delete') {
+        $deleteId = (int) ($_POST['id'] ?? 0);
+    } elseif ($deleteIdFromGet > 0) {
+        $deleteId = $deleteIdFromGet;
+    }
+    if ($deleteId > 0) {
+        $deleteStmt = $pdo->prepare('DELETE FROM incident_reports WHERE id = ? LIMIT 1');
+        $deleteStmt->execute([$deleteId]);
+        header('Location: incident_reports.php?msg=' . urlencode('Incident report deleted successfully.'));
+        exit;
     }
 
     $listStmt = $pdo->query(
@@ -147,6 +160,69 @@ if (empty($selectedSpecifics)) {
         .incident-report-list-page .incident-print-sheet {
             display: none;
         }
+        .incident-report-list-page .report-list-stack {
+            display: grid;
+            gap: 0.6rem;
+        }
+        .incident-report-list-page .report-list-item {
+            border: 1px solid #dbece2;
+            border-radius: 0.55rem;
+            background: #f9fcfa;
+            padding: 0.7rem;
+        }
+        .incident-report-list-page .report-list-item.is-active {
+            border-color: #2b6843;
+            box-shadow: 0 0 0 1px rgba(43, 104, 67, 0.12);
+            background: #f2f8f4;
+        }
+        .incident-report-list-page .report-list-head {
+            display: flex;
+            justify-content: space-between;
+            align-items: baseline;
+            gap: 0.5rem;
+            margin-bottom: 0.35rem;
+        }
+        .incident-report-list-page .report-list-incident-no {
+            font-size: 0.92rem;
+            font-weight: 700;
+            color: #1f5135;
+        }
+        .incident-report-list-page .report-list-id {
+            font-size: 0.72rem;
+            color: #6c757d;
+        }
+        .incident-report-list-page .report-list-meta {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 0.28rem 0.7rem;
+            margin-bottom: 0.55rem;
+        }
+        .incident-report-list-page .report-list-meta-item {
+            font-size: 0.78rem;
+            color: #2a2f34;
+            line-height: 1.2;
+        }
+        .incident-report-list-page .report-list-meta-item .meta-label {
+            color: #6c757d;
+            margin-right: 0.3rem;
+        }
+        .incident-report-list-page .report-list-actions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.35rem;
+        }
+        @media (max-width: 1500px) {
+            .incident-report-list-page .reports-list-col,
+            .incident-report-list-page .reports-detail-col {
+                flex: 0 0 100%;
+                max-width: 100%;
+            }
+        }
+        @media (max-width: 576px) {
+            .incident-report-list-page .report-list-meta {
+                grid-template-columns: 1fr;
+            }
+        }
         @media print {
             html, body {
                 width: 100%;
@@ -176,9 +252,9 @@ if (empty($selectedSpecifics)) {
                 position: static !important;
                 left: 0 !important;
                 top: 0 !important;
-                width: 100% !important;
+                width: 210mm !important;
                 height: auto !important;
-                margin: 0 !important;
+                margin: 0 auto !important;
                 padding: 0 !important;
                 border: none !important;
                 background: #ffffff !important;
@@ -238,13 +314,15 @@ if (empty($selectedSpecifics)) {
             }
             .incident-print-wrapper {
                 display: block !important;
-                width: 100% !important;
+                width: 190mm !important;
+                max-width: 190mm !important;
                 padding: 0 !important;
-                margin: 0 !important;
+                margin: 0 auto !important;
             }
             .incident-print-sheet-content {
-                width: 100% !important;
-                max-width: 100% !important;
+                width: 190mm !important;
+                max-width: 190mm !important;
+                min-height: 270mm !important;
                 padding: 0 !important;
                 background: #fff !important;
                 box-sizing: border-box !important;
@@ -383,48 +461,49 @@ if (empty($selectedSpecifics)) {
             <?php endif; ?>
 
             <div class="row g-3">
-                <div class="col-lg-5 no-print">
+                <div class="col-lg-5 no-print reports-list-col">
                     <div class="card app-card">
                         <div class="card-body">
                             <h2 class="h6 mb-3">Report List</h2>
                             <?php if (empty($reports)): ?>
                                 <div class="alert alert-info py-2 mb-0">No saved incident reports yet.</div>
                             <?php else: ?>
-                                <div class="table-responsive">
-                                    <table class="table table-sm table-striped align-middle mb-0">
-                                        <thead class="table-light">
-                                            <tr>
-                                                <th>ID</th>
-                                                <th>Incident No.</th>
-                                                <th>Type</th>
-                                                <th>Incident Date/Time</th>
-                                                <th>Date</th>
-                                                <th class="text-center">Action</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            <?php foreach ($reports as $report): ?>
-                                                <?php $reportId = (int) ($report['id'] ?? 0); ?>
-                                                <tr>
-                                                    <td><?= $reportId ?></td>
-                                                    <td><?= htmlspecialchars((string) ($report['incident_no'] ?? '-')) ?></td>
-                                                    <td><?= htmlspecialchars((string) ($report['incident_type'] ?? '-')) ?></td>
-                                                    <td><?= htmlspecialchars((string) ($report['incident_datetime'] ?? '-')) ?></td>
-                                                    <td><?= htmlspecialchars((string) ($report['created_at'] ?? '-')) ?></td>
-                                                    <td class="text-center">
-                                                        <a href="incident_reports.php?id=<?= $reportId ?>" class="btn btn-outline-secondary btn-sm <?= $selectedId === $reportId ? 'active' : '' ?>">Open</a>
-                                                    </td>
-                                                </tr>
-                                            <?php endforeach; ?>
-                                        </tbody>
-                                    </table>
+                                <div class="report-list-stack">
+                                    <?php foreach ($reports as $report): ?>
+                                        <?php
+                                        $reportId = (int) ($report['id'] ?? 0);
+                                        $isActive = $selectedId === $reportId;
+                                        ?>
+                                        <article class="report-list-item <?= $isActive ? 'is-active' : '' ?>">
+                                            <div class="report-list-head">
+                                                <div class="report-list-incident-no"><?= htmlspecialchars((string) ($report['incident_no'] ?? '-')) ?></div>
+                                                <div class="report-list-id">ID #<?= $reportId ?></div>
+                                            </div>
+                                            <div class="report-list-meta">
+                                                <div class="report-list-meta-item">
+                                                    <span class="meta-label">Type:</span><?= htmlspecialchars((string) ($report['incident_type'] ?? '-')) ?>
+                                                </div>
+                                                <div class="report-list-meta-item">
+                                                    <span class="meta-label">Incident:</span><?= htmlspecialchars((string) ($report['incident_datetime'] ?? '-')) ?>
+                                                </div>
+                                                <div class="report-list-meta-item">
+                                                    <span class="meta-label">Saved:</span><?= htmlspecialchars((string) ($report['created_at'] ?? '-')) ?>
+                                                </div>
+                                            </div>
+                                            <div class="report-list-actions">
+                                                <a href="incident_reports.php?id=<?= $reportId ?>" class="btn btn-outline-secondary btn-sm <?= $isActive ? 'active' : '' ?>">Open</a>
+                                                <a href="incident_report.php?edit_id=<?= $reportId ?>" class="btn btn-outline-primary btn-sm">Edit</a>
+                                                <a href="incident_reports.php?delete_id=<?= $reportId ?>" class="btn btn-outline-danger btn-sm" onclick="return confirm('Delete this incident report? This cannot be undone.');">Delete</a>
+                                            </div>
+                                        </article>
+                                    <?php endforeach; ?>
                                 </div>
                             <?php endif; ?>
                         </div>
                     </div>
                 </div>
 
-                <div class="col-lg-7">
+                <div class="col-lg-7 reports-detail-col">
                     <div class="card app-card">
                         <div class="card-body">
                             <div class="d-flex justify-content-between align-items-center mb-3">

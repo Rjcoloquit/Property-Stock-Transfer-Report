@@ -21,6 +21,9 @@ $error = '';
 try {
     $pdo = getConnection();
     $rows = ptr_current_stock_report_rows($pdo, $filters);
+    $rows = array_values(array_filter($rows, static function (array $row): bool {
+        return (float) ($row['stock'] ?? 0) > 0;
+    }));
 } catch (Throwable $e) {
     error_log('current_stock_report.php: ' . $e->getMessage());
     $error = 'Unable to load stock data. Please try again.';
@@ -105,15 +108,11 @@ $hasPhoLogo = file_exists(__DIR__ . '/PHO.png');
                 <dl class="stock-report-print-meta">
                     <div class="stock-report-print-meta-row">
                         <dt>Generated</dt>
-                        <dd><?= htmlspecialchars(date('F j, Y \a\t g:i A')) ?></dd>
+                        <dd><?= htmlspecialchars(date('F j, Y')) ?></dd>
                     </div>
                     <div class="stock-report-print-meta-row">
                         <dt>Prepared by</dt>
                         <dd><?= htmlspecialchars($username) ?></dd>
-                    </div>
-                    <div class="stock-report-print-meta-row">
-                        <dt>Line items</dt>
-                        <dd><?= number_format(count($rows)) ?></dd>
                     </div>
                 </dl>
                 <?php if ($filterSummaryText !== ''): ?>
@@ -215,5 +214,6 @@ $hasPhoLogo = file_exists(__DIR__ . '/PHO.png');
             <?php endif; ?>
         </div>
     </main>
+    <script src="assets/js/smooth_motion.js?v=20260325"></script>
 </body>
 </html>

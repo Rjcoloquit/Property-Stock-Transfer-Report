@@ -329,5 +329,46 @@
         /* Align with dashboard stat card entrance (style.css) */
         window.setTimeout(animateCounters, 320);
     }
+
+    var expiringCount = Number(config.expiringWithinSixMonthsCount || 0);
+    if (config.showExpiryLoginAlert && Number.isFinite(expiringCount) && expiringCount > 0) {
+        var modal = document.createElement('div');
+        modal.className = 'expiry-login-modal';
+        modal.innerHTML = ''
+            + '<div class="expiry-login-modal__backdrop"></div>'
+            + '<div class="expiry-login-modal__dialog" role="dialog" aria-modal="true" aria-labelledby="expiryLoginModalTitle">'
+            + '  <div class="expiry-login-modal__header">'
+            + '    <h2 id="expiryLoginModalTitle" class="expiry-login-modal__title">Expiration Reminder</h2>'
+            + '    <button type="button" class="expiry-login-modal__close" aria-label="Close notification">&times;</button>'
+            + '  </div>'
+            + '  <div class="expiry-login-modal__body">'
+            + '    <p><strong>' + expiringCount.toLocaleString() + '</strong> item(s) are expiring within 6 months.</p>'
+            + '    <p>Please review the Notifications module to prioritize actions.</p>'
+            + '  </div>'
+            + '  <div class="expiry-login-modal__footer">'
+            + '    <a href="notifications.php" class="btn btn-primary btn-sm">Go to Notifications</a>'
+            + '    <button type="button" class="btn btn-outline-secondary btn-sm expiry-login-modal__ok">OK</button>'
+            + '  </div>'
+            + '</div>';
+        document.body.appendChild(modal);
+
+        function closeExpiryModal() {
+            if (modal && modal.parentNode) {
+                modal.parentNode.removeChild(modal);
+            }
+        }
+
+        var closeBtn = modal.querySelector('.expiry-login-modal__close');
+        var okBtn = modal.querySelector('.expiry-login-modal__ok');
+        var backdrop = modal.querySelector('.expiry-login-modal__backdrop');
+        if (closeBtn) closeBtn.addEventListener('click', closeExpiryModal);
+        if (okBtn) okBtn.addEventListener('click', closeExpiryModal);
+        if (backdrop) backdrop.addEventListener('click', closeExpiryModal);
+        document.addEventListener('keydown', function (e) {
+            if (e.key === 'Escape') {
+                closeExpiryModal();
+            }
+        }, { once: true });
+    }
     renderTrend('transactions');
 })();

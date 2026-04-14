@@ -69,25 +69,22 @@ try {
             FROM product_batches b
             INNER JOIN products p ON p.id = b.product_id
             WHERE b.expiry_date IS NOT NULL
+              AND COALESCE(b.stock_quantity, 0) > 0
             ORDER BY b.expiry_date ASC
         ');
         $expiryRows = $expiryStmt->fetchAll();
     } elseif ($hasProductsExpiryDate) {
-        $expiryStmt = $pdo->query('
-            SELECT
-                product_description,
-                program,
-                NULL AS batch_number,
-                expiry_date,
-                NULL AS stock_quantity
-            FROM products
-            WHERE expiry_date IS NOT NULL
-            ORDER BY expiry_date ASC
-        ');
-        $expiryRows = $expiryStmt->fetchAll();
+        // Keep notifications consistent with Current Stock:
+        // without batch stock rows, items are not treated as on-hand stock lines.
+        $expiryRows = [];
     }
 
     foreach ($expiryRows as $row) {
+        $stockQty = $row['stock_quantity'] !== null ? (int) $row['stock_quantity'] : null;
+        if ($hasProductBatchesTable && ($stockQty === null || $stockQty <= 0)) {
+            continue;
+        }
+
         $expiryDate = (string) ($row['expiry_date'] ?? '');
         if ($expiryDate === '') {
             continue;
@@ -104,7 +101,7 @@ try {
             'program' => (string) ($row['program'] ?? ''),
             'batch_number' => (string) ($row['batch_number'] ?? ''),
             'expiry_date' => $expiryDate,
-            'stock_quantity' => $row['stock_quantity'] !== null ? (int) $row['stock_quantity'] : null,
+            'stock_quantity' => $stockQty,
             'days_to_expiry' => $daysToExpiry,
         ];
 

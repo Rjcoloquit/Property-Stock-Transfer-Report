@@ -3,7 +3,6 @@ session_start();
 require_once __DIR__ . '/config/rbac.php';
 ptr_require_login();
 ptr_require_page_access('incident_report');
-ptr_block_encoder_mutations();
 
 require_once __DIR__ . '/config/database.php';
 
@@ -27,6 +26,7 @@ $formData = [
     'submitted_to_designation' => '',
     'submitted_to_date' => '',
 ];
+$editingId = isset($_GET['edit_id']) ? (int) $_GET['edit_id'] : 0;
 
 $specRows = array_fill(0, 1, [
     'item' => '',
@@ -79,6 +79,7 @@ foreach ($products as $product) {
 // Fetch expired products and their batch data (products with batches where expiry_date < today)
 $expiredProductsByDescription = [];
 $expiredBatchesByProduct = [];
+$allBatchesByProduct = [];
 $batchTableStmt = $pdo->query("SHOW TABLES LIKE 'product_batches'");
 if ($batchTableStmt && $batchTableStmt->fetch()) {
     $expiredStmt = $pdo->query(
@@ -115,6 +116,31 @@ if ($batchTableStmt && $batchTableStmt->fetch()) {
             ];
         }
     }
+
+    $allBatchesStmt = $pdo->query(
+        'SELECT p.product_description, p.po_no, p.program, b.batch_number, b.expiry_date, b.stock_quantity
+         FROM products p
+         INNER JOIN product_batches b ON b.product_id = p.id
+         ORDER BY p.product_description ASC, b.expiry_date ASC, b.id ASC'
+    );
+    if ($allBatchesStmt) {
+        while ($row = $allBatchesStmt->fetch(PDO::FETCH_ASSOC)) {
+            $desc = (string) ($row['product_description'] ?? '');
+            if ($desc === '') {
+                continue;
+            }
+            if (!isset($allBatchesByProduct[$desc])) {
+                $allBatchesByProduct[$desc] = [];
+            }
+            $allBatchesByProduct[$desc][] = [
+                'batch_number' => (string) ($row['batch_number'] ?? ''),
+                'expiry_date'  => isset($row['expiry_date']) ? (string) $row['expiry_date'] : '',
+                'po_no'        => isset($row['po_no']) ? (string) $row['po_no'] : '',
+                'program'      => isset($row['program']) ? (string) $row['program'] : '',
+                'stock_quantity' => isset($row['stock_quantity']) ? (int) $row['stock_quantity'] : 0,
+            ];
+        }
+    }
 }
 
 // Fetch distinct programs for datalist
@@ -122,10 +148,10 @@ $programStmt = $pdo->query('SELECT DISTINCT program FROM products WHERE program 
 $programList = $programStmt ? array_column($programStmt->fetchAll(PDO::FETCH_ASSOC), 'program') : [];
 
 // Get next incident number
-$maxIncidentStmt = $pdo->query('SELECT MAX(CAST(SUBSTRING(incident_no, 5) AS UNSIGNED)) as max_num FROM incident_reports WHERE incident_no IS NOT NULL AND incident_no LIKE "inc-%"');
+$maxIncidentStmt = $pdo->query('SELECT MAX(CAST(SUBSTRING(incident_no, 5) AS UNSIGNED)) as max_num FROM incident_reports WHERE incident_no IS NOT NULL AND LOWER(incident_no) LIKE "inc-%"');
 $maxResult = $maxIncidentStmt ? $maxIncidentStmt->fetch(PDO::FETCH_ASSOC) : null;
 $nextIncidentNum = ($maxResult && $maxResult['max_num']) ? intval($maxResult['max_num']) + 1 : 1;
-$nextIncidentNo = 'inc-' . $nextIncidentNum;
+$nextIncidentNo = 'INC-' . $nextIncidentNum;
 
 // Set current datetime if not already set
 if (empty($formData['incident_datetime'])) {
@@ -137,7 +163,46 @@ if (empty($formData['incident_no'])) {
     $formData['incident_no'] = $nextIncidentNo;
 }
 
+if ($_SERVER['REQUEST_METHOD'] !== 'POST' && $editingId > 0) {
+    $editStmt = $pdo->prepare('SELECT * FROM incident_reports WHERE id = ? LIMIT 1');
+    $editStmt->execute([$editingId]);
+    $editReport = $editStmt->fetch(PDO::FETCH_ASSOC);
+    if ($editReport) {
+        foreach (array_keys($formData) as $key) {
+            if ($key === 'incident_datetime') {
+                $rawDateTime = (string) ($editReport['incident_datetime'] ?? '');
+                $formData[$key] = $rawDateTime !== '' ? date('Y-m-d\TH:i', strtotime($rawDateTime)) : '';
+                continue;
+            }
+            $formData[$key] = trim((string) ($editReport[$key] ?? ''));
+        }
+
+        $decodedEditSpecifics = json_decode((string) ($editReport['specifics_json'] ?? ''), true);
+        if (is_array($decodedEditSpecifics) && !empty($decodedEditSpecifics)) {
+            $specRows = [];
+            foreach ($decodedEditSpecifics as $row) {
+                if (!is_array($row)) {
+                    continue;
+                }
+                $specRows[] = [
+                    'item' => trim((string) ($row['item'] ?? '')),
+                    'uom' => trim((string) ($row['uom'] ?? '')),
+                    'program' => trim((string) ($row['program'] ?? '')),
+                    'po' => trim((string) ($row['po'] ?? '')),
+                    'batch' => trim((string) ($row['batch'] ?? '')),
+                    'exp' => trim((string) ($row['exp'] ?? '')),
+                    'qty' => trim((string) ($row['qty'] ?? '')),
+                ];
+            }
+        }
+    } else {
+        $errors[] = 'Selected incident report was not found.';
+        $editingId = 0;
+    }
+}
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $editingId = (int) ($_POST['report_id'] ?? 0);
     foreach ($formData as $key => $value) {
         $formData[$key] = trim((string) ($_POST[$key] ?? ''));
     }
@@ -169,15 +234,56 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $specRows[] = $row;
     }
 
-    $hasAnyMainField = false;
-    foreach ($formData as $value) {
-        if ($value !== '') {
-            $hasAnyMainField = true;
-            break;
+    $requiredMainFields = [
+        'name_of_office' => 'Office Name',
+        'address' => 'Address',
+        'incident_no' => 'Incident No.',
+        'incident_type' => 'Incident Type',
+        'incident_datetime' => 'Date/Time',
+        'location' => 'Location',
+        'remarks' => 'Remarks',
+        'action_taken' => 'Action Taken',
+        'prepared_by_name' => 'Prepared By Name',
+        'prepared_by_designation' => 'Prepared By Designation',
+        'prepared_by_date' => 'Prepared By Date',
+        'submitted_to_name' => 'Submitted To Name',
+        'submitted_to_designation' => 'Submitted To Designation',
+        'submitted_to_date' => 'Submitted To Date',
+    ];
+    $missingMainFields = [];
+    foreach ($requiredMainFields as $fieldKey => $fieldLabel) {
+        if (trim((string) ($formData[$fieldKey] ?? '')) === '') {
+            $missingMainFields[] = $fieldLabel;
         }
     }
-    if (!$hasAnyMainField && !$hasAnySpecifics) {
-        $errors[] = 'Please fill out at least one incident detail before saving.';
+    if ($missingMainFields !== []) {
+        $errors[] = 'Please fill the required fields: ' . implode(', ', $missingMainFields) . '.';
+    }
+
+    $incompleteSpecificRows = [];
+    $invalidQtyRows = [];
+    foreach ($specRows as $idx => $row) {
+        $rowNum = $idx + 1;
+        if (
+            $row['item'] === '' ||
+            $row['uom'] === '' ||
+            $row['program'] === '' ||
+            $row['po'] === '' ||
+            $row['batch'] === '' ||
+            $row['exp'] === '' ||
+            $row['qty'] === ''
+        ) {
+            $incompleteSpecificRows[] = $rowNum;
+        }
+        if ($row['qty'] !== '' && (!ctype_digit($row['qty']) || (int) $row['qty'] <= 0)) {
+            $invalidQtyRows[] = $rowNum;
+        }
+    }
+    if ($incompleteSpecificRows !== []) {
+        $errors[] = 'Please complete all Specifics fields for row(s): ' . implode(', ', $incompleteSpecificRows) . '.';
+    }
+    if ($invalidQtyRows !== []) {
+        $errors[] = 'Qty must be a whole number greater than 0 for row(s): ' . implode(', ', $invalidQtyRows) . '.';
     }
 
     if (empty($errors)) {
@@ -185,49 +291,94 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($formData['incident_datetime'] !== '') {
             $incidentDateTimeValue = str_replace('T', ' ', $formData['incident_datetime']);
         }
-        $stmt = $pdo->prepare(
-            'INSERT INTO incident_reports (
-                name_of_office,
-                address,
-                incident_no,
-                incident_type,
-                incident_datetime,
-                location,
-                specifics_json,
-                persons_involved,
-                remarks,
-                action_taken,
-                prepared_by_name,
-                prepared_by_designation,
-                prepared_by_date,
-                submitted_to_name,
-                submitted_to_designation,
-                submitted_to_date,
-                created_by
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
-        );
-        $stmt->execute([
-            $formData['name_of_office'] !== '' ? $formData['name_of_office'] : null,
-            $formData['address'] !== '' ? $formData['address'] : null,
-            $formData['incident_no'] !== '' ? $formData['incident_no'] : null,
-            $formData['incident_type'] !== '' ? $formData['incident_type'] : null,
-            $incidentDateTimeValue,
-            $formData['location'] !== '' ? $formData['location'] : null,
-            json_encode($specRows, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
-            $formData['persons_involved'] !== '' ? $formData['persons_involved'] : null,
-            $formData['remarks'] !== '' ? $formData['remarks'] : null,
-            $formData['action_taken'] !== '' ? $formData['action_taken'] : null,
-            $formData['prepared_by_name'] !== '' ? $formData['prepared_by_name'] : null,
-            $formData['prepared_by_designation'] !== '' ? $formData['prepared_by_designation'] : null,
-            $formData['prepared_by_date'] !== '' ? $formData['prepared_by_date'] : null,
-            $formData['submitted_to_name'] !== '' ? $formData['submitted_to_name'] : null,
-            $formData['submitted_to_designation'] !== '' ? $formData['submitted_to_designation'] : null,
-            $formData['submitted_to_date'] !== '' ? $formData['submitted_to_date'] : null,
-            $username,
-        ]);
+        if ($editingId > 0) {
+            $stmt = $pdo->prepare(
+                'UPDATE incident_reports
+                 SET name_of_office = ?,
+                     address = ?,
+                     incident_no = ?,
+                     incident_type = ?,
+                     incident_datetime = ?,
+                     location = ?,
+                     specifics_json = ?,
+                     persons_involved = ?,
+                     remarks = ?,
+                     action_taken = ?,
+                     prepared_by_name = ?,
+                     prepared_by_designation = ?,
+                     prepared_by_date = ?,
+                     submitted_to_name = ?,
+                     submitted_to_designation = ?,
+                     submitted_to_date = ?,
+                     created_by = ?
+                 WHERE id = ?
+                 LIMIT 1'
+            );
+            $stmt->execute([
+                $formData['name_of_office'] !== '' ? $formData['name_of_office'] : null,
+                $formData['address'] !== '' ? $formData['address'] : null,
+                $formData['incident_no'] !== '' ? $formData['incident_no'] : null,
+                $formData['incident_type'] !== '' ? $formData['incident_type'] : null,
+                $incidentDateTimeValue,
+                $formData['location'] !== '' ? $formData['location'] : null,
+                json_encode($specRows, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
+                $formData['persons_involved'] !== '' ? $formData['persons_involved'] : null,
+                $formData['remarks'] !== '' ? $formData['remarks'] : null,
+                $formData['action_taken'] !== '' ? $formData['action_taken'] : null,
+                $formData['prepared_by_name'] !== '' ? $formData['prepared_by_name'] : null,
+                $formData['prepared_by_designation'] !== '' ? $formData['prepared_by_designation'] : null,
+                $formData['prepared_by_date'] !== '' ? $formData['prepared_by_date'] : null,
+                $formData['submitted_to_name'] !== '' ? $formData['submitted_to_name'] : null,
+                $formData['submitted_to_designation'] !== '' ? $formData['submitted_to_designation'] : null,
+                $formData['submitted_to_date'] !== '' ? $formData['submitted_to_date'] : null,
+                $username,
+                $editingId,
+            ]);
+        } else {
+            $stmt = $pdo->prepare(
+                'INSERT INTO incident_reports (
+                    name_of_office,
+                    address,
+                    incident_no,
+                    incident_type,
+                    incident_datetime,
+                    location,
+                    specifics_json,
+                    persons_involved,
+                    remarks,
+                    action_taken,
+                    prepared_by_name,
+                    prepared_by_designation,
+                    prepared_by_date,
+                    submitted_to_name,
+                    submitted_to_designation,
+                    submitted_to_date,
+                    created_by
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
+            );
+            $stmt->execute([
+                $formData['name_of_office'] !== '' ? $formData['name_of_office'] : null,
+                $formData['address'] !== '' ? $formData['address'] : null,
+                $formData['incident_no'] !== '' ? $formData['incident_no'] : null,
+                $formData['incident_type'] !== '' ? $formData['incident_type'] : null,
+                $incidentDateTimeValue,
+                $formData['location'] !== '' ? $formData['location'] : null,
+                json_encode($specRows, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
+                $formData['persons_involved'] !== '' ? $formData['persons_involved'] : null,
+                $formData['remarks'] !== '' ? $formData['remarks'] : null,
+                $formData['action_taken'] !== '' ? $formData['action_taken'] : null,
+                $formData['prepared_by_name'] !== '' ? $formData['prepared_by_name'] : null,
+                $formData['prepared_by_designation'] !== '' ? $formData['prepared_by_designation'] : null,
+                $formData['prepared_by_date'] !== '' ? $formData['prepared_by_date'] : null,
+                $formData['submitted_to_name'] !== '' ? $formData['submitted_to_name'] : null,
+                $formData['submitted_to_designation'] !== '' ? $formData['submitted_to_designation'] : null,
+                $formData['submitted_to_date'] !== '' ? $formData['submitted_to_date'] : null,
+                $username,
+            ]);
+        }
 
         // Process item disposal - reduce stock quantities and remove items when disposed
-        if ($hasProductBatchesTable) {
+        if ($hasProductBatchesTable && $editingId <= 0) {
             foreach ($specRows as $specRow) {
                 $itemDesc = trim($specRow['item']);
                 $batchNum = trim($specRow['batch']);
@@ -278,12 +429,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
         }
 
-        header('Location: incident_reports.php?msg=' . urlencode('Incident report saved successfully.'));
+        header('Location: incident_reports.php?msg=' . urlencode($editingId > 0 ? 'Incident report updated successfully.' : 'Incident report saved successfully.'));
         exit;
     }
 }
 
-while (count($specRows) < 1) {
+    while (count($specRows) < 1) {
     $specRows[] = [
         'item' => '',
         'uom' => '',
@@ -302,77 +453,6 @@ while (count($specRows) < 1) {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Incident Report - Supply</title>
     <link rel="stylesheet" href="style.css?v=20260408incident">
-    <style>
-        /* A4 print preview - fit one page */
-        #previewPrintArea {
-            width: 210mm;
-            max-height: 297mm;
-            max-width: 100%;
-            box-sizing: border-box;
-            padding: 8px 12px !important;
-            font-size: 0.75rem !important;
-        }
-        #previewPrintArea > div:first-child { margin-bottom: 6px !important; }
-        #previewPrintArea > div:first-child > div:last-child { font-size: 0.8rem !important; }
-        #previewPrintArea .specs-table { table-layout: fixed; }
-        #previewPrintArea .specs-table th,
-        #previewPrintArea .specs-table td { padding: 2px 4px !important; font-size: 0.7rem !important; overflow-wrap: break-word; word-wrap: break-word; text-align: center !important; vertical-align: middle !important; }
-        #previewPrintArea table { margin-bottom: 6px !important; }
-        #previewPrintArea table th,
-        #previewPrintArea table td { padding: 3px 4px !important; font-size: 0.75rem !important; }
-        #previewPrintArea .specs-table thead th { font-size: 0.7rem !important; }
-        @media print {
-            @page {
-                size: A4;
-                margin: 8mm;
-            }
-            body * {
-                visibility: hidden;
-            }
-            #previewPrintArea,
-            #previewPrintArea * {
-                visibility: visible;
-            }
-            .modal,
-            .modal-dialog,
-            .modal-content,
-            .modal-body {
-                display: block !important;
-                position: static !important;
-                width: 100% !important;
-                height: auto !important;
-                max-width: 100% !important;
-                margin: 0 !important;
-                padding: 0 !important;
-                box-shadow: none !important;
-                background: transparent !important;
-            }
-            #previewPrintArea {
-                position: static !important;
-                width: 100% !important;
-                max-width: 100% !important;
-                max-height: none !important;
-                height: auto !important;
-                min-height: 100% !important;
-                border: none !important;
-                padding: 6mm 8mm !important;
-                margin: 0 !important;
-                box-shadow: none !important;
-                page-break-inside: avoid;
-            }
-            #previewPrintArea .specs-table th,
-            #previewPrintArea .specs-table td { padding: 2px 3px !important; font-size: 0.65rem !important; text-align: center !important; vertical-align: middle !important; }
-            #previewPrintArea table th,
-            #previewPrintArea table td { padding: 2px 3px !important; font-size: 0.7rem !important; }
-            .incident-form-page .card-body,
-            .incident-form-page .modal-header,
-            .incident-form-page .modal-footer,
-            .modal-header,
-            .modal-footer {
-                display: none !important;
-            }
-        }
-    </style>
 </head>
 <body class="incident-form-page report-page">
     <header class="navbar navbar-expand-lg app-header px-3 px-md-4 no-print">
@@ -404,17 +484,26 @@ while (count($specRows) < 1) {
         <div class="container">
             <div class="card app-card">
                 <div class="card-body">
-                    <h2 class="h5 mb-3">Incident Report</h2>
+                    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+                        <h2 class="h5 mb-0"><?= $editingId > 0 ? 'Edit Incident Report' : 'Incident Report' ?></h2>
+                        <a href="incident_reports.php" class="btn btn-outline-secondary btn-sm">View Saved Reports</a>
+                    </div>
 
                     <?php if (!empty($errors)): ?>
-                        <div class="alert alert-danger py-2 mb-3 no-print">
-                            <?php foreach ($errors as $error): ?>
-                                <div><?= htmlspecialchars($error) ?></div>
-                            <?php endforeach; ?>
+                        <div class="alert alert-danger py-3 mb-3 no-print incident-error-summary" role="alert">
+                            <div class="d-flex align-items-center gap-2 mb-2">
+                                <span class="fw-bold">Please fix the following before saving:</span>
+                            </div>
+                            <ul class="mb-0 ps-3">
+                                <?php foreach ($errors as $error): ?>
+                                    <li class="mb-1"><?= htmlspecialchars($error) ?></li>
+                                <?php endforeach; ?>
+                            </ul>
                         </div>
                     <?php endif; ?>
 
-                    <form id="incidentForm" method="post" action="incident_report.php" autocomplete="off" novalidate>
+                    <form id="incidentForm" method="post" action="incident_report.php<?= $editingId > 0 ? '?edit_id=' . (int) $editingId : '' ?>" autocomplete="off" novalidate>
+                        <input type="hidden" name="report_id" value="<?= (int) $editingId ?>">
                         <!-- Summary Section -->
                         <div class="row g-3 mb-4 pb-3 border-bottom">
                             <div class="col-md-6">
@@ -436,6 +525,7 @@ while (count($specRows) < 1) {
                                     <option value="Expired Commodity" <?= $formData['incident_type'] === 'Expired Commodity' ? 'selected' : '' ?>>Expired Commodity</option>
                                     <option value="Damage Commodity" <?= $formData['incident_type'] === 'Damage Commodity' ? 'selected' : '' ?>>Damage Commodity</option>
                                     <option value="Missing Inventory" <?= $formData['incident_type'] === 'Missing Inventory' ? 'selected' : '' ?>>Missing Inventory</option>
+                                    <option value="Others" <?= $formData['incident_type'] === 'Others' ? 'selected' : '' ?>>Others</option>
                                 </select>
                             </div>
                             <div class="col-md-4">
@@ -483,17 +573,17 @@ while (count($specRows) < 1) {
                                         <?php foreach ($specRows as $rowIdx => $specRow): ?>
                                             <tr class="spec-row">
                                                 <td>
-                                                    <input type="text" name="spec_item[]" class="form-control incident-spec-input product-input" list="specItemDatalist" value="<?= htmlspecialchars($specRow['item']) ?>" placeholder="Type or select item">
+                                                    <input type="text" name="spec_item[]" class="form-control incident-spec-input product-input" list="specItemDatalist" value="<?= htmlspecialchars($specRow['item']) ?>" placeholder="Type or select item" required>
                                                 </td>
-                                                <td><input type="text" name="spec_oum[]" class="form-control incident-spec-input" value="<?= htmlspecialchars($specRow['uom']) ?>" placeholder="UOM"></td>
-                                                <td><input type="text" name="spec_program[]" class="form-control incident-spec-input" list="specProgramDatalist" value="<?= htmlspecialchars($specRow['program']) ?>" placeholder="Type or select program"></td>
-                                                <td><input type="text" name="spec_po[]" class="form-control incident-spec-input" value="<?= htmlspecialchars($specRow['po']) ?>" placeholder="PO"></td>
+                                                <td><input type="text" name="spec_oum[]" class="form-control incident-spec-input" value="<?= htmlspecialchars($specRow['uom']) ?>" placeholder="UOM" required></td>
+                                                <td><input type="text" name="spec_program[]" class="form-control incident-spec-input" list="specProgramDatalist" value="<?= htmlspecialchars($specRow['program']) ?>" placeholder="Type or select program" required></td>
+                                                <td><input type="text" name="spec_po[]" class="form-control incident-spec-input" value="<?= htmlspecialchars($specRow['po']) ?>" placeholder="PO" required></td>
                                                 <td>
                                                     <datalist id="batchDatalist-<?= $rowIdx ?>"></datalist>
-                                                    <input type="text" name="spec_batch[]" class="form-control incident-spec-input spec-batch-input" list="batchDatalist-<?= $rowIdx ?>" value="<?= htmlspecialchars($specRow['batch']) ?>" placeholder="Batch Number">
+                                                    <input type="text" name="spec_batch[]" class="form-control incident-spec-input spec-batch-input" list="batchDatalist-<?= $rowIdx ?>" value="<?= htmlspecialchars($specRow['batch']) ?>" placeholder="Batch Number" required>
                                                 </td>
-                                                <td><input type="date" name="spec_exp[]" class="form-control incident-spec-input" value="<?= htmlspecialchars($specRow['exp']) ?>"></td>
-                                                <td><input type="number" name="spec_qty[]" class="form-control incident-spec-input" value="<?= htmlspecialchars($specRow['qty']) ?>" placeholder="Qty" min="1" step="1"></td>
+                                                <td><input type="date" name="spec_exp[]" class="form-control incident-spec-input" value="<?= htmlspecialchars($specRow['exp']) ?>" required></td>
+                                                <td><input type="number" name="spec_qty[]" class="form-control incident-spec-input" value="<?= htmlspecialchars($specRow['qty']) ?>" placeholder="Qty" min="1" step="1" required></td>
                                                 <td class="text-center"><button type="button" class="btn btn-sm btn-outline-danger remove-item-btn incident-remove-btn">Remove</button></td>
                                             </tr>
                                         <?php endforeach; ?>
@@ -563,9 +653,7 @@ while (count($specRows) < 1) {
 
                         <!-- Action Buttons -->
                         <div class="d-flex gap-2 pt-3">
-                            <button type="button" id="nextPreviewBtn" class="btn btn-primary">Next</button>
-                            <a href="incident_reports.php" class="btn btn-outline-secondary">View Saved Reports</a>
-                            <a href="home.php" class="btn btn-outline-secondary">Home</a>
+                            <button type="submit" class="btn btn-primary">Save Report</button>
                         </div>
                     </form>
                 </div>
@@ -573,194 +661,11 @@ while (count($specRows) < 1) {
         </div>
     </main>
 
-    <!-- Preview Modal -->
-    <div class="modal fade" id="previewModal" tabindex="-1" aria-labelledby="previewModalLabel" aria-hidden="true">
-        <div class="modal-dialog modal-xl modal-dialog-scrollable">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h3 class="modal-title h5 mb-0" id="previewModalLabel">Incident Report Preview</h3>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                </div>
-                <div class="modal-body">
-                    <div id="previewPrintArea" class="incident-sheet" style="border: 1px solid #222; padding: 8px 12px; background: #fff; font-size: 0.75rem;">
-                        <div style="text-align: center; margin-bottom: 4px;">
-                            <div id="previewOfficeName" style="font-weight: 700; font-size: 0.95rem; margin-bottom: 2px;">[Name of Office]</div>
-                            <div id="previewAddress" style="font-size: 0.8rem;">[Address]</div>
-                        </div>
-
-                        <div style="text-align: center; margin: 4px 0; font-weight: 700; font-size: 0.95rem; letter-spacing: 0.02em;">INCIDENT REPORT</div>
-
-                        <div style="text-align: center; margin-bottom: 6px; font-size: 0.8rem;">
-                            No: <span id="previewIncidentNo" style="border-bottom: 1px solid #222; padding: 0 4px; min-width: 100px; display: inline-block;">-</span>
-                        </div>
-
-                        <table style="width: 100%; border-collapse: collapse; margin-bottom: 6px;">
-                            <tr>
-                                <th style="border: 1px solid #222; padding: 3px 4px; width: 20%; text-align: left; background: #f9f9f9; font-weight: 700; font-size: 0.75rem;">Incident Type:</th>
-                                <td style="border: 1px solid #222; padding: 3px 4px; width: 35%;">
-                                    <span id="previewIncidentType">-</span>
-                                </td>
-                                <th style="border: 1px solid #222; padding: 3px 4px; width: 20%; text-align: left; background: #f9f9f9; font-weight: 700; font-size: 0.75rem;">Date/Time:</th>
-                                <td style="border: 1px solid #222; padding: 3px 4px; width: 25%;">
-                                    <span id="previewIncidentDateTime">-</span>
-                                </td>
-                            </tr>
-                            <tr>
-                                <th style="border: 1px solid #222; padding: 3px 4px; text-align: left; background: #f9f9f9; font-weight: 700; font-size: 0.75rem;">Location:</th>
-                                <td colspan="3" style="border: 1px solid #222; padding: 3px 4px;">
-                                    <span id="previewLocation">-</span>
-                                </td>
-                            </tr>
-                        </table>
-
-                        <div style="margin-bottom: 4px;">
-                            <div style="font-weight: 700; color: #2b6843; text-transform: uppercase; font-size: 0.68rem; letter-spacing: 0.02em; margin-bottom: 2px;">Specifics:</div>
-                            <table class="specs-table" style="width: 100%; border-collapse: collapse; table-layout: fixed;">
-                                <thead>
-                                    <tr>
-                                        <th style="width: 24%; border: 1px solid #222; padding: 2px 3px; background: #f0f0f0; font-weight: 700; font-size: 0.7rem;">Item</th>
-                                        <th style="width: 7%; border: 1px solid #222; padding: 2px 3px; background: #f0f0f0; font-weight: 700; font-size: 0.7rem;">UOM</th>
-                                        <th style="width: 16%; border: 1px solid #222; padding: 2px 3px; background: #f0f0f0; font-weight: 700; font-size: 0.7rem;">Program</th>
-                                        <th style="width: 10%; border: 1px solid #222; padding: 2px 3px; background: #f0f0f0; font-weight: 700; font-size: 0.7rem;">PO Number</th>
-                                        <th style="width: 10%; border: 1px solid #222; padding: 2px 3px; background: #f0f0f0; font-weight: 700; font-size: 0.7rem;">Batch Number</th>
-                                        <th style="width: 10%; border: 1px solid #222; padding: 2px 3px; background: #f0f0f0; font-weight: 700; font-size: 0.7rem;">Exp Date</th>
-                                        <th style="width: 8%; border: 1px solid #222; padding: 2px 3px; background: #f0f0f0; font-weight: 700; font-size: 0.7rem;">Qty</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="previewSpecificsBody">
-                                </tbody>
-                            </table>
-                        </div>
-
-                        <table style="width: 100%; border-collapse: collapse; margin-bottom: 4px;">
-                            <tr>
-                                <th style="border: 1px solid #222; padding: 3px 4px; text-align: left; vertical-align: top; background: #f9f9f9; font-weight: 700; font-size: 0.7rem;">Remarks:</th>
-                                <td style="border: 1px solid #222; padding: 3px 4px; min-height: 24px; font-size: 0.7rem;">
-                                    <span id="previewRemarks" style="white-space: pre-wrap;">-</span>
-                                </td>
-                            </tr>
-                            <tr>
-                                <th style="border: 1px solid #222; padding: 3px 4px; text-align: left; vertical-align: top; background: #f9f9f9; font-weight: 700; font-size: 0.7rem;">Action Taken:</th>
-                                <td style="border: 1px solid #222; padding: 3px 4px; min-height: 24px; font-size: 0.7rem;">
-                                    <span id="previewActionTaken" style="white-space: pre-wrap;">-</span>
-                                </td>
-                            </tr>
-                        </table>
-
-                        <table style="width: 100%; border-collapse: collapse; margin-top: 6px;">
-                            <thead>
-                                <tr>
-                                    <th style="border: 1px solid #222; padding: 5px 6px; width: 50%; text-align: center; background: #f4f4f4; font-weight: 700; font-size: 0.75rem;">Prepared By</th>
-                                    <th style="border: 1px solid #222; padding: 5px 6px; width: 50%; text-align: center; background: #f4f4f4; font-weight: 700; font-size: 0.75rem;">Submitted To</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <tr>
-                                    <td style="border: 1px solid #222; padding: 4px 5px; height: 48px; text-align: center; vertical-align: bottom; font-size: 0.75rem;">
-                                        <span id="previewPreparedByName">-</span>
-                                    </td>
-                                    <td style="border: 1px solid #222; padding: 4px 5px; height: 48px; text-align: center; vertical-align: bottom; font-size: 0.75rem;">
-                                        <span id="previewSubmittedToName">-</span>
-                                    </td>
-                                </tr>
-                                <tr style="font-size: 0.65rem;">
-                                    <td style="border: 1px solid #222; padding: 4px 5px; text-align: center; height: 80px; vertical-align: bottom; font-size: 0.7rem; background: #fafafa;">Signature</td>
-                                    <td style="border: 1px solid #222; padding: 4px 5px; text-align: center; height: 80px; vertical-align: bottom; font-size: 0.7rem; background: #fafafa;">Signature</td>
-                                </tr>
-                                <tr>
-                                    <td style="border: 1px solid #222; padding: 4px 5px; text-align: center; font-size: 0.7rem;">
-                                        <span id="previewPreparedByDesignation">-</span>
-                                    </td>
-                                    <td style="border: 1px solid #222; padding: 4px 5px; text-align: center; font-size: 0.7rem;">
-                                        <span id="previewSubmittedToDesignation">-</span>
-                                    </td>
-                                </tr>
-                                <tr>
-                                    <td style="border: 1px solid #222; padding: 4px 5px; text-align: center; font-size: 0.7rem;">
-                                        <span id="previewPreparedByDate">-</span>
-                                    </td>
-                                    <td style="border: 1px solid #222; padding: 4px 5px; text-align: center; font-size: 0.7rem;">
-                                        <span id="previewSubmittedToDate">-</span>
-                                    </td>
-                                </tr>
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" id="printPreviewBtn" class="btn btn-outline-secondary">Print</button>
-                    <button type="submit" form="incidentForm" class="btn btn-primary">Save Report</button>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
     <script>
         (function() {
             'use strict';
 
             var incidentForm = document.getElementById('incidentForm');
-            var nextPreviewBtn = document.getElementById('nextPreviewBtn');
-            var previewModal = new bootstrap.Modal(document.getElementById('previewModal'));
-            var printPreviewBtn = document.getElementById('printPreviewBtn');
-
-            function textOrDash(value) {
-                var clean = String(value || '').trim();
-                return clean === '' ? '-' : clean;
-            }
-
-            function updatePreview() {
-                // Update basic fields
-                document.getElementById('previewOfficeName').textContent = textOrDash(document.getElementById('name_of_office').value);
-                document.getElementById('previewAddress').textContent = textOrDash(document.getElementById('address').value);
-                document.getElementById('previewIncidentNo').textContent = textOrDash(document.getElementById('incident_no').value);
-                document.getElementById('previewIncidentType').textContent = textOrDash(document.getElementById('incident_type').value);
-                document.getElementById('previewIncidentDateTime').textContent = textOrDash(document.getElementById('incident_datetime').value);
-                document.getElementById('previewLocation').textContent = textOrDash(document.getElementById('location').value);
-                document.getElementById('previewRemarks').textContent = textOrDash(document.getElementById('remarks').value);
-                document.getElementById('previewActionTaken').textContent = textOrDash(document.getElementById('action_taken').value);
-                document.getElementById('previewPreparedByName').textContent = textOrDash(document.getElementById('prepared_by_name').value);
-                document.getElementById('previewPreparedByDesignation').textContent = textOrDash(document.getElementById('prepared_by_designation').value);
-                document.getElementById('previewPreparedByDate').textContent = textOrDash(document.getElementById('prepared_by_date').value);
-                document.getElementById('previewSubmittedToName').textContent = textOrDash(document.getElementById('submitted_to_name').value);
-                document.getElementById('previewSubmittedToDesignation').textContent = textOrDash(document.getElementById('submitted_to_designation').value);
-                document.getElementById('previewSubmittedToDate').textContent = textOrDash(document.getElementById('submitted_to_date').value);
-
-                // Update specifics table
-                var specItemInputs = document.querySelectorAll('input[name="spec_item[]"]');
-                var previewSpecificsBody = document.getElementById('previewSpecificsBody');
-                previewSpecificsBody.innerHTML = '';
-
-                specItemInputs.forEach(function(itemInput, index) {
-                    var item = textOrDash(itemInput.value);
-                    var uom = textOrDash(document.querySelectorAll('input[name="spec_oum[]"]')[index]?.value || '');
-                    var program = textOrDash(document.querySelectorAll('input[name="spec_program[]"]')[index]?.value || '');
-                    var po = textOrDash(document.querySelectorAll('input[name="spec_po[]"]')[index]?.value || '');
-                    var batch = textOrDash(document.querySelectorAll('input[name="spec_batch[]"]')[index]?.value || '');
-                    var exp = textOrDash(document.querySelectorAll('input[name="spec_exp[]"]')[index]?.value || '');
-                    var qty = textOrDash(document.querySelectorAll('input[name="spec_qty[]"]')[index]?.value || '');
-
-                    var row = document.createElement('tr');
-                    row.innerHTML = '<td style="border: 1px solid #222; padding: 2px 3px; font-size: 0.7rem;">' + item + '</td>' +
-                                  '<td style="border: 1px solid #222; padding: 2px 3px; font-size: 0.7rem;">' + uom + '</td>' +
-                                  '<td style="border: 1px solid #222; padding: 2px 3px; font-size: 0.7rem;">' + program + '</td>' +
-                                  '<td style="border: 1px solid #222; padding: 2px 3px; font-size: 0.7rem;">' + po + '</td>' +
-                                  '<td style="border: 1px solid #222; padding: 2px 3px; font-size: 0.7rem;">' + batch + '</td>' +
-                                  '<td style="border: 1px solid #222; padding: 2px 3px; font-size: 0.7rem;">' + exp + '</td>' +
-                                  '<td style="border: 1px solid #222; padding: 2px 3px; font-size: 0.7rem; text-align: center;">' + qty + '</td>';
-                    previewSpecificsBody.appendChild(row);
-                });
-            }
-
-            nextPreviewBtn.addEventListener('click', function() {
-                updatePreview();
-                previewModal.show();
-            });
-
-            printPreviewBtn.addEventListener('click', function() {
-                window.print();
-            });
 
             // Add Item Button Handler
             var addItemBtn = document.getElementById('addItemBtn');
@@ -768,6 +673,7 @@ while (count($specRows) < 1) {
             var productsData = <?= json_encode(array_keys($productsByDescription)) ?>;
             var expiredProductsData = <?= json_encode(array_keys($expiredProductsByDescription)) ?>;
             var expiredBatchesByProduct = <?= json_encode($expiredBatchesByProduct) ?>;
+            var allBatchesByProduct = <?= json_encode($allBatchesByProduct) ?>;
             var batchDatalistIdCounter = 100;
 
             function createDatalistOptions(useExpired) {
@@ -785,7 +691,16 @@ while (count($specRows) < 1) {
                 if (datalist) datalist.innerHTML = createDatalistOptions(useExpired);
             }
 
-            document.getElementById('incident_type').addEventListener('change', refreshItemDatalist);
+            document.getElementById('incident_type').addEventListener('change', function() {
+                refreshItemDatalist();
+                document.querySelectorAll('input[name="spec_item[]"]').forEach(function(itemInput) {
+                    var row = itemInput.closest('tr');
+                    if (!row) {
+                        return;
+                    }
+                    applyBatchesForRow(row, String(itemInput.value || '').trim());
+                });
+            });
             refreshItemDatalist();
 
             addItemBtn.addEventListener('click', function() {
@@ -793,13 +708,13 @@ while (count($specRows) < 1) {
                 newRow.className = 'spec-row';
                 var batchListId = 'batchDatalist-' + (++batchDatalistIdCounter);
 
-                newRow.innerHTML = '<td><input type="text" name="spec_item[]" class="form-control incident-spec-input product-input" list="specItemDatalist" placeholder="Type or select item"></td>' +
-                    '<td><input type="text" name="spec_oum[]" class="form-control incident-spec-input" placeholder="UOM"></td>' +
-                    '<td><input type="text" name="spec_program[]" class="form-control incident-spec-input" list="specProgramDatalist" placeholder="Type or select program"></td>' +
-                    '<td><input type="text" name="spec_po[]" class="form-control incident-spec-input" placeholder="PO Number"></td>' +
-                    '<td><datalist id="' + batchListId + '"></datalist><input type="text" name="spec_batch[]" class="form-control incident-spec-input spec-batch-input" list="' + batchListId + '" placeholder="Batch Number"></td>' +
-                    '<td><input type="date" name="spec_exp[]" class="form-control incident-spec-input"></td>' +
-                    '<td><input type="number" name="spec_qty[]" class="form-control incident-spec-input" placeholder="Qty" min="1" step="1"></td>' +
+                newRow.innerHTML = '<td><input type="text" name="spec_item[]" class="form-control incident-spec-input product-input" list="specItemDatalist" placeholder="Type or select item" required></td>' +
+                    '<td><input type="text" name="spec_oum[]" class="form-control incident-spec-input" placeholder="UOM" required></td>' +
+                    '<td><input type="text" name="spec_program[]" class="form-control incident-spec-input" list="specProgramDatalist" placeholder="Type or select program" required></td>' +
+                    '<td><input type="text" name="spec_po[]" class="form-control incident-spec-input" placeholder="PO Number" required></td>' +
+                    '<td><datalist id="' + batchListId + '"></datalist><input type="text" name="spec_batch[]" class="form-control incident-spec-input spec-batch-input" list="' + batchListId + '" placeholder="Batch Number" required></td>' +
+                    '<td><input type="date" name="spec_exp[]" class="form-control incident-spec-input" required></td>' +
+                    '<td><input type="number" name="spec_qty[]" class="form-control incident-spec-input" placeholder="Qty" min="1" step="1" required></td>' +
                     '<td class="text-center"><button type="button" class="btn btn-sm btn-outline-danger remove-item-btn incident-remove-btn">Remove</button></td>';
 
                 specificsBody.appendChild(newRow);
@@ -836,16 +751,35 @@ while (count($specRows) < 1) {
                 var expInput = row.querySelector('input[name="spec_exp[]"]');
                 var poInput = row.querySelector('input[name="spec_po[]"]');
                 var programInput = row.querySelector('input[name="spec_program[]"]');
+                var qtyInput = row.querySelector('input[name="spec_qty[]"]');
                 if (expInput && batch.expiry_date) expInput.value = batch.expiry_date;
                 if (poInput && batch.po_no) poInput.value = batch.po_no;
                 if (programInput && batch.program) programInput.value = batch.program;
+                if (qtyInput && typeof batch.stock_quantity !== 'undefined') {
+                    qtyInput.value = String(batch.stock_quantity || 0);
+                }
             }
 
-            function applyExpiredBatchesForRow(row, itemVal) {
-                if (!itemVal || !expiredBatchesByProduct[itemVal]) return;
-                var batches = expiredBatchesByProduct[itemVal];
+            function getBatchSetForItem(itemVal) {
+                if (!itemVal) {
+                    return [];
+                }
+                var isExpiredType = document.getElementById('incident_type').value === 'Expired Commodity';
+                if (isExpiredType && expiredBatchesByProduct[itemVal]) {
+                    return expiredBatchesByProduct[itemVal];
+                }
+                if (allBatchesByProduct[itemVal]) {
+                    return allBatchesByProduct[itemVal];
+                }
+                return [];
+            }
+
+            function applyBatchesForRow(row, itemVal) {
+                var batches = getBatchSetForItem(itemVal);
+                if (!batches.length) {
+                    return;
+                }
                 var batchInput = row.querySelector('input[name="spec_batch[]"]');
-                var expInput = row.querySelector('input[name="spec_exp[]"]');
                 var listId = batchInput.getAttribute('list');
                 var datalist = listId ? document.getElementById(listId) : null;
                 if (datalist) {
@@ -853,12 +787,16 @@ while (count($specRows) < 1) {
                         return '<option value="' + String(b.batch_number).replace(/"/g, '&quot;') + '">';
                     }).join('');
                 }
-                if (batches.length === 1) {
+                if (batches.length >= 1 && !batchInput.value) {
                     batchInput.value = batches[0].batch_number;
                     fillBatchFields(row, batches[0]);
-                } else if (batches.length > 1 && !batchInput.value) {
-                    batchInput.value = batches[0].batch_number;
-                    fillBatchFields(row, batches[0]);
+                } else if (batchInput.value) {
+                    var currentMatch = batches.find(function(b) {
+                        return String(b.batch_number) === String(batchInput.value);
+                    });
+                    if (currentMatch) {
+                        fillBatchFields(row, currentMatch);
+                    }
                 }
             }
 
@@ -867,8 +805,9 @@ while (count($specRows) < 1) {
                 var batchInput = row.querySelector('input[name="spec_batch[]"]');
                 var itemVal = String(itemInput && itemInput.value || '').trim();
                 var batchVal = String(batchInput && batchInput.value || '').trim();
-                if (!itemVal || !batchVal || !expiredBatchesByProduct[itemVal]) return;
-                var batches = expiredBatchesByProduct[itemVal];
+                if (!itemVal || !batchVal) return;
+                var batches = getBatchSetForItem(itemVal);
+                if (!batches.length) return;
                 var match = batches.find(function(b) { return String(b.batch_number) === batchVal; });
                 if (match) fillBatchFields(row, match);
             }
@@ -882,9 +821,7 @@ while (count($specRows) < 1) {
                         var uomInput = row.querySelector('input[name="spec_oum[]"]');
                         if (uomInput) uomInput.value = productMetaByDescription[val].uom || '';
                     }
-                    if (document.getElementById('incident_type').value === 'Expired Commodity' && expiredBatchesByProduct[val]) {
-                        applyExpiredBatchesForRow(row, val);
-                    }
+                    applyBatchesForRow(row, val);
                 }
                 inputElement.addEventListener('change', maybeFillRow);
                 inputElement.addEventListener('blur', maybeFillRow);

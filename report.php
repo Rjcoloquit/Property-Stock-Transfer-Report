@@ -344,27 +344,6 @@ try {
 
     if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $action = $_POST['action'] ?? '';
-        if ($action === 'save_signatories') {
-            $returnSearch = trim((string) ($_POST['return_q'] ?? ''));
-            $returnDateFrom = trim((string) ($_POST['return_date_from'] ?? ''));
-            $returnDateTo = trim((string) ($_POST['return_date_to'] ?? ''));
-            $returnSort = strtolower(trim((string) ($_POST['return_sort'] ?? 'desc')));
-            $returnSort = $returnSort === 'asc' ? 'asc' : 'desc';
-            $ptrNoSave = trim((string) ($_POST['ptr_no'] ?? ''));
-            if ($ptrNoSave === '' || $ptrNoSave === '-') {
-                header('Location: ' . buildReportUrl($returnSearch, $returnDateFrom, $returnDateTo, $returnSort, 'Could not save signatories: missing PTR number.'));
-                exit;
-            }
-            ptr_save_signatories_for_ptr(
-                $pdo,
-                $ptrNoSave,
-                (string) ($_POST['prepared_by'] ?? ''),
-                (string) ($_POST['approved_by'] ?? ''),
-                (string) ($_POST['issued_by'] ?? '')
-            );
-            header('Location: ' . buildReportUrl($returnSearch, $returnDateFrom, $returnDateTo, $returnSort, 'Signatory names saved for this PTR.'));
-            exit;
-        }
         if (in_array($action, ['delete', 'update', 'create_related'], true)) {
             $returnSearch = trim((string) ($_POST['return_q'] ?? ''));
             $returnDateFrom = trim((string) ($_POST['return_date_from'] ?? ''));
@@ -1043,7 +1022,6 @@ try {
                                 <?php $gIdx = $groupIndex;
                                     $groupSectionId = 'ptrGroupPrint_' . $gIdx;
                                     $groupPreviewId = 'ptrGroupPreview_' . $gIdx;
-                                    $signatoryPanelWrapId = 'ptrSignatoryPanel_' . $gIdx;
                                     $groupIndex++;
                                 ?>
                                 <?php
@@ -1071,16 +1049,6 @@ try {
                                             <span class="report-group-chip report-group-chip-recipient"><strong>Recipient:</strong> <?= htmlspecialchars($group['recipient']) ?></span>
                                         </div>
                                         <div class="report-group-head-actions">
-                                            <button
-                                                type="button"
-                                                class="btn btn-outline-secondary btn-sm"
-                                                data-bs-toggle="collapse"
-                                                data-bs-target="#<?= htmlspecialchars($signatoryPanelWrapId, ENT_QUOTES, 'UTF-8') ?>"
-                                                aria-expanded="false"
-                                                aria-controls="<?= htmlspecialchars($signatoryPanelWrapId, ENT_QUOTES, 'UTF-8') ?>"
-                                            >
-                                                Edit signatory names
-                                            </button>
                                             <button
                                                 type="button"
                                                 class="btn btn-outline-secondary btn-sm report-print-btn"
@@ -1132,69 +1100,7 @@ try {
                                         </table>
                                     </div>
                                 </div>
-                                    <div
-                                        id="<?= htmlspecialchars($signatoryPanelWrapId) ?>"
-                                        class="report-ptr-signatory-panel collapse no-print"
-                                    >
-                                        <form method="post" action="report.php" class="report-ptr-signatory-save-form">
-                                            <input type="hidden" name="action" value="save_signatories">
-                                            <input type="hidden" name="return_q" value="<?= htmlspecialchars($search, ENT_QUOTES, 'UTF-8') ?>">
-                                            <input type="hidden" name="return_date_from" value="<?= htmlspecialchars($dateFrom, ENT_QUOTES, 'UTF-8') ?>">
-                                            <input type="hidden" name="return_date_to" value="<?= htmlspecialchars($dateTo, ENT_QUOTES, 'UTF-8') ?>">
-                                            <input type="hidden" name="return_sort" value="<?= htmlspecialchars($sort, ENT_QUOTES, 'UTF-8') ?>">
-                                            <input type="hidden" name="ptr_no" value="<?= htmlspecialchars($savePtrNo, ENT_QUOTES, 'UTF-8') ?>">
-                                            <div class="px-3 pt-2">
-                                                <button
-                                                    type="submit"
-                                                    class="btn btn-primary btn-sm"
-                                                    <?= $savePtrNo === '' ? ' disabled title="This group has no PTR number."' : '' ?>
-                                                >
-                                                    Save names
-                                                </button>
-                                            </div>
-                                            <div class="report-ptr-signatory-editor px-3 pb-3">
-                                                <div class="row g-3 mt-0">
-                                                    <div class="col-md-4">
-                                                        <label class="form-label small mb-1" for="reportPtrPrepared_<?= (int) $gIdx ?>">Prepared by</label>
-                                                        <textarea
-                                                            id="reportPtrPrepared_<?= (int) $gIdx ?>"
-                                                            class="form-control form-control-sm ptr-signatory-name"
-                                                            name="prepared_by"
-                                                            rows="4"
-                                                            spellcheck="false"
-                                                            autocomplete="off"
-                                                            placeholder="Mark Anthony Borres,&#10;John Paul Joseph Opiala,&#10;Richard Roy"
-                                                        ><?= htmlspecialchars($sigPrepared) ?></textarea>
-                                                    </div>
-                                                    <div class="col-md-4">
-                                                        <label class="form-label small mb-1" for="reportPtrApproved_<?= (int) $gIdx ?>">Approved by</label>
-                                                        <textarea
-                                                            id="reportPtrApproved_<?= (int) $gIdx ?>"
-                                                            class="form-control form-control-sm ptr-signatory-name"
-                                                            name="approved_by"
-                                                            rows="4"
-                                                            spellcheck="false"
-                                                            autocomplete="off"
-                                                            placeholder="Elizabeth C. Calaor, RPh&#10;(Pharmacist II/ Head, Supply &amp; Logistics Unit)"
-                                                        ><?= htmlspecialchars($sigApproved) ?></textarea>
-                                                    </div>
-                                                    <div class="col-md-4">
-                                                        <label class="form-label small mb-1" for="reportPtrIssued_<?= (int) $gIdx ?>">Issued by</label>
-                                                        <textarea
-                                                            id="reportPtrIssued_<?= (int) $gIdx ?>"
-                                                            class="form-control form-control-sm ptr-signatory-name ptr-signatory-name--issued"
-                                                            name="issued_by"
-                                                            rows="4"
-                                                            spellcheck="false"
-                                                            autocomplete="off"
-                                                            placeholder="Jannete Ventura,&#10;Earnest John Tolentino, RPh"
-                                                        ><?= htmlspecialchars($sigIssued) ?></textarea>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </form>
-                                        <?php ptr_render_report_ptr_print_sheet($groupPreviewId, $group, $groupTotal, $previewLineRows, $sigPrepared, $sigApproved, $sigIssued); ?>
-                                    </div>
+                                    <?php ptr_render_report_ptr_print_sheet($groupPreviewId, $group, $groupTotal, $previewLineRows, $sigPrepared, $sigApproved, $sigIssued); ?>
                                 </section>
                             <?php endforeach; ?>
                         <?php endif; ?>

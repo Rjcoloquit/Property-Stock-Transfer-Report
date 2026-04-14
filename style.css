@@ -1206,6 +1206,27 @@ a,
     line-height: 1.35;
 }
 
+.dashboard-nav-alert-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 999px;
+    background: #dc3545;
+    box-shadow: 0 0 0 0 rgba(220, 53, 69, 0.65);
+    animation: dashboardNotifPulse 1.5s ease-out infinite;
+}
+
+@keyframes dashboardNotifPulse {
+    0% {
+        box-shadow: 0 0 0 0 rgba(220, 53, 69, 0.65);
+    }
+    70% {
+        box-shadow: 0 0 0 10px rgba(220, 53, 69, 0);
+    }
+    100% {
+        box-shadow: 0 0 0 0 rgba(220, 53, 69, 0);
+    }
+}
+
 .dashboard-nav-icon {
     flex-shrink: 0;
     width: 24px;
@@ -2189,6 +2210,84 @@ a,
 
 .dashboard-notif-upcoming {
     border-left: 5px solid #2e7d32;
+}
+
+.expiry-login-modal {
+    position: fixed;
+    inset: 0;
+    z-index: 1200;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1rem;
+}
+
+.expiry-login-modal__backdrop {
+    position: absolute;
+    inset: 0;
+    background: rgba(17, 24, 39, 0.45);
+}
+
+.expiry-login-modal__dialog {
+    position: relative;
+    width: min(520px, 96vw);
+    background: #fff;
+    border: 1px solid #e5e7eb;
+    border-radius: 14px;
+    box-shadow: 0 24px 60px rgba(15, 23, 42, 0.25);
+    overflow: hidden;
+    animation: expiryLoginModalIn 0.25s ease-out;
+}
+
+.expiry-login-modal__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    padding: 0.9rem 1rem;
+    border-bottom: 1px solid #eef2f7;
+    background: linear-gradient(180deg, #fff4f4 0%, #ffffff 100%);
+}
+
+.expiry-login-modal__title {
+    margin: 0;
+    font-size: 1.05rem;
+    color: #b42318;
+}
+
+.expiry-login-modal__close {
+    border: none;
+    background: transparent;
+    font-size: 1.35rem;
+    line-height: 1;
+    color: #6b7280;
+    cursor: pointer;
+}
+
+.expiry-login-modal__body {
+    padding: 1rem;
+}
+
+.expiry-login-modal__body p {
+    margin: 0 0 0.5rem 0;
+}
+
+.expiry-login-modal__footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.5rem;
+    padding: 0 1rem 1rem;
+}
+
+@keyframes expiryLoginModalIn {
+    from {
+        transform: translateY(8px) scale(0.98);
+        opacity: 0;
+    }
+    to {
+        transform: translateY(0) scale(1);
+        opacity: 1;
+    }
 }
 
 .dashboard-notif-scroll {

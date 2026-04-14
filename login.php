@@ -27,6 +27,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $_SESSION['username'] = PTR_ADMIN_USERNAME;
             $_SESSION['full_name'] = 'Administrator';
             $_SESSION['role'] = 'Admin';
+            $_SESSION['show_expiry_modal_once'] = true;
             header('Location: home.php');
             exit;
         }
@@ -64,6 +65,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $_SESSION['username'] = $user['username'];
                 $_SESSION['full_name'] = $user['full_name'];
                 $_SESSION['role'] = 'Encoder';
+                $_SESSION['show_expiry_modal_once'] = true;
                 header('Location: home.php');
                 exit;
             }
