@@ -1254,12 +1254,6 @@ $previewSignatoryIssued = $sigLoaded !== null ? $sigLoaded['issued_by'] : $sigDe
             <div class="modal-content">
                 <div class="modal-header flex-wrap gap-2">
                     <h3 class="modal-title h5 mb-0" id="previewModalLabel">PTR Preview</h3>
-                    <button
-                        type="button"
-                        class="btn btn-outline-secondary btn-sm create-ptr-signatory-scroll-btn ms-md-auto"
-                    >
-                        Edit signatory names
-                    </button>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body">
@@ -1400,7 +1394,7 @@ $previewSignatoryIssued = $sigLoaded !== null ? $sigLoaded['issued_by'] : $sigDe
         };
     </script>
     <script src="assets/js/smooth_motion.js?v=20260325"></script>
-    <script src="assets/js/create_ptr.js"></script>
+    <script src="assets/js/create_ptr.js?v=<?= urlencode((string) @filemtime(__DIR__ . '/assets/js/create_ptr.js')) ?>"></script>
 </body>
 </html>
 

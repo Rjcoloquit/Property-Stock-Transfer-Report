@@ -640,13 +640,12 @@
             previewItemsBody.appendChild(tr);
         });
 
-        var rowsPerPrintedPage = Math.max(1, Number(previewLineRows) || 1);
-        var remainder = rowsToRender.length % rowsPerPrintedPage;
-        var blanksNeeded = remainder === 0 ? 0 : (rowsPerPrintedPage - remainder);
-
-        // Keep the traditional fixed-grid look: pad the current page with empty lines
-        // so signatories stay at the bottom section after the table.
-        if (rowsToRender.length < rowsPerPrintedPage) {
+        // Ensure common short PTRs (up to 10 items) stay on one page.
+        var configuredRowsPerPage = Number(previewLineRows);
+        var rowsPerPrintedPage = Math.max(10, Number.isFinite(configuredRowsPerPage) ? configuredRowsPerPage : 0);
+        var blanksNeeded = 0;
+        if (rowsToRender.length <= 10) {
+            // For short PTRs, keep a full single-page table grid.
             blanksNeeded = rowsPerPrintedPage - rowsToRender.length;
         }
 
@@ -847,8 +846,8 @@
             '.create-ptr-signatory-block{margin-top:8px;break-inside:avoid;page-break-inside:avoid;}' +
             '.create-ptr-signatory-block p{display:none !important;}' +
             '.create-ptr-signatory-block,.create-ptr-signatory-block table,.signatory-table,.signatory-table tr,.signatory-table td{break-inside:avoid;page-break-inside:avoid;}' +
-            '.signatory-table{width:100%;border-collapse:collapse;}' +
-            '.signatory-table td{text-align:center;vertical-align:middle;height:84px;}' +
+            '.signatory-table{width:100%;border-collapse:collapse;table-layout:fixed;}' +
+            '.signatory-table td{text-align:center;vertical-align:middle;height:84px;width:50%;}' +
             '.signatory-content{display:inline-block;text-align:center;line-height:1.4;}' +
             '.signatory-label{display:block;margin-bottom:8px;}' +
             '.received-box{width:100%;display:flex;flex-direction:column;align-items:center;justify-content:space-between;min-height:82px;padding:2px 0;}' +
@@ -857,14 +856,29 @@
             '.text-end{text-align:right;}' +
             '.ptr-signatory-name{border:none !important;background:transparent !important;resize:none;box-shadow:none !important;outline:none !important;width:100%;min-height:2.5em;padding:0 2px;font:inherit;text-align:center;overflow:visible;}' +
             '.ptr-print-signatory-spacer{height:0;}' +
+            '.ptr-single-page .preview-sheet{padding:4px;}' +
+            '.ptr-single-page .preview-sheet th,.ptr-single-page .preview-sheet td{padding:3px 5px;}' +
+            '.ptr-single-page .preview-purpose-cell{padding-top:3px;padding-bottom:3px;}' +
+            '.ptr-single-page .preview-purpose-cell .preview-purpose-value{line-height:1.18;}' +
+            '.ptr-single-page .create-ptr-signatory-block{margin-top:2px;break-inside:auto !important;page-break-inside:auto !important;}' +
+            '.ptr-single-page .create-ptr-signatory-block,.ptr-single-page .create-ptr-signatory-block table,.ptr-single-page .signatory-table,.ptr-single-page .signatory-table tr,.ptr-single-page .signatory-table td{break-inside:auto !important;page-break-inside:auto !important;}' +
+            '.ptr-single-page .signatory-table td{height:48px;}' +
+            '.ptr-single-page .signatory-content{line-height:1.2;}' +
+            '.ptr-single-page .signatory-label{margin-bottom:4px;}' +
+            '.ptr-single-page .received-box{min-height:56px;padding:0;}' +
+            '.ptr-single-page .received-bottom{line-height:1;}' +
+            '.ptr-single-page .preview-approved-date{margin-top:3px;}' +
+            '.ptr-single-page .ptr-signatory-name{min-height:1.35em;line-height:1.1;padding:0 1px;}' +
             '@media print{.ptr-signatory-name{border:none !important;background:transparent !important;}}' +
             '</style></head><body>' + previewHtml +
             '<script>' +
             '(function(){' +
             'function getPxPerInch(){var probe=document.createElement("div");probe.style.height="1in";probe.style.width="1in";probe.style.position="absolute";probe.style.left="-9999px";document.body.appendChild(probe);var ppi=probe.getBoundingClientRect().height||96;probe.remove();return ppi;}' +
-            'function alignSignatoryToPageBottom(){var sheet=document.getElementById("previewPrintArea");if(!sheet){return;}var signBlock=sheet.querySelector(".create-ptr-signatory-block");if(!signBlock){return;}var oldSpacer=sheet.querySelector(".ptr-print-signatory-spacer");if(oldSpacer){oldSpacer.remove();}' +
+            'function getActualItemCount(){var rows=document.querySelectorAll("#previewItemsBody tr");var count=0;rows.forEach(function(row){var cells=row.querySelectorAll("td");if(!cells.length){return;}var isBlank=true;cells.forEach(function(cell){var t=(cell.textContent||"").replace(/\\u00a0/g," ").trim();if(t!==""&&t!=="-"){isBlank=false;}});if(!isBlank){count++;}});return count;}' +
+            'function applySinglePageMode(){var itemCount=getActualItemCount();if(itemCount<=10){document.body.classList.add("ptr-single-page");}else{document.body.classList.remove("ptr-single-page");}}' +
+            'function alignSignatoryToPageBottom(){var sheet=document.getElementById("previewPrintArea");if(!sheet){return;}var signBlock=sheet.querySelector(".create-ptr-signatory-block");if(!signBlock){return;}var oldSpacer=sheet.querySelector(".ptr-print-signatory-spacer");if(oldSpacer){oldSpacer.remove();}var bodyRows=sheet.querySelectorAll("#previewItemsBody tr").length;var minimumRowsSinglePage=Math.max(10, Number(' + String(Math.max(10, Number(previewLineRows) || 0)) + ') || 10);if(bodyRows<=minimumRowsSinglePage){return;}' +
             'var ppi=getPxPerInch();var pageHeightPx=ppi*(8.2677165354-(16/25.4));var sheetRect=sheet.getBoundingClientRect();var signRect=signBlock.getBoundingClientRect();var signTop=signRect.top-sheetRect.top;var signHeight=signRect.height;var pageStart=Math.floor(signTop/pageHeightPx)*pageHeightPx;var desiredTop=pageStart+pageHeightPx-signHeight-2;var spacerNeeded=Math.floor(desiredTop-signTop);if(spacerNeeded>6){var spacer=document.createElement("div");spacer.className="ptr-print-signatory-spacer";spacer.style.height=String(spacerNeeded)+"px";signBlock.parentNode.insertBefore(spacer,signBlock);}}' +
-            'window.addEventListener("load",function(){alignSignatoryToPageBottom();setTimeout(alignSignatoryToPageBottom,50);setTimeout(function(){window.focus();window.print();},120);});' +
+            'window.addEventListener("load",function(){applySinglePageMode();alignSignatoryToPageBottom();setTimeout(function(){applySinglePageMode();alignSignatoryToPageBottom();},50);setTimeout(function(){window.focus();window.print();},120);});' +
             '})();' +
             '<\/script></body></html>'
         );
