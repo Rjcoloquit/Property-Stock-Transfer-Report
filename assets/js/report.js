@@ -341,13 +341,35 @@
                     return;
                 }
 
+                var groupIdx = btn.getAttribute('data-ptr-group-index');
+                if (groupIdx !== null && groupIdx !== '') {
+                    var prepSrc = document.getElementById('reportPtrPrepared_' + groupIdx);
+                    var apprSrc = document.getElementById('reportPtrApproved_' + groupIdx);
+                    var issuSrc = document.getElementById('reportPtrIssued_' + groupIdx);
+                    var destAreas = target.querySelectorAll('.ptr-signatory-name');
+                    if (prepSrc && destAreas[0]) {
+                        destAreas[0].value = prepSrc.value;
+                    }
+                    if (apprSrc && destAreas[1]) {
+                        destAreas[1].value = apprSrc.value;
+                    }
+                    if (issuSrc && destAreas[2]) {
+                        destAreas[2].value = issuSrc.value;
+                    }
+                }
+
                 var printWindow = window.open('', '_blank', 'width=1100,height=800');
                 if (!printWindow) {
                     alert('Unable to open print window. Please allow pop-ups for this site.');
                     return;
                 }
 
-                var printableHtml = target.outerHTML;
+                var wrapper = document.createElement('div');
+                wrapper.innerHTML = target.outerHTML;
+                wrapper.querySelectorAll('textarea[placeholder]').forEach(function (ta) {
+                    ta.removeAttribute('placeholder');
+                });
+                var printableHtml = wrapper.innerHTML;
                 printWindow.document.write(
                     '<!DOCTYPE html><html><head><title>PTR Preview</title>' +
                     '<base href="' + window.location.href + '">' +
@@ -362,14 +384,16 @@
                     '.preview-logo-wrap{width:48px;height:48px;display:flex;align-items:center;justify-content:center;}' +
                     '.preview-logo-wrap img{width:46px;height:46px;object-fit:contain;}' +
                     '.preview-label{font-weight:700;}' +
-                    '.signatory-table td{text-align:center;vertical-align:middle;height:84px;}' +
-                    '.signatory-content{display:inline-block;text-align:center;line-height:1.4;}' +
-                    '.signatory-label{display:block;margin-bottom:8px;}' +
+                    '.signatory-table td{text-align:center;vertical-align:top;min-height:84px;height:auto;}' +
+                    '.signatory-content{display:block;width:100%;max-width:100%;text-align:center;line-height:1.4;box-sizing:border-box;}' +
+                    '.signatory-label{display:block;margin-bottom:6px;font-size:12px;font-weight:700;}' +
+                    '.preview-approved-date{display:block;margin-top:6px;font-size:11.5px;font-weight:400;}' +
                     '.received-box{width:100%;display:flex;flex-direction:column;align-items:center;justify-content:space-between;min-height:82px;padding:2px 0;}' +
                     '.received-top{display:flex;align-items:center;justify-content:center;}' +
                     '.received-bottom{border:0;padding:0;font-size:8px;line-height:1.1;white-space:nowrap;}' +
                     '.text-end{text-align:right;}' +
-                    '.ptr-signatory-name{border:none !important;background:transparent !important;resize:none;box-shadow:none !important;outline:none !important;width:100%;min-height:2.5em;padding:0 2px;font:inherit;text-align:center;overflow:visible;}' +
+                    '.ptr-signatory-name{border:none !important;background:transparent !important;resize:none;box-shadow:none !important;outline:none !important;width:100%;max-width:100%;box-sizing:border-box;min-height:2.5em;padding:0 2px;font-family:Arial,sans-serif;font-size:11.5px;line-height:1.4;text-align:center;overflow:visible;white-space:pre-wrap;word-wrap:break-word;}' +
+                    '.ptr-signatory-name--issued{font-size:11px;line-height:1.35;min-height:3em;}' +
                     '@media print{.ptr-signatory-name{border:none !important;background:transparent !important;}}' +
                     '</style></head><body>' + printableHtml + '</body></html>'
                 );

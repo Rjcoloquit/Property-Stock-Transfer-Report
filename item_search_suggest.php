@@ -1,12 +1,10 @@
 <?php
 session_start();
+require_once __DIR__ . '/config/rbac.php';
 
 header('Content-Type: application/json; charset=utf-8');
-
-if (empty($_SESSION['user_id'])) {
-    echo json_encode([]);
-    exit;
-}
+ptr_require_login(true);
+ptr_require_page_access('item_search_suggest', true);
 
 require_once __DIR__ . '/config/database.php';
 require_once __DIR__ . '/dashboard_inventory_helper.php';

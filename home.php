@@ -1,13 +1,12 @@
 <?php
 session_start();
-
-// Require login
-if (empty($_SESSION['user_id'])) {
-    header('Location: login.php');
-    exit;
-}
+require_once __DIR__ . '/config/rbac.php';
+ptr_require_login();
+ptr_require_page_access('home');
+ptr_block_encoder_mutations();
 
 require_once __DIR__ . '/config/database.php';
+require_once __DIR__ . '/config/rbac.php';
 require_once __DIR__ . '/config/ptr_numbering.php';
 require_once __DIR__ . '/dashboard_inventory_helper.php';
 
@@ -26,6 +25,8 @@ $chartLabels = [];
 $chartTransactions = [];
 $chartQuantities = [];
 $chartAmounts = [];
+$expiringWithinSixMonthsNavCount = 0;
+$showExpiryLoginAlert = false;
 $dashboardError = '';
 
 try {
@@ -102,6 +103,37 @@ try {
     $totalsRow = $totalsStmt->fetch();
     $totalQuantity = (int) ($totalsRow['total_qty'] ?? 0);
     $totalAmount = (float) ($totalsRow['total_amount'] ?? 0);
+
+    $hasProductsExpiryDate = false;
+    $hasProductBatchesTable = false;
+    $expiryColumnStmt = $pdo->query("SHOW COLUMNS FROM products LIKE 'expiry_date'");
+    if ($expiryColumnStmt && $expiryColumnStmt->fetch()) {
+        $hasProductsExpiryDate = true;
+    }
+    $batchTableStmt = $pdo->query("SHOW TABLES LIKE 'product_batches'");
+    if ($batchTableStmt && $batchTableStmt->fetch()) {
+        $hasProductBatchesTable = true;
+    }
+    if ($hasProductBatchesTable) {
+        $expiringWithinSixMonthsNavCount = (int) $pdo->query('
+            SELECT COUNT(*)
+            FROM product_batches b
+            INNER JOIN products p ON p.id = b.product_id
+            WHERE b.expiry_date IS NOT NULL
+              AND DATEDIFF(b.expiry_date, CURDATE()) BETWEEN 0 AND 183
+        ')->fetchColumn();
+    } elseif ($hasProductsExpiryDate) {
+        $expiringWithinSixMonthsNavCount = (int) $pdo->query('
+            SELECT COUNT(*)
+            FROM products
+            WHERE expiry_date IS NOT NULL
+              AND DATEDIFF(expiry_date, CURDATE()) BETWEEN 0 AND 183
+        ')->fetchColumn();
+    }
+    if (!empty($_SESSION['show_expiry_modal_once']) && $expiringWithinSixMonthsNavCount > 0) {
+        $showExpiryLoginAlert = true;
+    }
+    unset($_SESSION['show_expiry_modal_once']);
 
     $recentStmt = $pdo->query('
         SELECT record_date, ptr_no, recipient, description, quantity, unit_cost, program
@@ -228,12 +260,14 @@ try {
                                     <span class="dashboard-nav-meta">Review and filter saved transactions</span>
                                 </a>
                                 </li>
+                                <?php if (ptr_current_role() === 'Admin'): ?>
                                 <li>
                                 <a href="item_list.php" class="dashboard-nav-link">
                                     <span class="dashboard-nav-title">Manage Items</span>
                                     <span class="dashboard-nav-meta">Maintain item descriptions and costs</span>
                                 </a>
                                 </li>
+                                <?php endif; ?>
                                 <li>
                                 <a href="notifications.php" class="dashboard-nav-link <?= $expiredNotificationsCount > 0 ? 'dashboard-nav-link-alert' : '' ?>">
                                     <span class="dashboard-nav-title d-flex align-items-center justify-content-between gap-2 w-100">
@@ -493,7 +527,9 @@ try {
                 transactions: <?= json_encode($chartTransactions) ?>,
                 quantity: <?= json_encode($chartQuantities) ?>,
                 amount: <?= json_encode($chartAmounts) ?>
-            }
+            },
+            showExpiryLoginAlert: <?= $showExpiryLoginAlert ? 'true' : 'false' ?>,
+            expiringWithinSixMonthsCount: <?= (int) $expiringWithinSixMonthsNavCount ?>
         };
     </script>
     <script src="assets/js/smooth_motion.js?v=20260325"></script>

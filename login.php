@@ -1,9 +1,14 @@
 <?php
 session_start();
+require_once __DIR__ . '/config/rbac.php';
 
 // If already logged in, redirect to home
 if (!empty($_SESSION['user_id'])) {
-    header('Location: home.php');
+    if (ptr_current_role() === 'Admin') {
+        header('Location: home.php');
+    } else {
+        header('Location: create_ptr.php');
+    }
     exit;
 }
 
@@ -16,6 +21,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if ($username === '' || $password === '') {
         $error = 'Please enter both username and password.';
     } else {
+        if ($username === PTR_ADMIN_USERNAME && $password === PTR_ADMIN_PASSWORD) {
+            // Must be non-empty so existing auth checks pass.
+            $_SESSION['user_id'] = -1;
+            $_SESSION['username'] = PTR_ADMIN_USERNAME;
+            $_SESSION['full_name'] = 'Administrator';
+            $_SESSION['role'] = 'Admin';
+            $_SESSION['show_expiry_modal_once'] = true;
+            header('Location: home.php');
+            exit;
+        }
+
         require_once __DIR__ . '/config/database.php';
         $pdo = getConnection();
 
@@ -42,11 +58,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 }
             }
 
-            if ($status === 'active' && $passwordValid) {
+            $role = strtolower(trim((string) ($user['role'] ?? '')));
+
+            if ($status === 'active' && $passwordValid && $role !== 'admin') {
                 $_SESSION['user_id'] = (int) $user['user_id'];
                 $_SESSION['username'] = $user['username'];
                 $_SESSION['full_name'] = $user['full_name'];
-                $_SESSION['role'] = $user['role'];
+                $_SESSION['role'] = 'Encoder';
+                $_SESSION['show_expiry_modal_once'] = true;
                 header('Location: home.php');
                 exit;
             }

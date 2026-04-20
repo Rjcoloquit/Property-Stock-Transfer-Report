@@ -1,11 +1,9 @@
 <?php
 session_start();
-
-// Require login
-if (empty($_SESSION['user_id'])) {
-    header('Location: login.php');
-    exit;
-}
+require_once __DIR__ . '/config/rbac.php';
+ptr_require_login();
+ptr_require_page_access('create_ptr');
+ptr_block_encoder_mutations();
 
 $errors = [];
 $success = false;
@@ -36,6 +34,7 @@ $data = [
 ];
 
 require_once __DIR__ . '/config/database.php';
+require_once __DIR__ . '/config/ptr_signatories.php';
 require_once __DIR__ . '/config/ptr_numbering.php';
 $pdo = getConnection();
 $nextPtrNo = '';
@@ -200,6 +199,7 @@ try {
         ];
     }
 
+    $poNumberLoadSucceeded = false;
     try {
         $poNumberStmt = $pdo->query('
             SELECT
@@ -217,9 +217,11 @@ try {
             INNER JOIN products p ON p.id = ppn.product_id
             WHERE p.product_description IS NOT NULL AND TRIM(p.product_description) <> ""
               AND ppn.po_no IS NOT NULL AND TRIM(ppn.po_no) <> ""
+              AND COALESCE(ppn.stock_quantity, 0) > 0
             ORDER BY p.product_description ASC, ppn.po_no ASC
         ');
         $poNumberRows = $poNumberStmt->fetchAll();
+        $poNumberLoadSucceeded = true;
 
         foreach ($poNumberRows as $row) {
             $description = trim((string) ($row['product_description'] ?? ''));
@@ -291,6 +293,34 @@ try {
         $programOptionsByDescription[$description] = $options;
     }
 
+    if ($hasProductPoNumberTable && $poNumberLoadSucceeded) {
+        $allowedDescriptions = array_keys($poOptionsByDescription);
+        if ($allowedDescriptions === []) {
+            $productMetaByDescription = [];
+            $poOptionsByDescription = [];
+            $productMetaByDescriptionPo = [];
+            $costByDescriptionAndPo = [];
+            $quantityByDescriptionAndPo = [];
+        } else {
+            $allowedFlip = array_flip($allowedDescriptions);
+            $productMetaByDescription = array_intersect_key($productMetaByDescription, $allowedFlip);
+            $poOptionsByDescription = array_intersect_key($poOptionsByDescription, $allowedFlip);
+            $allowedDescLower = [];
+            foreach (array_keys($productMetaByDescription) as $d) {
+                $allowedDescLower[strtolower(trim($d))] = true;
+            }
+            foreach (array_keys($productMetaByDescriptionPo) as $poMapKey) {
+                $pipe = strpos($poMapKey, '|');
+                $descLower = $pipe !== false ? substr($poMapKey, 0, $pipe) : $poMapKey;
+                if (!isset($allowedDescLower[$descLower])) {
+                    unset($productMetaByDescriptionPo[$poMapKey], $costByDescriptionAndPo[$poMapKey], $quantityByDescriptionAndPo[$poMapKey]);
+                }
+            }
+        }
+        $unitOptionsByDescription = array_intersect_key($unitOptionsByDescription, $productMetaByDescription);
+        $programOptionsByDescription = array_intersect_key($programOptionsByDescription, $productMetaByDescription);
+    }
+
     $descriptionOptions = array_keys($productMetaByDescription);
     sort($descriptionOptions, SORT_NATURAL | SORT_FLAG_CASE);
     $programOptions = [];
@@ -334,6 +364,7 @@ try {
             INNER JOIN products p ON p.id = ppn.product_id
             WHERE ppn.batch_number IS NOT NULL AND TRIM(ppn.batch_number) <> ""
               AND p.product_description IS NOT NULL AND TRIM(p.product_description) <> ""
+              AND COALESCE(ppn.stock_quantity, 0) > 0
             ORDER BY p.product_description ASC, ppn.batch_number ASC
         ');
         $batchRows = $poNumberBatchStmt->fetchAll();
@@ -462,6 +493,31 @@ if ($isDraftEditMode) {
     } catch (PDOException $e) {
         $errors[] = 'Unable to load pending PTR draft for editing right now.';
     }
+}
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'save_ptr_signatories') {
+    header('Content-Type: application/json; charset=utf-8');
+    try {
+        ptr_ensure_signatories_table($pdo);
+        $ptrNoSave = trim((string) ($_POST['ptr_no'] ?? ''));
+        if ($ptrNoSave === '') {
+            http_response_code(400);
+            echo json_encode(['ok' => false, 'message' => 'PTR number is required to save signatory names.']);
+            exit;
+        }
+        ptr_save_signatories_for_ptr(
+            $pdo,
+            $ptrNoSave,
+            (string) ($_POST['ptr_prepared_by'] ?? ''),
+            (string) ($_POST['ptr_approved_by'] ?? ''),
+            (string) ($_POST['ptr_issued_by'] ?? '')
+        );
+        echo json_encode(['ok' => true, 'message' => 'Signatory names saved for PTR ' . $ptrNoSave . '.']);
+    } catch (Throwable $e) {
+        http_response_code(500);
+        echo json_encode(['ok' => false, 'message' => 'Could not save signatory names.']);
+    }
+    exit;
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -790,6 +846,14 @@ foreach ($data['items'] as $item) {
 }
 $totalAmountValue = number_format($totalAmountValue, 2, '.', '');
 $previewLineRows = 10;
+
+ptr_ensure_signatories_table($pdo);
+$sigDefaults = ptr_signatory_defaults();
+$sigPtrNo = trim((string) ($data['ptr_no'] ?? ''));
+$sigLoaded = $sigPtrNo !== '' ? ptr_load_signatories_for_ptr($pdo, $sigPtrNo) : null;
+$previewSignatoryPrepared = $sigLoaded !== null ? $sigLoaded['prepared_by'] : $sigDefaults['prepared_by'];
+$previewSignatoryApproved = $sigLoaded !== null ? $sigLoaded['approved_by'] : $sigDefaults['approved_by'];
+$previewSignatoryIssued = $sigLoaded !== null ? $sigLoaded['issued_by'] : $sigDefaults['issued_by'];
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -902,6 +966,19 @@ $previewLineRows = 10;
             outline: none;
             border-color: #0d6efd;
             background: #fff;
+        }
+        .create-ptr-signatory-block {
+            margin-top: 1rem;
+            padding-top: 0.75rem;
+            border-top: 1px solid #dee2e6;
+        }
+        .preview-approved-date {
+            display: block;
+            margin-top: 6px;
+            font-size: 0.9em;
+        }
+        .ptr-signatory-name--issued {
+            font-size: 0.95em;
         }
     </style>
 </head>
@@ -1175,8 +1252,14 @@ $previewLineRows = 10;
     <div class="modal fade" id="previewModal" tabindex="-1" aria-labelledby="previewModalLabel" aria-hidden="true">
         <div class="modal-dialog modal-xl modal-dialog-scrollable">
             <div class="modal-content">
-                <div class="modal-header">
+                <div class="modal-header flex-wrap gap-2">
                     <h3 class="modal-title h5 mb-0" id="previewModalLabel">PTR Preview</h3>
+                    <button
+                        type="button"
+                        class="btn btn-outline-secondary btn-sm create-ptr-signatory-scroll-btn ms-md-auto"
+                    >
+                        Edit signatory names
+                    </button>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body">
@@ -1251,19 +1334,21 @@ $previewLineRows = 10;
                                 <td colspan="4"><span class="preview-label">Purpose:</span><br><em>(For the use of)</em> <span id="previewRecipient">-</span></td>
                             </tr>
                         </table>
+                        <div id="previewSignatoryBlock" class="create-ptr-signatory-block">
+                        <p class="small text-muted mb-2">Optional: edit <strong>Prepared by</strong>, <strong>Approved by</strong>, and <strong>Issued by</strong> before printing. Defaults are filled in; change only if needed.</p>
                         <table class="signatory-table">
                             <tr>
                                 <td class="preview-signatory-half">
                                     <div class="signatory-content">
                                         <span class="preview-label signatory-label">Prepared by:</span>
-                                        <textarea id="previewPreparedBy" class="ptr-signatory-name" name="ptr_prepared_by" rows="3" placeholder="Mark Anthony Borres, John Paul Joseph Opiala, Richard Roy"></textarea>
+                                        <textarea id="previewPreparedBy" class="ptr-signatory-name" name="ptr_prepared_by" rows="4" spellcheck="false" autocomplete="off" placeholder="Mark Anthony Borres,&#10;John Paul Joseph Opiala,&#10;Richard Roy"><?= htmlspecialchars($previewSignatoryPrepared) ?></textarea>
                                     </div>
                                 </td>
                                 <td class="preview-signatory-half">
                                     <div class="signatory-content">
                                         <span class="preview-label signatory-label">Approved by:</span>
-                                        <textarea id="previewApprovedBy" class="ptr-signatory-name" name="ptr_approved_by" rows="3" placeholder="Elizabeth C. Calaor, RPh&#10;(Pharmacist II/ Head, Supply &amp; Logistics Unit)"></textarea>
-                                        <span id="previewApprovedDate"><?= htmlspecialchars(date('m/d/Y')) ?></span>
+                                        <textarea id="previewApprovedBy" class="ptr-signatory-name" name="ptr_approved_by" rows="3" spellcheck="false" autocomplete="off" placeholder="Elizabeth C. Calaor, RPh&#10;(Pharmacist II/ Head, Supply &amp; Logistics Unit)"><?= htmlspecialchars($previewSignatoryApproved) ?></textarea>
+                                        <span id="previewApprovedDate" class="preview-approved-date"><?= htmlspecialchars(date('m/d/Y')) ?></span>
                                     </div>
                                 </td>
                             </tr>
@@ -1271,7 +1356,7 @@ $previewLineRows = 10;
                                 <td class="preview-signatory-half">
                                     <div class="signatory-content">
                                         <span class="preview-label signatory-label">Issued by:</span>
-                                        <textarea id="previewIssuedBy" class="ptr-signatory-name" name="ptr_issued_by" rows="2" placeholder="Jannete Ventura, Earnest John Tolentino, RPh"></textarea>
+                                        <textarea id="previewIssuedBy" class="ptr-signatory-name ptr-signatory-name--issued" name="ptr_issued_by" rows="3" spellcheck="false" autocomplete="off" placeholder="Jannete Ventura,&#10;Earnest John Tolentino, RPh"><?= htmlspecialchars($previewSignatoryIssued) ?></textarea>
                                     </div>
                                 </td>
                                 <td class="preview-signatory-half">
@@ -1286,9 +1371,10 @@ $previewLineRows = 10;
                                 </td>
                             </tr>
                         </table>
+                        </div>
                     </div>
                 </div>
-                <div class="modal-footer">
+                <div class="modal-footer flex-wrap gap-2">
                     <button type="button" id="printPreviewBtn" class="btn btn-outline-secondary">Print</button>
                     <button type="submit" form="ptrForm" class="btn btn-primary"><?= $isDraftEditMode ? 'Save Draft Changes' : 'Save Report' ?></button>
                 </div>
