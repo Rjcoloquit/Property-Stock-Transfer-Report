@@ -30,6 +30,147 @@ function ptrFormatStockCardPoRefNo(string $poNo): string
 }
 
 /**
+ * Append or create a release-style stock card row for an incident-issued quantity.
+ */
+function ptrAppendIssuedStockCardEntry(
+    PDO $pdo,
+    string $username,
+    string $description,
+    string $uom,
+    string $batchNumber,
+    float $unitCost,
+    string $program,
+    string $poNo,
+    string $supplier,
+    int $issuedQty,
+    float $startingBalance,
+    string $refNo,
+    string $remarks,
+    string $entryDate = ''
+): void {
+    $description = trim($description);
+    $uom = trim($uom);
+    $batchNumber = trim($batchNumber);
+    if ($description === '' || $uom === '' || $batchNumber === '' || $issuedQty <= 0) {
+        return;
+    }
+
+    $itemKey = strtolower($description)
+        . '|' . strtolower($uom)
+        . '|' . strtolower($batchNumber)
+        . '|' . strtolower(trim($program))
+        . '|' . strtolower(trim($poNo));
+
+    $readStmt = $pdo->prepare('
+        SELECT id, ledger_rows
+        FROM stock_cards
+        WHERE item_key = ? AND source_type = "release"
+        ORDER BY id ASC
+        LIMIT 1
+        FOR UPDATE
+    ');
+    $readStmt->execute([$itemKey]);
+    $existingCard = $readStmt->fetch(PDO::FETCH_ASSOC);
+
+    $ledgerRows = [];
+    $cardId = 0;
+    if ($existingCard) {
+        $cardId = (int) ($existingCard['id'] ?? 0);
+        $decodedRows = json_decode((string) ($existingCard['ledger_rows'] ?? ''), true);
+        if (is_array($decodedRows)) {
+            $ledgerRows = $decodedRows;
+        }
+    }
+
+    $balanceBefore = $startingBalance;
+    if (!empty($ledgerRows)) {
+        $lastLedgerRow = $ledgerRows[count($ledgerRows) - 1];
+        $lastBalanceRaw = (string) ($lastLedgerRow['balance'] ?? '0');
+        $balanceBefore = (float) str_replace(',', '', trim($lastBalanceRaw));
+    }
+
+    $newBalance = max(0, $balanceBefore - $issuedQty);
+    $entryDate = trim($entryDate) !== '' ? $entryDate : date('Y-m-d');
+
+    $ledgerRows[] = [
+        'entry_date' => $entryDate,
+        'received' => '0',
+        'issued' => (string) $issuedQty,
+        'balance' => number_format($newBalance, 2, '.', ''),
+        'total_cost' => number_format($issuedQty * $unitCost, 2, '.', ''),
+        'ref_no' => trim($refNo),
+        'remarks' => trim($remarks),
+    ];
+    $ledgerJson = json_encode($ledgerRows, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+
+    if ($cardId > 0) {
+        $updateStmt = $pdo->prepare('
+            UPDATE stock_cards
+            SET
+                po_contract_no = ?,
+                supplier = ?,
+                item_description = ?,
+                dosage_form = ?,
+                uom = ?,
+                unit_cost = ?,
+                end_user_program = ?,
+                batch_no = ?,
+                entity_name = "PHO",
+                fund_cluster = "PHO",
+                ledger_rows = ?
+            WHERE id = ?
+        ');
+        $updateStmt->execute([
+            $poNo !== '' ? $poNo : null,
+            $supplier !== '' ? $supplier : null,
+            $description,
+            $uom,
+            $uom,
+            $unitCost,
+            $program !== '' ? $program : null,
+            $batchNumber,
+            $ledgerJson,
+            $cardId,
+        ]);
+        return;
+    }
+
+    $insertStmt = $pdo->prepare('
+        INSERT INTO stock_cards
+        (
+            po_contract_no,
+            supplier,
+            item_description,
+            dosage_form,
+            uom,
+            unit_cost,
+            end_user_program,
+            batch_no,
+            entity_name,
+            fund_cluster,
+            ledger_rows,
+            item_key,
+            source_type,
+            created_by
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, "PHO", "PHO", ?, ?, "release", ?)
+    ');
+    $insertStmt->execute([
+        $poNo !== '' ? $poNo : null,
+        $supplier !== '' ? $supplier : null,
+        $description,
+        $uom,
+        $uom,
+        $unitCost,
+        $program !== '' ? $program : null,
+        $batchNumber,
+        $ledgerJson,
+        $itemKey,
+        $username,
+    ]);
+}
+
+/**
  * Collapse duplicate PO prefixes ("PO PO-94324" → "PO-94324") for display.
  * Loops to handle "PO PO PO-…". Does not strip "PO " before a bare number ("PO 94324" unchanged).
  * Normalizes Unicode dashes so "PO PO−94324" (minus U+2212) still matches.
@@ -169,7 +310,7 @@ function ptr_render_report_ptr_print_sheet(
         </table>
         <table>
             <tr>
-                <td colspan="4"><span class="preview-label">Purpose:</span><br><em>For the use of</em> <?= ptrPrintPreviewText($group['recipient'] ?? null) ?></td>
+                <td colspan="4" class="preview-purpose-cell"><span class="preview-label">Purpose:</span><br><span class="preview-purpose-value"><em>For the use of</em> <?= ptrPrintPreviewText($group['recipient'] ?? null) ?></span></td>
             </tr>
         </table>
         <table class="signatory-table">

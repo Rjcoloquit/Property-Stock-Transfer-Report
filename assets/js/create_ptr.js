@@ -622,7 +622,7 @@
     function renderPreviewItems(items) {
         previewItemsBody.innerHTML = '';
 
-        var rowsToRender = items.slice(0, previewLineRows);
+        var rowsToRender = Array.isArray(items) ? items : [];
         rowsToRender.forEach(function (item) {
             var tr = document.createElement('tr');
             var descriptionWithBatch = item.batch_number
@@ -640,7 +640,17 @@
             previewItemsBody.appendChild(tr);
         });
 
-        for (var i = rowsToRender.length; i < previewLineRows; i++) {
+        var rowsPerPrintedPage = Math.max(1, Number(previewLineRows) || 1);
+        var remainder = rowsToRender.length % rowsPerPrintedPage;
+        var blanksNeeded = remainder === 0 ? 0 : (rowsPerPrintedPage - remainder);
+
+        // Keep the traditional fixed-grid look: pad the current page with empty lines
+        // so signatories stay at the bottom section after the table.
+        if (rowsToRender.length < rowsPerPrintedPage) {
+            blanksNeeded = rowsPerPrintedPage - rowsToRender.length;
+        }
+
+        for (var i = 0; i < blanksNeeded; i++) {
             var blank = document.createElement('tr');
             blank.innerHTML = '<td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td>';
             previewItemsBody.appendChild(blank);
@@ -820,14 +830,24 @@
             '<style>' +
             '@page{size:A4 landscape;margin:8mm;}' +
             'body{font-family:Arial,sans-serif;padding:0;margin:0;background:#fff;color:#111;}' +
-            '.preview-sheet{border:1px solid #222;padding:8px;max-width:100%;}' +
-            '.preview-sheet table{width:100%;border-collapse:collapse;font-size:11px;}' +
+            '.preview-sheet{border:1px solid #222;padding:8px;max-width:100%;box-sizing:border-box;}' +
+            '.preview-sheet table{width:100%;border-collapse:collapse;font-size:11px;page-break-inside:auto;break-inside:auto;}' +
             '.preview-sheet th,.preview-sheet td{border:1px solid #222;padding:4px 6px;vertical-align:top;}' +
+            '.preview-sheet thead{display:table-header-group;}' +
+            '.preview-sheet tfoot{display:table-footer-group;}' +
+            '.preview-sheet tr{page-break-inside:avoid;break-inside:avoid;}' +
+            '#previewItemsBody tr{page-break-inside:avoid;break-inside:avoid;}' +
             '.preview-header{display:grid;grid-template-columns:48px auto 48px;align-items:center;column-gap:12px;margin-bottom:8px;justify-content:center;}' +
             '.preview-title{font-weight:700;font-size:18px;text-align:center;margin:0;}' +
             '.preview-logo-wrap{width:48px;height:48px;display:flex;align-items:center;justify-content:center;}' +
             '.preview-logo-wrap img{width:46px;height:46px;object-fit:contain;}' +
             '.preview-label{font-weight:700;}' +
+            '.preview-purpose-cell{padding-top:5px;padding-bottom:5px;}' +
+            '.preview-purpose-cell .preview-purpose-value{display:inline-block;font-size:1.18rem;line-height:1.28;font-weight:600;}' +
+            '.create-ptr-signatory-block{margin-top:8px;break-inside:avoid;page-break-inside:avoid;}' +
+            '.create-ptr-signatory-block p{display:none !important;}' +
+            '.create-ptr-signatory-block,.create-ptr-signatory-block table,.signatory-table,.signatory-table tr,.signatory-table td{break-inside:avoid;page-break-inside:avoid;}' +
+            '.signatory-table{width:100%;border-collapse:collapse;}' +
             '.signatory-table td{text-align:center;vertical-align:middle;height:84px;}' +
             '.signatory-content{display:inline-block;text-align:center;line-height:1.4;}' +
             '.signatory-label{display:block;margin-bottom:8px;}' +
@@ -836,12 +856,19 @@
             '.received-bottom{border:0;padding:0;font-size:8px;line-height:1.1;white-space:nowrap;}' +
             '.text-end{text-align:right;}' +
             '.ptr-signatory-name{border:none !important;background:transparent !important;resize:none;box-shadow:none !important;outline:none !important;width:100%;min-height:2.5em;padding:0 2px;font:inherit;text-align:center;overflow:visible;}' +
+            '.ptr-print-signatory-spacer{height:0;}' +
             '@media print{.ptr-signatory-name{border:none !important;background:transparent !important;}}' +
-            '</style></head><body>' + previewHtml + '</body></html>'
+            '</style></head><body>' + previewHtml +
+            '<script>' +
+            '(function(){' +
+            'function getPxPerInch(){var probe=document.createElement("div");probe.style.height="1in";probe.style.width="1in";probe.style.position="absolute";probe.style.left="-9999px";document.body.appendChild(probe);var ppi=probe.getBoundingClientRect().height||96;probe.remove();return ppi;}' +
+            'function alignSignatoryToPageBottom(){var sheet=document.getElementById("previewPrintArea");if(!sheet){return;}var signBlock=sheet.querySelector(".create-ptr-signatory-block");if(!signBlock){return;}var oldSpacer=sheet.querySelector(".ptr-print-signatory-spacer");if(oldSpacer){oldSpacer.remove();}' +
+            'var ppi=getPxPerInch();var pageHeightPx=ppi*(8.2677165354-(16/25.4));var sheetRect=sheet.getBoundingClientRect();var signRect=signBlock.getBoundingClientRect();var signTop=signRect.top-sheetRect.top;var signHeight=signRect.height;var pageStart=Math.floor(signTop/pageHeightPx)*pageHeightPx;var desiredTop=pageStart+pageHeightPx-signHeight-2;var spacerNeeded=Math.floor(desiredTop-signTop);if(spacerNeeded>6){var spacer=document.createElement("div");spacer.className="ptr-print-signatory-spacer";spacer.style.height=String(spacerNeeded)+"px";signBlock.parentNode.insertBefore(spacer,signBlock);}}' +
+            'window.addEventListener("load",function(){alignSignatoryToPageBottom();setTimeout(alignSignatoryToPageBottom,50);setTimeout(function(){window.focus();window.print();},120);});' +
+            '})();' +
+            '<\/script></body></html>'
         );
         printWindow.document.close();
-        printWindow.focus();
-        printWindow.print();
     });
 
     itemRowsBody.querySelectorAll('.item-row').forEach(function (row) {

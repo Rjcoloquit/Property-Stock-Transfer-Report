@@ -1331,7 +1331,7 @@ $previewSignatoryIssued = $sigLoaded !== null ? $sigLoaded['issued_by'] : $sigDe
                         </table>
                         <table>
                             <tr>
-                                <td colspan="4"><span class="preview-label">Purpose:</span><br><em>(For the use of)</em> <span id="previewRecipient">-</span></td>
+                                <td colspan="4" class="preview-purpose-cell"><span class="preview-label">Purpose:</span><br><span class="preview-purpose-value"><em>(For the use of)</em> <span id="previewRecipient">-</span></span></td>
                             </tr>
                         </table>
                         <div id="previewSignatoryBlock" class="create-ptr-signatory-block">

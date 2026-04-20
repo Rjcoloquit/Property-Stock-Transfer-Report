@@ -5,6 +5,8 @@ ptr_require_login();
 ptr_require_page_access('incident_report');
 
 require_once __DIR__ . '/config/database.php';
+require_once __DIR__ . '/dashboard_inventory_helper.php';
+require_once __DIR__ . '/config/print_preview_helpers.php';
 
 $username = $_SESSION['username'] ?? $_SESSION['full_name'] ?? 'User';
 $errors = [];
@@ -38,7 +40,46 @@ $specRows = array_fill(0, 1, [
     'qty' => '',
 ]);
 
+$hasProductBatchesTable = false;
+$hasProductPoNumberTable = false;
+$activeStockTable = '';
+
+function appendIncidentTypeToRemarks(string $remarks, string $incidentType): string
+{
+    $remarks = trim($remarks);
+    $incidentType = trim($incidentType);
+    if ($incidentType === '') {
+        return $remarks;
+    }
+
+    $remarks = preg_replace('/(^|\R)\s*Incident Type Issued:\s*.*$/mi', '', $remarks) ?? $remarks;
+    $remarks = trim($remarks);
+
+    $incidentTag = 'Incident Type Issued: ' . $incidentType;
+    if ($remarks === '') {
+        return $incidentTag;
+    }
+
+    return $remarks . PHP_EOL . $incidentTag;
+}
+
+function pruneProductIfNoRemainingStock(PDO $pdo, int $productId, string $activeStockTable): void
+{
+    if ($productId <= 0 || $activeStockTable === '') {
+        return;
+    }
+
+    $remainingRowsStmt = $pdo->prepare('SELECT 1 FROM ' . $activeStockTable . ' WHERE product_id = ? LIMIT 1');
+    $remainingRowsStmt->execute([$productId]);
+    if (!$remainingRowsStmt->fetchColumn()) {
+        $pdo->prepare('DELETE FROM products WHERE id = ? LIMIT 1')->execute([$productId]);
+    }
+}
+
 $pdo = getConnection();
+$inventorySchema = ptr_ensure_dashboard_inventory_schema($pdo);
+$activeStockTable = (string) ($inventorySchema['batchSourceTable'] ?? '');
+$hasProductsExpiryDate = (bool) ($inventorySchema['hasProductsExpiryDate'] ?? false);
 $pdo->exec(
     'CREATE TABLE IF NOT EXISTS incident_reports (
         id INT NOT NULL AUTO_INCREMENT,
@@ -82,6 +123,7 @@ $expiredBatchesByProduct = [];
 $allBatchesByProduct = [];
 $batchTableStmt = $pdo->query("SHOW TABLES LIKE 'product_batches'");
 if ($batchTableStmt && $batchTableStmt->fetch()) {
+    $hasProductBatchesTable = true;
     $expiredStmt = $pdo->query(
         'SELECT DISTINCT p.product_description, p.uom
          FROM products p
@@ -141,6 +183,11 @@ if ($batchTableStmt && $batchTableStmt->fetch()) {
             ];
         }
     }
+}
+
+$poNumberTableStmt = $pdo->query("SHOW TABLES LIKE 'product_po_number'");
+if ($poNumberTableStmt && $poNumberTableStmt->fetch()) {
+    $hasProductPoNumberTable = true;
 }
 
 // Fetch distinct programs for datalist
@@ -287,6 +334,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 
     if (empty($errors)) {
+        $remarksWithIncidentType = appendIncidentTypeToRemarks(
+            (string) ($formData['remarks'] ?? ''),
+            (string) ($formData['incident_type'] ?? '')
+        );
         $incidentDateTimeValue = null;
         if ($formData['incident_datetime'] !== '') {
             $incidentDateTimeValue = str_replace('T', ' ', $formData['incident_datetime']);
@@ -323,7 +374,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $formData['location'] !== '' ? $formData['location'] : null,
                 json_encode($specRows, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
                 $formData['persons_involved'] !== '' ? $formData['persons_involved'] : null,
-                $formData['remarks'] !== '' ? $formData['remarks'] : null,
+                $remarksWithIncidentType !== '' ? $remarksWithIncidentType : null,
                 $formData['action_taken'] !== '' ? $formData['action_taken'] : null,
                 $formData['prepared_by_name'] !== '' ? $formData['prepared_by_name'] : null,
                 $formData['prepared_by_designation'] !== '' ? $formData['prepared_by_designation'] : null,
@@ -365,7 +416,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $formData['location'] !== '' ? $formData['location'] : null,
                 json_encode($specRows, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
                 $formData['persons_involved'] !== '' ? $formData['persons_involved'] : null,
-                $formData['remarks'] !== '' ? $formData['remarks'] : null,
+                $remarksWithIncidentType !== '' ? $remarksWithIncidentType : null,
                 $formData['action_taken'] !== '' ? $formData['action_taken'] : null,
                 $formData['prepared_by_name'] !== '' ? $formData['prepared_by_name'] : null,
                 $formData['prepared_by_designation'] !== '' ? $formData['prepared_by_designation'] : null,
@@ -377,56 +428,156 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             ]);
         }
 
-        // Process item disposal - reduce stock quantities and remove items when disposed
-        if ($hasProductBatchesTable && $editingId <= 0) {
+        if ($activeStockTable === '') {
+            throw new RuntimeException('No active stock source table is available for incident processing.');
+        }
+
+        $pdo->beginTransaction();
+        try {
+            // Process item disposal - reduce stock quantities and write matching stock-card entries.
             foreach ($specRows as $specRow) {
                 $itemDesc = trim($specRow['item']);
                 $batchNum = trim($specRow['batch']);
+                $poNo = trim((string) ($specRow['po'] ?? ''));
                 $qtyDisposed = (int) ($specRow['qty'] ?? 0);
 
-                if ($itemDesc !== '' && $batchNum !== '' && $qtyDisposed > 0) {
-                    // Find the product by description
-                    $productLookup = $pdo->prepare('SELECT id FROM products WHERE TRIM(product_description) = ? LIMIT 1');
-                    $productLookup->execute([$itemDesc]);
-                    $product = $productLookup->fetch();
+                if ($itemDesc === '' || $batchNum === '' || $qtyDisposed <= 0) {
+                    continue;
+                }
 
-                    if ($product) {
-                        $productId = (int) $product['id'];
+                if ($activeStockTable === 'product_po_number') {
+                    $stockLookup = $pdo->prepare(
+                        'SELECT
+                            pp.id,
+                            pp.product_id,
+                            pp.stock_quantity,
+                            COALESCE(pp.cost_per_unit, p.cost_per_unit) AS unit_cost,
+                            p.product_description,
+                            p.uom,
+                            p.program,
+                            COALESCE(pp.po_no, p.po_no, "") AS po_no,
+                            p.supplier
+                         FROM product_po_number pp
+                         INNER JOIN products p ON p.id = pp.product_id
+                         WHERE LOWER(TRIM(p.product_description)) = LOWER(?)
+                           AND LOWER(TRIM(pp.batch_number)) = LOWER(?)
+                           AND (? = "" OR LOWER(TRIM(COALESCE(pp.po_no, p.po_no, ""))) = LOWER(?))
+                         ORDER BY pp.id ASC
+                         LIMIT 1
+                         FOR UPDATE'
+                    );
+                    $stockLookup->execute([$itemDesc, $batchNum, $poNo, $poNo]);
+                    $stockRow = $stockLookup->fetch(PDO::FETCH_ASSOC);
 
-                        // Find the batch and reduce stock
-                        $batchLookup = $pdo->prepare('SELECT id, stock_quantity FROM product_batches WHERE product_id = ? AND batch_number = ? LIMIT 1');
-                        $batchLookup->execute([$productId, $batchNum]);
-                        $batch = $batchLookup->fetch();
+                    if (!$stockRow) {
+                        throw new RuntimeException('Unable to resolve stock batch for incident item "' . $itemDesc . '".');
+                    }
 
-                        if ($batch) {
-                            $batchId = (int) $batch['id'];
-                            $currentStock = (int) $batch['stock_quantity'];
-                            $newStock = max(0, $currentStock - $qtyDisposed);
+                    $stockId = (int) ($stockRow['id'] ?? 0);
+                    $productId = (int) ($stockRow['product_id'] ?? 0);
+                    $currentStock = (int) ($stockRow['stock_quantity'] ?? 0);
+                    if ($qtyDisposed > $currentStock) {
+                        throw new RuntimeException('Insufficient stock while processing incident report.');
+                    }
 
-                            if ($newStock <= 0) {
-                                // Delete the batch when stock reaches 0
-                                $deleteBatchStmt = $pdo->prepare('DELETE FROM product_batches WHERE id = ?');
-                                $deleteBatchStmt->execute([$batchId]);
+                    $newStock = $currentStock - $qtyDisposed;
+                    if ($newStock <= 0) {
+                        $pdo->prepare('DELETE FROM product_po_number WHERE id = ?')->execute([$stockId]);
+                    } else {
+                        $pdo->prepare('UPDATE product_po_number SET stock_quantity = ? WHERE id = ?')->execute([$newStock, $stockId]);
+                    }
 
-                                // Check if product has any remaining batches
-                                $remainingBatchesStmt = $pdo->prepare('SELECT COUNT(*) as batch_count FROM product_batches WHERE product_id = ?');
-                                $remainingBatchesStmt->execute([$productId]);
-                                $remainingBatches = $remainingBatchesStmt->fetch();
+                    ptrAppendIssuedStockCardEntry(
+                        $pdo,
+                        $username,
+                        (string) ($stockRow['product_description'] ?? $itemDesc),
+                        (string) ($stockRow['uom'] ?? ''),
+                        $batchNum,
+                        (float) ($stockRow['unit_cost'] ?? 0),
+                        (string) ($stockRow['program'] ?? ''),
+                        (string) ($stockRow['po_no'] ?? ''),
+                        (string) ($stockRow['supplier'] ?? ''),
+                        $qtyDisposed,
+                        (float) $currentStock,
+                        (string) ($formData['incident_no'] ?? ''),
+                        $remarksWithIncidentType,
+                        $incidentDateTimeValue !== null ? substr($incidentDateTimeValue, 0, 10) : ''
+                    );
 
-                                // If no batches remain, delete the product
-                                if ($remainingBatches && (int) $remainingBatches['batch_count'] === 0) {
-                                    $deleteProductStmt = $pdo->prepare('DELETE FROM products WHERE id = ?');
-                                    $deleteProductStmt->execute([$productId]);
-                                }
-                            } else {
-                                // Update stock quantity
-                                $updateBatchStmt = $pdo->prepare('UPDATE product_batches SET stock_quantity = ? WHERE id = ?');
-                                $updateBatchStmt->execute([$newStock, $batchId]);
-                            }
-                        }
+                    if ($productId > 0) {
+                        pruneProductIfNoRemainingStock($pdo, $productId, $activeStockTable);
+                    }
+                } else {
+                    $stockLookup = $pdo->prepare(
+                        'SELECT
+                            b.id,
+                            b.product_id,
+                            b.stock_quantity,
+                            p.cost_per_unit AS unit_cost,
+                            p.product_description,
+                            p.uom,
+                            p.program,
+                            COALESCE(p.po_no, "") AS po_no,
+                            p.supplier
+                         FROM product_batches b
+                         INNER JOIN products p ON p.id = b.product_id
+                         WHERE LOWER(TRIM(p.product_description)) = LOWER(?)
+                           AND LOWER(TRIM(b.batch_number)) = LOWER(?)
+                           AND (? = "" OR LOWER(TRIM(COALESCE(p.po_no, ""))) = LOWER(?))
+                         ORDER BY b.id ASC
+                         LIMIT 1
+                         FOR UPDATE'
+                    );
+                    $stockLookup->execute([$itemDesc, $batchNum, $poNo, $poNo]);
+                    $stockRow = $stockLookup->fetch(PDO::FETCH_ASSOC);
+
+                    if (!$stockRow) {
+                        throw new RuntimeException('Unable to resolve stock batch for incident item "' . $itemDesc . '".');
+                    }
+
+                    $stockId = (int) ($stockRow['id'] ?? 0);
+                    $productId = (int) ($stockRow['product_id'] ?? 0);
+                    $currentStock = (int) ($stockRow['stock_quantity'] ?? 0);
+                    if ($qtyDisposed > $currentStock) {
+                        throw new RuntimeException('Insufficient stock while processing incident report.');
+                    }
+
+                    $newStock = $currentStock - $qtyDisposed;
+                    if ($newStock <= 0) {
+                        $pdo->prepare('DELETE FROM product_batches WHERE id = ?')->execute([$stockId]);
+                    } else {
+                        $pdo->prepare('UPDATE product_batches SET stock_quantity = ? WHERE id = ?')->execute([$newStock, $stockId]);
+                    }
+
+                    ptrAppendIssuedStockCardEntry(
+                        $pdo,
+                        $username,
+                        (string) ($stockRow['product_description'] ?? $itemDesc),
+                        (string) ($stockRow['uom'] ?? ''),
+                        $batchNum,
+                        (float) ($stockRow['unit_cost'] ?? 0),
+                        (string) ($stockRow['program'] ?? ''),
+                        (string) ($stockRow['po_no'] ?? ''),
+                        (string) ($stockRow['supplier'] ?? ''),
+                        $qtyDisposed,
+                        (float) $currentStock,
+                        (string) ($formData['incident_no'] ?? ''),
+                        $remarksWithIncidentType,
+                        $incidentDateTimeValue !== null ? substr($incidentDateTimeValue, 0, 10) : ''
+                    );
+
+                    if ($productId > 0) {
+                        pruneProductIfNoRemainingStock($pdo, $productId, $activeStockTable);
                     }
                 }
             }
+
+            $pdo->commit();
+        } catch (Throwable $releaseError) {
+            if ($pdo->inTransaction()) {
+                $pdo->rollBack();
+            }
+            throw $releaseError;
         }
 
         header('Location: incident_reports.php?msg=' . urlencode($editingId > 0 ? 'Incident report updated successfully.' : 'Incident report saved successfully.'));

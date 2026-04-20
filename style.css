@@ -2698,19 +2698,19 @@ a,
 
 .ptr-items-table {
     table-layout: fixed;
-    min-width: 980px;
+    min-width: 1040px;
 }
 
-.ptr-items-table .ptr-col-desc { width: 16%; }
-.ptr-items-table .ptr-col-batch { width: 12%; }
-.ptr-items-table .ptr-col-qty { width: 8%; }
-.ptr-items-table .ptr-col-unit { width: 8%; }
-.ptr-items-table .ptr-col-unit-cost { width: 10%; }
-.ptr-items-table .ptr-col-amount { width: 10%; }
-.ptr-items-table .ptr-col-program { width: 14%; }
-.ptr-items-table .ptr-col-po { width: 10%; }
-.ptr-items-table .ptr-col-exp { width: 11%; }
-.ptr-items-table .ptr-col-action { width: 9%; }
+.ptr-items-table .ptr-col-desc { width: 15%; }
+.ptr-items-table .ptr-col-po { width: 9%; }
+.ptr-items-table .ptr-col-batch { width: 11%; }
+.ptr-items-table .ptr-col-qty { width: 7%; }
+.ptr-items-table .ptr-col-unit { width: 7%; }
+.ptr-items-table .ptr-col-unit-cost { width: 9%; }
+.ptr-items-table .ptr-col-amount { width: 9%; }
+.ptr-items-table .ptr-col-program { width: 13%; }
+.ptr-items-table .ptr-col-exp { width: 12%; }
+.ptr-items-table .ptr-col-action { width: 8%; }
 
 .ptr-items-table th {
     font-size: 0.75rem;
@@ -2728,8 +2728,19 @@ a,
     font-size: 0.84rem;
 }
 
+.ptr-items-table .item-expiration {
+    min-width: 128px;
+}
+
 .preview-signatory-half {
     width: 50%;
+}
+
+.preview-purpose-cell .preview-purpose-value {
+    display: inline-block;
+    font-size: 1.18rem;
+    line-height: 1.28;
+    font-weight: 600;
 }
 
 .ptr-signatory-name {
